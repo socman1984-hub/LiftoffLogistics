@@ -277,8 +277,9 @@ const PANELS = {
   rackdetail: { title: '🗄️ Rack', html: () => rackDetailHTML() },
   worker: { title: '👷 Worker', html: () => workerHTML() },
   confirmremove: { title: '🗑️ Remove?', html: () => confirmRemoveHTML() },
+  finance: { title: '💵 Finances', html: () => financeHTML() },
 };
-const LIVE_PANELS = ['map', 'logistics', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker'];
+const LIVE_PANELS = ['map', 'logistics', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker', 'finance'];
 const SLOW_PANELS = ['map', 'logistics']; // lots of buttons; refresh less often
 
 function renderPanel() {
@@ -715,6 +716,7 @@ function onPanelClick(e) {
   if (act === 'close') { closePanel(); return; }
   if (act === 'mtab') { ui.marketTab = id; renderPanel(); return; }
   if (act === 'openshop') { openPanel('shop'); return; }
+  if (act === 'finwin') { ui.finWin = id; renderPanel(); return; }
   if (act === 'tutorial') { restartTutorial(); closePanel(); refreshTutorial(); return; }
   if (act === 'showalert') {
     const [site, x, y] = id.split('|');
@@ -733,7 +735,7 @@ function onPanelClick(e) {
     const o = curProp().tiles[ui.facSel.y][ui.facSel.x].obj;
     const lvl = o.lvl || 1;
     const cost = Math.round(buildCost(o.k, curDef()) * FAC_UPGRADE_MULT[lvl]);
-    if (lvl < FACILITIES[o.k].levels.length && spend(cost)) {
+    if (lvl < FACILITIES[o.k].levels.length && spend(cost, 'upgrades', FACILITIES[o.k].name)) {
       o.lvl = lvl + 1;
       o.spent = (o.spent || 0) + cost;
       rt(state.current).covT = 0;
@@ -747,7 +749,7 @@ function onPanelClick(e) {
     const o = curProp().tiles[ui.rackSel.y][ui.rackSel.x].obj;
     const lvl = o.lvl || 1;
     const cost = Math.round(buildCost('rack', curDef()) * RACK.upMult[lvl]);
-    if (lvl < RACK.levels.length && spend(cost)) {
+    if (lvl < RACK.levels.length && spend(cost, 'upgrades', 'Rack')) {
       o.lvl = lvl + 1;
       o.spent = (o.spent || 0) + cost;
       markLayoutDirty(state.current);
@@ -773,7 +775,7 @@ function onPanelClick(e) {
   if (act === 'facclean') {
     const o = curProp().tiles[ui.facSel.y][ui.facSel.x].obj;
     const cost = Math.max(1, Math.round(buildCost(o.k, curDef()) * 0.05));
-    if (spend(cost)) { cleanBy(state.current, o, DIRT.filthy); toast('🧽 Sparkling clean'); }
+    if (spend(cost, 'repair', `Clean ${FACILITIES[o.k].name}`)) { cleanBy(state.current, o, DIRT.filthy); toast('🧽 Sparkling clean'); }
     renderPanel();
     return;
   }
@@ -796,7 +798,7 @@ function onPanelClick(e) {
   if (act === 'offline2x') {
     if (ui.lastOffline > 0 && state.gems >= OFFLINE_DOUBLE_COST) {
       state.gems -= OFFLINE_DOUBLE_COST;
-      state.money += ui.lastOffline;
+      earn(ui.lastOffline, 'offline', 'Doubled with gems');
       toast(`💰 Doubled! +${fmt(ui.lastOffline)}`);
       ui.lastOffline = 0;
       save();
@@ -809,7 +811,7 @@ function onPanelClick(e) {
   if (handled) { renderPanel(); refreshTopbar(); refreshToolbar(); return; }
   if (act === 'buyprop') {
     const pd = PROP_BY_ID[id];
-    if (spend(pd.price)) {
+    if (spend(pd.price, 'property', pd.name)) {
       state.props[id].owned = true;
       if (PROPERTIES.some((d) => d.id !== id && state.props[d.id].owned)) {
         state.garage.trucks++; // every new site comes with a truck
@@ -828,17 +830,17 @@ function onPanelClick(e) {
   } else if (act === 'upgrade') {
     const u = UPGRADES.find((x) => x.id === id);
     const lvl = prop.upgrades[id];
-    if (lvl < u.max && spend(upgradeCost(u, lvl, def))) { prop.upgrades[id]++; save(); }
+    if (lvl < u.max && spend(upgradeCost(u, lvl, def), 'upgrades', u.name)) { prop.upgrades[id]++; save(); }
   } else if (act === 'repairall') {
     let n = 0;
     for (const row of prop.tiles) for (const t of row) if (t.base === 'broken') n++;
-    if (spend(n * def.repairCost)) {
+    if (spend(n * def.repairCost, 'repair', `Repair ${n} floor tiles`)) {
       for (const row of prop.tiles) for (const t of row) if (t.base === 'broken') t.base = 'floor';
       save();
     }
   } else if (act === 'hire') {
     const s = STAFF_BY_ID[id];
-    if (prop.staff[id] < s.max && spend(Math.round(staffWage(s, def, prop) * HIRE_FEE_MINUTES))) {
+    if (prop.staff[id] < s.max && spend(Math.round(staffWage(s, def, prop) * HIRE_FEE_MINUTES), 'hiring', s.name)) {
       prop.staff[id]++;
       toast(`${s.icon} ${s.name} hired`);
       save();
@@ -939,8 +941,8 @@ function replaceObj(x, y, kind) {
   const old = t.obj;
   const credit = refund(old, def);
   const net = buildCost(kind, def) - credit;
-  if (net > 0 && !spend(net)) { toast(`Need ${fmt(net)} more`); return false; }
-  if (net < 0) state.money -= net;
+  if (net > 0 && !spend(net, 'build', `Swap to ${kind}`)) { toast(`Need ${fmt(net)} more`); return false; }
+  if (net < 0) earn(-net, 'refunds', `Swap to ${kind}`);
   clearItemAt(state.current, x, y);
   const before = reachableTargets(prop, def);
   const name = (k) => (k === 'belt' ? 'Conveyor' : k === 'assembler' ? 'Assembler' : k === 'splitter' ? 'Splitter' : k === 'sorter' ? 'Sorter' : MACHINES[k].name);
@@ -975,7 +977,7 @@ function placeObj(x, y, kind, dir) {
   const prep = prepCost(t, def);
   if (prep < 0 || t.obj) return false;
   const cost = prep + buildCost(kind, def);
-  if (!spend(cost)) { toast(`Need ${fmt(cost)}`); return false; }
+  if (!spend(cost, 'build', kind === 'belt' ? 'Conveyor' : MACHINES[kind] ? MACHINES[kind].name : FACILITIES[kind] ? FACILITIES[kind].name : kind[0].toUpperCase() + kind.slice(1))) { toast(`Need ${fmt(cost)}`); return false; }
   const blocks = kind !== 'belt' && kind !== 'splitter' && kind !== 'sorter'; // workers can't walk through it
   const before = blocks ? reachableTargets(prop, def) : null;
   t.base = 'floor';
@@ -989,7 +991,7 @@ function repairTile(x, y) {
   const def = curDef(), prop = curProp();
   const t = prop.tiles[y][x];
   if (t.base !== 'broken') return false;
-  if (!spend(def.repairCost)) { toast(`Need ${fmt(def.repairCost)}`); return false; }
+  if (!spend(def.repairCost, 'repair', 'Floor repair')) { toast(`Need ${fmt(def.repairCost)}`); return false; }
   t.base = 'floor';
   return true;
 }
@@ -1000,7 +1002,7 @@ function removeTile(x, y) {
   if (!t.obj) return false;
   const back = refund(t.obj, def);
   const pct = Math.round(refundFraction(t.obj) * 100);
-  state.money += back;
+  earn(back, 'refunds', `Removed ${objLabel(t.obj)}`);
   toast(`🗑️ Removed: ${fmt(back)} back (${pct}%)`);
   clearItemAt(state.current, x, y);
   t.obj = null;
@@ -1016,7 +1018,7 @@ function upgradeTile(x, y) {
   if (!next) { toast('Already Express'); return false; }
   if (next.research && !hasResearch(next.research)) { toast('🔬 Research "Express Belts" first'); return false; }
   const cost = buildCost('belt', def, t.obj.tier + 1);
-  if (!spend(cost)) { toast(`Need ${fmt(cost)}`); return false; }
+  if (!spend(cost, 'upgrades', `${next.name} conveyor`)) { toast(`Need ${fmt(cost)}`); return false; }
   t.obj.tier++;
   t.obj.life = equipLife(t.obj);
   toast(`⏫ ${next.name} conveyor (−${fmt(cost)})`);
@@ -1037,7 +1039,7 @@ function fixMachine(x, y) {
   const def = curDef();
   const o = curProp().tiles[y][x].obj;
   const cost = fixCost(o, def);
-  if (!spend(cost)) { toast(`Need ${fmt(cost)} to fix`); return; }
+  if (!spend(cost, 'repair', `Fix ${objLabel(o)}`)) { toast(`Need ${fmt(cost)} to fix`); return; }
   unjam(o);
   state.fixes = (state.fixes || 0) + 1;
   toast(`🔧 Fixed for ${fmt(cost)}`);
@@ -1075,7 +1077,7 @@ function tryBuyDock(x, y) {
   if (confirm(`Open this ${what}
 
 Cost: ${fmt(t.price)}`)) {
-    spend(t.price);
+    spend(t.price, 'docks', kind);
     t.locked = false;
     toast(`New ${label} open!`);
     save();
@@ -1132,7 +1134,7 @@ function handleTap(x, y) {
   if (tool === 'repair') {
     if (t.base === 'floor' && (t.dirt || 0) >= DIRT.dirty) {
       const cost = Math.max(1, Math.round(curDef().repairCost / 2));
-      if (spend(cost)) { t.dirt = 0; toast(`🧽 Cleaned for ${fmt(cost)}`); } else toast(`Need ${fmt(cost)}`);
+      if (spend(cost, 'repair', 'Floor cleaning')) { t.dirt = 0; toast(`🧽 Cleaned for ${fmt(cost)}`); } else toast(`Need ${fmt(cost)}`);
     } else if (t.base !== 'broken') toast('Floor is fine here');
     else repairTile(x, y);
   } else if (tool === 'rack') {
@@ -1148,7 +1150,7 @@ function handleTap(x, y) {
     if (f.outside) {
       if (!isOutsideSpot(curDef(), prop, x, y)) { toast(`${f.icon} ${f.name}s go outside: tap a highlighted spot on the outer wall`); return; }
       const cost = buildCost(type, curDef());
-      if (!spend(cost)) { toast(`Need ${fmt(cost)}`); return; }
+      if (!spend(cost, 'build', f.name)) { toast(`Need ${fmt(cost)}`); return; }
       t.obj = { k: type, dir: 0, placedAt: state.clock };
       markLayoutDirty(state.current);
       toast(`${f.icon} ${f.name} built outside`);
@@ -1388,6 +1390,7 @@ function initInput() {
   $('propBtn').addEventListener('click', () => openPanel('map'));
   $('rep').addEventListener('click', () => openPanel('research'));
   $('gems').addEventListener('click', () => openPanel('shop'));
+  document.querySelector('#topbar .stat').addEventListener('click', () => openPanel('finance'));
   $('alertPill').addEventListener('click', () => openPanel('alerts'));
   $('heatBtn').addEventListener('click', () => openPanel('heat'));
   $('confirmYes').addEventListener('click', confirmPlan);

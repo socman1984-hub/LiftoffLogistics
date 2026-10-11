@@ -7,10 +7,10 @@ let devSpeed = 1; // read by the game loop in main.js
 
 const DEV_ACTIONS = {
   // Money & currencies
-  money10k: () => { state.money += 1e4; },
-  money100k: () => { state.money += 1e5; },
-  money1m: () => { state.money += 1e6; },
-  money10m: () => { state.money += 1e7; },
+  money10k: () => { earn(1e4, 'dev', 'Cheat'); },
+  money100k: () => { earn(1e5, 'dev', 'Cheat'); },
+  money1m: () => { earn(1e6, 'dev', 'Cheat'); },
+  money10m: () => { earn(1e7, 'dev', 'Cheat'); },
   rep10: () => { state.rep += 10; },
   gems100: () => { state.gems += 100; },
   // Unlocks
@@ -30,7 +30,7 @@ const DEV_ACTIONS = {
   noBreakdowns: () => { ui.devNoWear = !ui.devNoWear; },
   contracts: () => {
     const c = state.contracts;
-    for (const a of c.active) { state.money += a.reward; state.rep += a.stars; c.done++; }
+    for (const a of c.active) { earn(a.reward, 'contracts', a.client); state.rep += a.stars; c.done++; }
     c.active = [];
     c.offers = [];
     c.nextOfferAt = 0;

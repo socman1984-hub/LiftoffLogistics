@@ -390,9 +390,66 @@ function contractSlots() {
 function offlineRate() { return hasResearch('nightshift') ? OFFLINE_RESEARCH_RATE : OFFLINE_BASE_RATE; }
 function offlineCapSec() { return (hasResearch('nightshift') ? 12 : 8) * 3600; }
 
-function spend(amount) {
+// ---- Ledger: every money change is booked by category ----
+const LEDGER_CATS = {
+  sales: { label: 'Sales', icon: '💰' },
+  contracts: { label: 'Contracts', icon: '📋' },
+  stored: { label: 'Stored stock sold', icon: '🗄️' },
+  launch: { label: 'Surplus rocket parts', icon: '🚀' },
+  refunds: { label: 'Refunds', icon: '↩️' },
+  offline: { label: 'Offline earnings', icon: '🌙' },
+  boost: { label: 'Boosts', icon: '⏱️' },
+  raw: { label: 'Raw materials', icon: '🔩' },
+  wages: { label: 'Wages', icon: '👷' },
+  build: { label: 'Construction', icon: '🏗️' },
+  repair: { label: 'Repairs & cleaning', icon: '🔨' },
+  upgrades: { label: 'Upgrades', icon: '⏫' },
+  docks: { label: 'Docks', icon: '🚪' },
+  hiring: { label: 'Hiring fees', icon: '🤝' },
+  trucks: { label: 'Trucks', icon: '🚚' },
+  property: { label: 'Properties', icon: '🏢' },
+  dev: { label: 'Test mode', icon: '🧪' },
+  other: { label: 'Other', icon: '•' },
+};
+// Constant streams (aggregated, not listed one by one in "recent").
+const LEDGER_STREAMS = new Set(['sales', 'raw', 'wages']);
+const ledger = { buckets: new Map(), session: {}, recent: [] };
+
+function book(cat, amt, note, site) {
+  if (!amt || !state) return;
+  const sec = Math.floor(state.clock);
+  let b = ledger.buckets.get(sec);
+  if (!b) {
+    b = {};
+    ledger.buckets.set(sec, b);
+    for (const k of ledger.buckets.keys()) { if (k < sec - 600) ledger.buckets.delete(k); else break; }
+  }
+  b[cat] = (b[cat] || 0) + amt;
+  ledger.session[cat] = (ledger.session[cat] || 0) + amt;
+  if (!LEDGER_STREAMS.has(cat)) {
+    ledger.recent.unshift({ t: state.clock, cat, amt, note: note || '', site: site || state.current });
+    if (ledger.recent.length > 25) ledger.recent.length = 25;
+  }
+}
+
+// Totals by category over the last `secs` seconds (null = whole session).
+function ledgerTotals(secs) {
+  if (secs == null) return { ...ledger.session };
+  const out = {};
+  const from = state.clock - secs;
+  for (const [sec, b] of ledger.buckets) if (sec >= from) for (const [k, v] of Object.entries(b)) out[k] = (out[k] || 0) + v;
+  return out;
+}
+
+function earn(amount, cat, note, site) {
+  state.money += amount;
+  book(cat, amount, note, site);
+}
+
+function spend(amount, cat = 'other', note) {
   if (state.money < amount) return false;
   state.money -= amount;
+  book(cat, -amount, note);
   return true;
 }
 

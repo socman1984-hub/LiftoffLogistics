@@ -401,7 +401,7 @@ function handleEnterpriseAct(act, id) {
     return true;
   }
   if (act === 'buytruck') {
-    if (spend(truckCost())) { state.garage.trucks++; toast('🚚 New truck in the garage. Assign it to a route'); save(); }
+    if (spend(truckCost(), 'trucks', 'New truck')) { state.garage.trucks++; toast('🚚 New truck in the garage. Assign it to a route'); save(); }
     return true;
   }
   if (act === 'tassign') {
@@ -421,7 +421,7 @@ function handleEnterpriseAct(act, id) {
   if (act === 'rdel') { delete state.fleet[id]; save(); return true; }
   if (act === 'sellstored') { toast(`💰 Sold stored stock for ${fmt(sellStored(id))}`); save(); return true; }
   if (act === 'buylaunch') {
-    if (!state.launch.owned && spend(LAUNCH.price)) {
+    if (!state.launch.owned && spend(LAUNCH.price, 'property', 'Launch Site')) {
       state.launch.owned = true;
       toast('🚀 Launch Site bought! Truck rocket parts here.');
       save();

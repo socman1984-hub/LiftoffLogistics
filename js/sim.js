@@ -272,7 +272,7 @@ function shipOut(id, prop, r, it, x, y) {
   const p = it.product;
   const amount = it.value * demandOf(p) * eventMult(p) * valueMult(id, prop) * (boostActive('double') ? 2 : 1);
   state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - MARKET.drop[productTier(p)]);
-  state.money += amount;
+  earn(amount, 'sales', PRODUCTS[p].name, id);
   prop.earned += amount;
   prop.shipped[it.product] = (prop.shipped[it.product] || 0) + 1;
   r.sales.push({ t: r.time, v: amount });
@@ -426,7 +426,7 @@ function stepProperty(id, dt) {
   // Wages. Unpaid staff stop working until you can cover them.
   const wage = (wagesPerMin(id) / 60) * dt;
   if (wage > 0) {
-    if (state.money >= wage) { state.money -= wage; r.unpaid = false; }
+    if (state.money >= wage) { state.money -= wage; book('wages', -wage, null, id); r.unpaid = false; }
     else r.unpaid = true;
   } else r.unpaid = false;
 
@@ -471,7 +471,7 @@ function stepProperty(id, dt) {
     }
     r.timers[key] -= interval;
     if (d.receive) { prop.inbox[product]--; takeMove(id); }
-    else if (cost) { state.money -= cost; r.costs.push({ t: r.time, v: cost }); }
+    else if (cost) { state.money -= cost; book('raw', -cost, PRODUCTS[product].name, id); r.costs.push({ t: r.time, v: cost }); }
     const it = makeItem(product, d.x, d.y, 0.3, opposite(t.dir), t.dir);
     r.items.push(it);
     r.occ[d.y][d.x] = it;
@@ -571,7 +571,7 @@ function sellStored(id) {
       state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - MARKET.drop[productTier(p)]);
     }
   }
-  state.money += total;
+  earn(total, 'stored', 'Stored stock', id);
   prop.earned += total;
   prop.held = {};
   return total;
@@ -651,7 +651,7 @@ function deliver(to, load) {
       const room = Math.max(0, (need[p] || 0) - (state.launch.parts[p] || 0));
       const take = Math.min(room, n);
       state.launch.parts[p] = (state.launch.parts[p] || 0) + take;
-      if (n > take) state.money += (n - take) * PRODUCTS[p].value; // surplus sold at list price
+      if (n > take) earn((n - take) * PRODUCTS[p].value, 'launch', PRODUCTS[p].name, 'launch'); // surplus sold at list price
     }
     return;
   }

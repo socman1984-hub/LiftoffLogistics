@@ -103,7 +103,7 @@ function onPackageShipped(it) {
     a.progress++;
     if (a.progress >= a.n) {
       a.complete = true;
-      state.money += a.reward;
+      earn(a.reward, 'contracts', a.client);
       state.rep += a.stars;
       state.gems += GEMS.perContract;
       c.done++;

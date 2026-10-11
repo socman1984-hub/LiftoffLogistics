@@ -96,7 +96,7 @@ function buyBoost(id) {
     const gain = Math.max(0, netRate() - (boostActive('double') ? totalRate() / 2 : 0)) * 60;
     if (gain <= 0) { toast('Nothing to warp. Get some income flowing first'); return; }
     state.gems -= b.cost;
-    state.money += gain;
+    earn(gain, 'boost', 'Time Warp');
     toast(`⏱️ Time Warp: +${fmt(gain)}`);
   } else if (id === 'crew') {
     let fixed = 0;

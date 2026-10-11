@@ -34,7 +34,7 @@ function awardOffline(fromMs, rates) {
   const slow = Math.min(awaySecs - full, offlineCapSec());
   state.awayBoost = Math.max(0, (state.awayBoost || 0) - full);
   const earned = (rate / 60) * (full + slow * offlineRate());
-  state.money += earned;
+  earn(earned, 'offline', fmtDur(awaySecs));
   ui.lastOffline = earned;
   const pct = Math.round(offlineRate() * 100);
   let breakdown = full

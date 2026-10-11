@@ -442,3 +442,14 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 
 .confirm-row { display: flex; gap: 10px; }
 .confirm-row .btn { flex: 1; }
+
+/* ---- Finances ---- */
+#topbar .stat { cursor: pointer; padding: 2px 6px; margin: -2px -6px; border-radius: 8px; }
+#topbar .stat:active { background: rgba(255,255,255,0.06); }
+#rate::after { content: ' ⓘ'; color: var(--muted); font-size: 11px; }
+.fin-net { text-align: center; font-size: 26px; font-weight: 800; margin: 4px 0 6px; }
+.fin-net .muted { display: block; font-size: 12px; font-weight: 400; }
+.fin-site { border-bottom: 1px solid #3a404c; padding: 6px 0; }
+.fin-site-name { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; }
+
+#rate { white-space: nowrap; }

@@ -34,6 +34,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   swaps it, keeping its direction.
 - **Refunds**: 100% if removed within 2 minutes of building, sliding to 25% over the next 10 minutes.
   **Double-tap** anything you built to remove it (asks first, shows the refund).
+- **💵 Finances**: tap your money (top-left) to see income and costs by category (last minute, 10 min,
+  session), each site's running rates, and a feed of recent one-off charges and credits.
 - **People**: tap a worker (🔍 Inspect) to see who they are, what they're doing, mood, pace and wage.
 - **🔍 Inspect** (no tool selected): tapping shows what's there (wear, contents, costs) and opens
   assembler, sorter, rack and facility details without building anything.
@@ -120,6 +122,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 | `js/workers.js` | Walking workers: path-finding, roles, breaks, alerts |
 | `js/heat.js` | Heatmap overlays |
 | `js/tutorial.js` | Guided tutorial for new players |
+| `js/finance.js` | Finances panel (money ledger by category) |
 | `js/contracts.js` | Contract offers, deadlines, rewards |
 | `js/enterprise.js` | Map view, logistics (distribution plans + fleet), launch site, assembler recipes |
 | `js/economy.js` | Market prices panel, 💎 boost shop, daily bonus |
