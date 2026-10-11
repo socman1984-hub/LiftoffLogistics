@@ -431,7 +431,7 @@ function rackDetailHTML() {
     html += card('⏫', `Upgrade this rack to level ${lvl + 1}`, `Holds ${RACK.levels[lvl]} instead of ${slots}`, '',
       `<button class="btn" data-act="rackup" ${state.money < cost ? 'disabled' : ''}>${fmt(cost)}</button>`);
   } else html += '<p class="intro small">This rack is fully upgraded.</p>';
-  html += `<p class="intro small">Racks fill one at a time. Run a conveyor into any rack to store products directly (no forklift needed).
+  html += `<p class="intro small">Goods stay on the rack they were put on; upgrading adds room here for new stock. Run a conveyor into any rack to store products directly (no forklift needed).
     Stored stock leaves on a truck when a destination in its plan has room, or sell it below.</p>`;
   html += storageBoxHTML(id);
   html += `<button class="btn danger" style="width:100%;margin-top:6px" data-act="rackremove">Remove this rack (refund ${fmt(refund(o, curDef()))})</button>`;

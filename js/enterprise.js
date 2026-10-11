@@ -235,11 +235,16 @@ function storedSellHTML(id) {
   if (!held.length) return '';
   let all = 0;
   let html = '<div class="sell-list"><div class="ctl-lbl">Sell stored stock</div>';
+  const qtys = ui.sellQty || (ui.sellQty = {});
   for (const [p, n] of held) {
-    const v = storedSaleValue(id, p, n);
-    all += v;
-    html += `<div class="sell-row"><span>${PRODUCTS[p].icon} ${n} ${PRODUCTS[p].name}<span class="muted"> · ≈${fmt(v)}</span></span>
-      <button class="btn small secondary" data-act="sellstored" data-id="${id}|${p}">💰 Sell</button></div>`;
+    all += storedSaleValue(id, p, n);
+    // How many to sell: defaults to all of it, and follows the stock if it shrinks.
+    const q = Math.max(1, Math.min(n, qtys[p] || n));
+    const step = (delta, label, dis) => `<button class="step" data-act="sellq" data-id="${id}|${p}|${delta}" ${dis ? 'disabled' : ''}>${label}</button>`;
+    html += `<div class="sell-row"><span>${PRODUCTS[p].icon} ${n} ${PRODUCTS[p].name}</span>
+      <span class="sell-ctl">${step(-10, '−10', q <= 1)}${step(-1, '−', q <= 1)}<b>${q}</b>${step(1, '+', q >= n)}${step(10, '+10', q >= n)}
+        <button class="chip ${q === n ? 'on' : ''}" data-act="sellq" data-id="${id}|${p}|max">All</button></span>
+      <button class="btn small secondary sell-btn" data-act="sellstored" data-id="${id}|${p}|${q}">💰 Sell ${q} · ≈${fmt(storedSaleValue(id, p, q))}</button></div>`;
   }
   if (held.length > 1) html += `<button class="btn small" style="width:100%;margin-top:6px" data-act="sellstored" data-id="${id}">💰 Sell all (≈${fmt(all)})</button>`;
   return html + '</div>';
@@ -434,10 +439,21 @@ function handleEnterpriseAct(act, id) {
     save();
     return true;
   }
+  if (act === 'sellq') {
+    const [site, p, d] = id.split('|');
+    const have = state.props[site].held[p] || 0;
+    const qtys = ui.sellQty || (ui.sellQty = {});
+    const cur = Math.max(1, Math.min(have, qtys[p] || have));
+    qtys[p] = d === 'max' ? have : Math.max(1, Math.min(have, cur + Number(d)));
+    renderPanel();
+    return true;
+  }
   if (act === 'rdel') { delete state.fleet[id]; save(); return true; }
   if (act === 'sellstored') {
-    const [site, p] = id.split('|');
-    toast(`💰 Sold ${p ? PRODUCTS[p].name : 'all stored stock'} for ${fmt(sellStored(site, p))}`);
+    const [site, p, q] = id.split('|');
+    const n = Number(q) || 0;
+    toast(`💰 Sold ${p ? `${n || 'all'} ${PRODUCTS[p].name}` : 'all stored stock'} for ${fmt(sellStored(site, p, n))}`);
+    if (p && ui.sellQty) delete ui.sellQty[p];
     save();
     return true;
   }

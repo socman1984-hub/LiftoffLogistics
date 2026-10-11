@@ -879,8 +879,6 @@ function render(tool) {
   for (const d of def.inDocks) dockDefs[d.x + ',' + d.y] = d;
   let waiting = 0;
   for (const p of Object.keys(prop.inbox)) waiting += prop.inbox[p];
-  // Racks fill one at a time in reading order.
-  const usedAll = storageUsed(state.current);
   const racksIdx = rackIndex(state.current);
   const showRepair = tool === 'repair' || tool === 'belt';
   const repairCost = def.repairCost;
@@ -916,7 +914,7 @@ function render(tool) {
             else if (t.obj.k === 'assembler') drawAssembler(t.obj, px, py, s, r.crewed.get(x + ',' + y) || 0);
             else if (t.obj.k === 'rack') {
               const info = racksIdx.get(x + ',' + y);
-              const used = Math.max(0, Math.min(info.cap, usedAll - info.start));
+              const used = Math.min(info.cap, rackLoad(t.obj));
               drawRack(px, py, s, used / info.cap, x * 31 + y * 17, used, info.cap);
               if ((t.obj.lvl || 1) > 1) {
                 ctx.fillStyle = '#f2c94c';

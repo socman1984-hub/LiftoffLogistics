@@ -467,3 +467,10 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 /* ---- Sell stored stock ---- */
 .sell-list { margin-top: 8px; }
 .sell-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #3a404c; font-size: 13px; }
+
+.sell-row { flex-wrap: wrap; gap: 6px; }
+.sell-ctl { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.sell-ctl b { min-width: 26px; text-align: center; }
+.sell-ctl .step { min-width: 30px; padding: 0 6px; }
+.sell-ctl .chip { padding: 4px 10px; }
+.sell-btn { width: 100%; }

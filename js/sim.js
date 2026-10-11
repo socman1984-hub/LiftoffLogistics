@@ -199,32 +199,84 @@ function storageUnits(id) {
   return units;
 }
 
-// Racks fill in reading order: 'x,y' -> { k, start, cap }.
+// Racks in reading order: 'x,y' -> { k, cap, obj }.
 function rackIndex(id) {
   const idx = new Map();
-  let start = 0;
   state.props[id].tiles.forEach((row, y) => row.forEach((t, x) => {
     if (!t.obj || t.obj.k !== 'rack') return;
-    const cap = rackCapOf(t.obj);
-    idx.set(x + ',' + y, { k: idx.size, start, cap });
-    start += cap;
+    idx.set(x + ',' + y, { k: idx.size, cap: rackCapOf(t.obj), obj: t.obj });
   }));
   return idx;
 }
 
-function rackContents(id, info) {
-  let skip = info.start, room = info.cap;
-  const out = [];
-  for (const u of storageUnits(id)) {
-    let n = u.n;
-    if (skip >= n) { skip -= n; continue; }
-    n -= skip; skip = 0;
-    const take = Math.min(n, room);
-    out.push({ p: u.p, n: take, kind: u.kind });
-    room -= take;
-    if (!room) break;
+// Each rack remembers what sits on it (o.stock: 'kind:product' -> n), so goods
+// stay put: upgrading a rack only adds room, it never pulls stock off others.
+// The site totals (held/outbox/inbox) stay the source of truth; this keeps the
+// racks in step with them each tick.
+const rackLoad = (o) => Object.values(o.stock || {}).reduce((a, b) => a + b, 0);
+
+function syncRacks(id) {
+  const racks = [...rackIndex(id).values()].map((i) => i.obj);
+  const want = {};
+  for (const u of storageUnits(id)) want[u.kind + ':' + u.p] = u.n;
+  const have = {};
+  for (const o of racks) {
+    const st = o.stock || (o.stock = {});
+    // A rack that shrank (shouldn't happen) drops what no longer fits.
+    let over = rackLoad(o) - rackCapOf(o);
+    for (const k of Object.keys(st)) { if (over <= 0) break; const n = Math.min(st[k], over); st[k] -= n; over -= n; }
+    for (const [k, n] of Object.entries(st)) if (n > 0) have[k] = (have[k] || 0) + n; else delete st[k];
   }
-  return out;
+  // Same product changing role (stored -> waiting for a truck): relabel in place.
+  for (const k of Object.keys(have)) {
+    let extra = have[k] - (want[k] || 0);
+    if (extra <= 0) continue;
+    const p = k.slice(k.indexOf(':') + 1);
+    for (const k2 of Object.keys(want)) {
+      if (extra <= 0) break;
+      if (k2 === k || !k2.endsWith(':' + p)) continue;
+      let short = want[k2] - (have[k2] || 0);
+      for (const o of racks) {
+        if (extra <= 0 || short <= 0) break;
+        const n = Math.min(o.stock[k] || 0, extra, short);
+        if (!n) continue;
+        o.stock[k] -= n; if (!o.stock[k]) delete o.stock[k];
+        o.stock[k2] = (o.stock[k2] || 0) + n;
+        have[k] -= n; have[k2] = (have[k2] || 0) + n; extra -= n; short -= n;
+      }
+    }
+  }
+  // Gone (sold, loaded, unloaded onto the floor): take from the last racks first.
+  for (const k of Object.keys(have)) {
+    let extra = have[k] - (want[k] || 0);
+    for (let i = racks.length - 1; i >= 0 && extra > 0; i--) {
+      const st = racks[i].stock;
+      const n = Math.min(st[k] || 0, extra);
+      if (!n) continue;
+      st[k] -= n; if (!st[k]) delete st[k];
+      extra -= n;
+    }
+  }
+  // New arrivals (or goods waiting at the dock staging) go to the first rack with room.
+  for (const [k, n] of Object.entries(want)) {
+    let short = n - Math.max(0, Math.min(have[k] || 0, n));
+    for (const o of racks) {
+      if (short <= 0) break;
+      const room = rackCapOf(o) - rackLoad(o);
+      const m = Math.min(room, short);
+      if (m <= 0) continue;
+      o.stock[k] = (o.stock[k] || 0) + m;
+      short -= m;
+    }
+  }
+}
+
+function rackContents(id, info) {
+  const order = { stored: 0, outgoing: 1, incoming: 2 };
+  return Object.entries(info.obj.stock || {}).filter(([, n]) => n > 0).map(([k, n]) => {
+    const i = k.indexOf(':');
+    return { kind: k.slice(0, i), p: k.slice(i + 1), n };
+  }).sort((a, b) => order[a.kind] - order[b.kind]);
 }
 
 // Can `d` take another package? Trucked destinations need a free rack slot
@@ -404,7 +456,10 @@ function tryMove(id, prop, def, r, it) {
   }
   if (nt.obj && nt.obj.k === 'rack') {
     // Conveyed straight onto the racks: stored stock (no forklift move needed).
+    // It lands on this rack when there's room; otherwise the next free one.
     prop.held[it.product] = (prop.held[it.product] || 0) + 1;
+    const st = nt.obj.stock || (nt.obj.stock = {});
+    if (rackLoad(nt.obj) < rackCapOf(nt.obj)) st['stored:' + it.product] = (st['stored:' + it.product] || 0) + 1;
     addFloater(id, r, nx + 0.5, ny + 0.3, '🗄️', '242,201,76');
     it.dead = true;
     return true;
@@ -478,6 +533,7 @@ function stepProperty(id, dt) {
     r.power = powerFactor(id);
     r.powerT = 0.5;
     releaseStored(id, prop, r);
+    syncRacks(id);
   }
 
   stepWorkers(id, prop, def, r, dt);
@@ -602,19 +658,23 @@ function storedSaleValue(id, p, n) {
   return total;
 }
 
-// Sell stored stock: one product, or everything when `only` is omitted.
-function sellStored(id, only) {
+// Sell stored stock: `qty` of one product (all of it by default), or
+// everything when `only` is omitted.
+function sellStored(id, only, qty) {
   const prop = state.props[id];
-  let total = 0;
-  for (const [p, n] of Object.entries(prop.held)) {
+  let total = 0, sold = 0;
+  for (const [p, have] of Object.entries(prop.held)) {
     if (only && p !== only) continue;
+    const n = only && qty ? Math.min(qty, have) : have;
     for (let i = 0; i < n; i++) {
       total += marketPrice(p) * valueMult(id, prop);
       state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - MARKET.drop[productTier(p)]);
     }
-    delete prop.held[p];
+    sold += n;
+    prop.held[p] = have - n;
+    if (!prop.held[p]) delete prop.held[p];
   }
-  earn(total, 'stored', only ? `Sold stored ${PRODUCTS[only].name}` : 'Sold all stored stock', id);
+  earn(total, 'stored', only ? `Sold ${sold} stored ${PRODUCTS[only].name}` : 'Sold all stored stock', id);
   prop.earned += total;
   return total;
 }
