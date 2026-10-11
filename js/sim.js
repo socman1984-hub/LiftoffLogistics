@@ -100,7 +100,7 @@ function baseLife(o) {
 }
 
 function equipLife(o) {
-  return Math.round(baseLife(o) * (hasResearch('maint') ? 2 : 1) * (0.75 + Math.random() * 0.5));
+  return Math.round(baseLife(o) * (1 + rfx('life')) * (0.75 + Math.random() * 0.5));
 }
 
 const EQUIP_NAMES = { belt: 'Conveyor', splitter: 'Splitter', sorter: 'Sorter', assembler: 'Assembler' };
@@ -346,7 +346,7 @@ function shipOut(id, prop, r, it, x, y) {
   // Market demand moves the price; selling floods it a little.
   const p = it.product;
   const amount = it.value * demandOf(p) * eventMult(p) * valueMult(id, prop) * (boostActive('double') ? 2 : 1);
-  state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - MARKET.drop[productTier(p)]);
+  state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - marketDrop(p));
   earn(amount, 'sales', PRODUCTS[p].name, id);
   prop.earned += amount;
   prop.shipped[it.product] = (prop.shipped[it.product] || 0) + 1;
@@ -364,7 +364,7 @@ function advanceItem(id, prop, def, r, it, dt) {
 
   // Cold cargo spoils until chilled.
   if (it.type === 'cold' && !it.tags.includes('chiller') && it.fresh > COLD_FLOOR) {
-    const k = 1 - COLD_DECAY * (hasResearch('insulated') ? 0.5 : 1) * dt;
+    const k = 1 - COLD_DECAY * Math.max(0.05, 1 - rfx('coldDecay')) * dt;
     const nf = Math.max(COLD_FLOOR, it.fresh * k);
     it.value *= nf / it.fresh;
     it.fresh = nf;
@@ -619,7 +619,7 @@ function findTechJob(prop, busy, repairsOnly) {
     for (let x = 0; x < row.length; x++) {
       const o = row[x].obj;
       if (!o || busy.has(x + ',' + y)) continue;
-      if (o.jammed) return { kind: 'repair', x, y, obj: o, t: 0, dur: TECH_REPAIR_TIME };
+      if (o.jammed) return { kind: 'repair', x, y, obj: o, t: 0, dur: TECH_REPAIR_TIME / (1 + rfx('repair')) };
       if (repairsOnly || !o.life) continue;
       const w = (o.wear || 0) / o.life;
       if (w >= bestWear) { bestWear = w; best = { kind: 'pm', x, y, obj: o, t: 0, dur: TECH_PM_TIME }; }
@@ -653,7 +653,7 @@ function storedSaleValue(id, p, n) {
   let d = demandOf(p), total = 0;
   for (let i = 0; i < n; i++) {
     total += PRODUCTS[p].value * d * eventMult(p) * valueMult(id, prop);
-    d = Math.max(MARKET.floor, d - MARKET.drop[productTier(p)]);
+    d = Math.max(MARKET.floor, d - marketDrop(p));
   }
   return total;
 }
@@ -668,7 +668,7 @@ function sellStored(id, only, qty) {
     const n = only && qty ? Math.min(qty, have) : have;
     for (let i = 0; i < n; i++) {
       total += marketPrice(p) * valueMult(id, prop);
-      state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - MARKET.drop[productTier(p)]);
+      state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - marketDrop(p));
     }
     sold += n;
     prop.held[p] = have - n;
@@ -688,14 +688,14 @@ function nextInboxProduct(prop, r) {
 }
 
 function stepAssemblers(id, prop, def, r, dt) {
-  const speed = speedMult(id, prop) * (hasResearch('fastassembly') ? 1.3 : 1) * r.power;
+  const speed = speedMult(id, prop) * (1 + rfx('assembly')) * r.power;
   for (let y = 0; y < def.rows; y++) {
     for (let x = 0; x < def.cols; x++) {
       const o = prop.tiles[y][x].obj;
       if (!o || o.k !== 'assembler' || o.jammed || !o.recipe) continue;
       const crew = r.crewed.get(x + ',' + y) || 0;
       // No operator: it still crawls along (25%) so a line can never deadlock.
-      const crewMult = crew ? 1 + CREW_BONUS * (Math.min(crew, MAX_CREW) - 1) : NO_CREW_SPEED;
+      const crewMult = crew ? 1 + CREW_BONUS * (Math.min(crew, MAX_CREW) - 1) : Math.max(NO_CREW_SPEED, rfx('uncrewed'));
       const rec = RECIPES[o.recipe];
       const buf = o.buf || (o.buf = {});
       if (!Object.entries(rec.in).every(([p, n]) => (buf[p] || 0) >= n)) { o.craftT = 0; continue; }
@@ -719,10 +719,10 @@ const routeKey = (a, b) => a + '>' + b;
 
 function travelTime(a, b) {
   const p = MAP_POS[a], q = MAP_POS[b];
-  return Math.hypot(p.x - q.x, p.y - q.y) * TRAVEL_PER_UNIT / (boostActive('freight') ? 3 : 1);
+  return Math.hypot(p.x - q.x, p.y - q.y) * TRAVEL_PER_UNIT * (1 - Math.min(0.7, rfx('travel'))) / (boostActive('freight') ? 3 : 1);
 }
 
-function truckCap() { return Math.round(TRUCK_CAP * (hasResearch('fleet') ? 1.5 : 1)); }
+function truckCap() { return Math.round(TRUCK_CAP * (1 + rfx('fleetCap'))); }
 
 function ensureRoute(a, b) {
   const key = routeKey(a, b);
@@ -735,9 +735,9 @@ const idleTrucks = () => state.garage.trucks - assignedTrucks();
 const routeWait = (f) => (TRUCK_WAITS.find((w) => w.id === f.wait) || TRUCK_WAITS[1]).wait;
 
 function launchNeeds() {
-  const mult = Math.pow(LAUNCH.growth, state.launch.count);
+  const mult = Math.pow(LAUNCH.growth, state.launch.count) * (1 - rfx('launchParts'));
   const out = {};
-  for (const [p, n] of Object.entries(LAUNCH.needs)) out[p] = n * mult;
+  for (const [p, n] of Object.entries(LAUNCH.needs)) out[p] = Math.max(1, Math.round(n * mult));
   return out;
 }
 
@@ -841,6 +841,7 @@ function stepMarket(dt) {
 
 function stepWorld(dt) {
   state.clock += dt;
+  stepLab(dt);
   for (const def of PROPERTIES) {
     if (state.props[def.id].owned) stepProperty(def.id, dt);
   }

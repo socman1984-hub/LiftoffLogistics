@@ -44,8 +44,8 @@ function makeOffer() {
   const minutes = first ? 5 : pick([3, 5, 5, 8]);
   const rate = Math.max(shippedPerMin(product), PRODUCTS[product].raw ? 4 : 2);
   const n = first ? 10 : Math.min(2000, Math.max(4, Math.round(rate * minutes * (req ? 0.35 : 0.5))));
-  const reward = Math.round(n * PRODUCTS[product].value * (CONTRACT_REQ_MULT[req] || 1) * 2.5);
-  const stars = 1 + (req ? 1 : 0) + (minutes === 3 ? 1 : 0) + (PRODUCTS[product].raw ? 0 : 1);
+  const reward = Math.round(n * PRODUCTS[product].value * (CONTRACT_REQ_MULT[req] || 1) * 2.5 * (1 + rfx('contractReward')));
+  const stars = 1 + (req ? 1 : 0) + (minutes === 3 ? 1 : 0) + (PRODUCTS[product].raw ? 0 : 1) + rfx('stars');
   return {
     id: c.nextId++, client: pick(CLIENTS[PRODUCTS[product].cls]), product, req, n, progress: 0,
     minutes, reward, stars, expires: state.clock + OFFER_LIFETIME, deadline: null,

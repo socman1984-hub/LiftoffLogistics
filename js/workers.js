@@ -173,7 +173,7 @@ function walkTo(prop, def, r, w, goal, dt, label, ax, ay) {
     if (dist <= step) {
       w.fx = n.x; w.fy = n.y; w.x = n.x; w.y = n.y;
       const ft = prop.tiles[n.y][n.x];
-      if (w.role !== 'janitor' && ft.base === 'floor' && !ft.obj) ft.dirt = Math.min(DIRT.filthy, (ft.dirt || 0) + DIRT.perStep);
+      if (w.role !== 'janitor' && ft.base === 'floor' && !ft.obj) ft.dirt = Math.min(DIRT.filthy, (ft.dirt || 0) + DIRT.perStep * (1 - rfx('dirt')));
       w.path.shift();
       step -= dist;
     } else {
@@ -259,7 +259,7 @@ function stepWorkers(id, prop, def, r, dt) {
           w.mode = 'idle';
           w.breakIn = 90 + Math.random() * 90;
           const used = prop.tiles[spots[0].y][spots[0].x].obj;
-          if (used) dirtyBuilding(id, used, DIRT.perBreak);
+          if (used) dirtyBuilding(id, used, DIRT.perBreak * (1 - rfx('dirt')));
         }
       } else if (w.stuck === null && !w.path.length) {
         // No route: skip this break, and keep the problem visible until someone gets there.
@@ -323,6 +323,7 @@ function computeMorale(id, prop, r) {
     for (const row of prop.tiles) for (const t of row) if ((t.dirt || 0) >= DIRT.filthy) filthy++;
     if (filthy) parts.push({ label: `🪣 ${filthy} filthy floor tile${filthy > 1 ? 's' : ''}`, v: -Math.min(MORALE.filthyMax, filthy * MORALE.perFilthy) });
     if (prop.staff.hr > 0) parts.push({ label: '🗂️ HR Manager looking after people', v: MORALE.hrBonus });
+    if (rfx('morale')) parts.push({ label: '🔬 Research perks', v: rfx('morale') });
     if (prop.payRate) parts.push({ label: `💵 Paying ${PAY_RATES[prop.payRate].label} wages`, v: PAY_RATES[prop.payRate].morale });
   }
   r.moraleParts = parts;
@@ -375,7 +376,7 @@ function stepDirt(id, prop, def, r, dt) {
   prop.tiles.forEach((row, y) => row.forEach((t, x) => {
     const o = t.obj;
     if (o && FACILITIES[o.k]) {
-      if (!FACILITIES[o.k].levels) dirtyBuilding(id, o, DIRT.perSecond * dt);
+      if (!FACILITIES[o.k].levels) dirtyBuilding(id, o, DIRT.perSecond * (1 - rfx('dirt')) * dt);
       if ((o.dirt || 0) >= DIRT.filthy) {
         setAlert(r, 'filthy' + x + ',' + y, `${FACILITIES[o.k].icon} ${FACILITIES[o.k].name} is filthy and out of order. ${janitors ? 'A janitor is on it.' : 'Hire a 🧹 Janitor, or tap it to clean.'}`, x, y);
       }

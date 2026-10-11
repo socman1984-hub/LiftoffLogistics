@@ -292,7 +292,7 @@ function fleetHTML() {
   const idle = idleTrucks();
   const cost = truckCost();
   let html = `<div class="garage"><div><b>🚚 ${state.garage.trucks}</b> trucks owned · <b class="${idle ? 'gold' : ''}">${idle}</b> idle
-    <div class="muted">${truckCap()} packages per truck${hasResearch('fleet') ? ' (Semi Trailers)' : ''}</div></div>
+    <div class="muted">${truckCap()} packages per truck</div></div>
     <button class="btn small" data-act="buytruck" ${state.money < cost ? 'disabled' : ''}>Buy ${fmt(cost)}</button></div>`;
   const keys = Object.keys(state.fleet);
   if (!keys.length) {
@@ -459,6 +459,8 @@ function doLaunch() {
   state.launch.count++;
   state.launch.parts = {};
   state.gems += GEMS.perLaunch;
+  const stars = Math.round(LAUNCH_STARS * (1 + rfx('launchStars')));
+  state.rep += stars;
   save();
   const mins = Math.round(state.clock / 60);
   const n = state.launch.count;
@@ -467,7 +469,7 @@ function doLaunch() {
     <p class="intro">${n === 1
     ? `From a rusty shed to a rocket in <b>${Math.floor(mins / 60)}h ${mins % 60}m</b> of play. Your supply chain did it!`
     : 'Another flawless launch.'}</p>
-    <p class="intro">+${GEMS.perLaunch} 💎 · Keep going: the next rocket needs ${LAUNCH.growth}× the parts.</p>`);
+    <p class="intro">+${GEMS.perLaunch} 💎 · +${stars} ⭐ · Keep going: the next rocket needs ${LAUNCH.growth}× the parts.</p>`);
 }
 
 // Panel button handlers for this module. Returns true if handled.

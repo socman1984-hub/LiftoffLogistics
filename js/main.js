@@ -28,6 +28,7 @@ const fmtDur = (secs) => {
 // time covered by banked Night Crew hours, which earns at full speed.
 function awardOffline(fromMs, rates) {
   const awaySecs = (Date.now() - fromMs) / 1000;
+  if (awaySecs > 0) stepLab(awaySecs); // the lab keeps working while you're away
   const rate = offlinePerMin(rates);
   if (awaySecs < 30 || rate <= 0) return;
   const full = Math.min(awaySecs, state.awayBoost || 0);

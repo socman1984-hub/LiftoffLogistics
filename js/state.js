@@ -75,6 +75,7 @@ function newState() {
     money: START_MONEY,
     rep: 0, // ⭐ reputation, earned from contracts, spent on research
     research: {},
+    lab: null, // research in progress: { id, left } (seconds)
     contracts: { offers: [], active: [], done: 0, nextId: 1, nextOfferAt: 0 },
     fleet: {}, // 'from>to' -> { trucks (assigned), wait, units: [{ phase, t, load, n }] }
     garage: { trucks: 0 }, // trucks you own (assigned + idle)
@@ -209,7 +210,21 @@ function curDef() { return state.current ? PROP_BY_ID[state.current] : null; }
 function curProp() { return state.current ? state.props[state.current] : null; }
 function hasResearch(id) { return !!state.research[id]; }
 
-function costDiscount() { return hasResearch('bulk') ? 0.85 : 1; }
+// Sum of a research effect over everything researched (cached until research changes).
+let fxCache = null, fxFor = null, fxCount = -1;
+function rfx(key) {
+  const n = Object.keys(state.research).length;
+  if (fxFor !== state.research || fxCount !== n) {
+    fxCache = {};
+    for (const r of RESEARCH) if (state.research[r.id]) for (const [k, v] of Object.entries(r.fx)) fxCache[k] = (fxCache[k] || 0) + v;
+    fxFor = state.research;
+    fxCount = n;
+  }
+  return fxCache[key] || 0;
+}
+const researchMet = (r) => r.req.every(hasResearch);
+
+function costDiscount() { return 1 - rfx('discount'); }
 
 function buildCost(kind, def, tier = 0) {
   const m = def.costMult * costDiscount();
@@ -277,7 +292,7 @@ function totalStaff(prop) {
 }
 
 function truckInterval(id, prop) {
-  return BASE_TRUCK_INTERVAL * Math.pow(0.85, prop.upgrades.trucks) * (hasResearch('logistics') ? 0.9 : 1);
+  return BASE_TRUCK_INTERVAL * Math.pow(0.85, prop.upgrades.trucks) * (1 - Math.min(0.6, rfx('truckRate')));
 }
 
 // Rack moves per minute this site's crew can handle.
@@ -285,23 +300,23 @@ function handlingRate(id) {
   const prop = state.props[id];
   const blocked = runtime[id] && runtime[id].racksBlocked; // forklifts can't reach the racks
   return (HANDLING_BASE + (blocked ? 0 : HANDLING_PER_OP * staffCount(id, prop, 'forklift')))
-    * (1 + 0.15 * staffCount(id, prop, 'ops')) * (1 + 0.25 * facCount(id, 'opscenter'));
+    * (1 + 0.15 * staffCount(id, prop, 'ops')) * (1 + 0.25 * facCount(id, 'opscenter')) * (1 + rfx('handling'));
 }
 
 function valueMult(id, prop) {
   return 1 + 0.25 * prop.upgrades.roof
     + 0.1 * staffCount(id, prop, 'sales')
-    + (hasResearch('premium') ? 0.15 : 0);
+    + rfx('value');
 }
 
 function speedMult(id, prop) {
-  return 1 + 0.05 * prop.upgrades.power + 0.1 * staffCount(id, prop, 'ops') + 0.1 * facCount(id, 'opscenter');
+  return 1 + 0.05 * prop.upgrades.power + 0.1 * staffCount(id, prop, 'ops') + 0.1 * facCount(id, 'opscenter') + rfx('speed');
 }
 
 // ---- Power ----
 function powerCap(id) {
-  return PROP_BY_ID[id].power + POWER_PER_LEVEL * state.props[id].upgrades.power
-    - FACILITIES.generator.power * facCount(id, 'generator');
+  return (PROP_BY_ID[id].power + POWER_PER_LEVEL * state.props[id].upgrades.power
+    - FACILITIES.generator.power * facCount(id, 'generator')) * (1 + rfx('powerCap'));
 }
 
 function powerDraw(id) {
@@ -313,7 +328,7 @@ function powerDraw(id) {
       sum += f ? Math.max(0, f.power) : POWER_DRAW[t.obj.k] || 0;
     }
   }
-  return sum * (hasResearch('efficiency') ? 0.75 : 1);
+  return sum * (1 - rfx('power'));
 }
 
 // Machines and assemblers slow down when a site draws more than it has.
@@ -335,19 +350,22 @@ function eventMult(p) {
   return e && e.product === p && e.until > state.clock ? e.mult : 1;
 }
 
+// How much one sale lowers a product's price (Export Markets softens it).
+function marketDrop(p) { return MARKET.drop[productTier(p)] * (1 - rfx('marketDrop')); }
+
 function marketPrice(p) {
   return PRODUCTS[p].value * demandOf(p) * eventMult(p);
 }
 
 function supplierCost(p) {
-  return PRODUCTS[p].cost * (hasResearch('suppliers') ? 0.8 : 1);
+  return PRODUCTS[p].cost * (1 - rfx('supplier'));
 }
 
 // Wage for one person in role `s` at a property.
 function staffWage(s, def, prop) {
   const hr = prop && s.id !== 'hr' && prop.staff.hr > 0 ? 0.8 : 1;
   const pay = prop ? PAY_RATES[prop.payRate || 0].mult : 1;
-  return s.wage * def.costMult * (hasResearch('lean') ? 0.7 : 1) * hr * pay;
+  return s.wage * def.costMult * (1 - rfx('wage')) * hr * pay;
 }
 
 function wagesPerMin(id) {
@@ -359,12 +377,12 @@ function wagesPerMin(id) {
 }
 
 function theftChance(id, prop) {
-  return PROP_BY_ID[id].theft * Math.pow(0.5, staffCount(id, prop, 'security') + facCount(id, 'securitybooth'));
+  return PROP_BY_ID[id].theft * Math.pow(0.5, staffCount(id, prop, 'security') + facCount(id, 'securitybooth')) * (1 - rfx('theft'));
 }
 
 function accidentsPerMin(id, prop) {
   return ACCIDENT_RATE * totalStaff(prop) * Math.pow(0.25, staffCount(id, prop, 'safety'))
-    * Math.pow(0.5, facCount(id, 'firstaid')) * (2 - moraleOf(id));
+    * Math.pow(0.5, facCount(id, 'firstaid')) * (2 - moraleOf(id)) * (1 - rfx('accident'));
 }
 
 // Machines and conveyors that wear out (racks and facilities don't).
@@ -386,11 +404,11 @@ function maintCoverage(prop) {
 }
 
 function contractSlots() {
-  return 1 + (hasResearch('slots1') ? 1 : 0) + (hasResearch('slots2') ? 1 : 0);
+  return 1 + rfx('slots');
 }
 
-function offlineRate() { return hasResearch('nightshift') ? OFFLINE_RESEARCH_RATE : OFFLINE_BASE_RATE; }
-function offlineCapSec() { return (hasResearch('nightshift') ? 12 : 8) * 3600; }
+function offlineRate() { return OFFLINE_BASE_RATE + rfx('offline'); }
+function offlineCapSec() { return (8 + rfx('offlineHours')) * 3600; }
 
 // ---- Ledger: every money change is booked by category ----
 const LEDGER_CATS = {
@@ -410,6 +428,7 @@ const LEDGER_CATS = {
   hiring: { label: 'Hiring fees', icon: '🤝' },
   trucks: { label: 'Trucks', icon: '🚚' },
   property: { label: 'Properties', icon: '🏢' },
+  research: { label: 'Research', icon: '🔬' },
   dev: { label: 'Test mode', icon: '🧪' },
   other: { label: 'Other', icon: '•' },
 };

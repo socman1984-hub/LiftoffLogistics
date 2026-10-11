@@ -134,31 +134,96 @@ const ACCIDENT_RATE = 0.012;
 const ACCIDENT_SHUTDOWN = 20; // seconds
 
 // ---- Research (global, paid in ⭐ reputation from contracts) ----
-const RESEARCH = [
-  { id: 'sorter', name: 'Sorting Systems', icon: '🚦', cost: 1, desc: 'Unlocks the Sorter: pull one cargo type off a line' },
-  { id: 'wrapper', name: 'Shrink Wrapping', icon: '🎁', cost: 2, desc: 'Unlocks the Wrapper: x2 value, protects fragile cargo' },
-  { id: 'chiller', name: 'Cold Chain', icon: '❄️', cost: 2, desc: 'Unlocks the Chiller for cold cargo' },
-  { id: 'maint', name: 'Heavy-Duty Parts', icon: '🛠️', cost: 2, desc: 'All equipment lasts twice as long between breakdowns' },
-  { id: 'slots1', name: 'Account Manager', icon: '🤝', cost: 2, desc: '+1 active contract slot' },
-  { id: 'express', name: 'Express Belts', icon: '💨', cost: 3, desc: 'Unlocks Express conveyor upgrades' },
-  { id: 'lean', name: 'Lean Operations', icon: '📉', cost: 3, desc: 'Staff wages -30%' },
-  { id: 'bulk', name: 'Bulk Purchasing', icon: '🏷️', cost: 3, desc: 'Building and upgrades 15% cheaper' },
-  { id: 'insulated', name: 'Insulated Belts', icon: '🧤', cost: 3, req: 'chiller', desc: 'Cold cargo spoils half as fast' },
-  { id: 'logistics', name: 'Logistics Network', icon: '🗺️', cost: 4, desc: 'Trucks arrive 10% more often everywhere' },
-  { id: 'nightshift', name: 'Night Shift', icon: '🌙', cost: 4, desc: 'Offline earnings 45% (was 30%), up to 12h' },
-  { id: 'slots2', name: 'Sales Department', icon: '🏢', cost: 5, req: 'slots1', desc: '+1 active contract slot' },
-  { id: 'padding', name: 'Air-Cushion Packing', icon: '🫧', cost: 5, req: 'express', desc: 'Fragile cargo no longer breaks on Express belts' },
-  { id: 'premium', name: 'Premium Clients', icon: '💎', cost: 6, req: 'bulk', desc: '+15% value on all packages everywhere' },
-  { id: 'fleet', name: 'Semi Trailers', icon: '🚛', cost: 3, desc: 'Trucks between your sites carry 50% more' },
-  { id: 'propulsion', name: 'Propulsion', icon: '🔥', cost: 4, desc: 'Unlocks Turbopump and Rocket Engine recipes' },
-  { id: 'guidance', name: 'Guidance Systems', icon: '🛰️', cost: 5, desc: 'Unlocks Sensor Array, Flight Computer and Avionics recipes' },
-  { id: 'photovoltaics', name: 'Photovoltaics', icon: '☀️', cost: 5, req: 'guidance', desc: 'Unlocks the Solar Array recipe' },
-  { id: 'thermal', name: 'Thermal Protection', icon: '🌡️', cost: 5, req: 'propulsion', desc: 'Unlocks the Heat Shield recipe' },
-  { id: 'habitat', name: 'Crew Habitat', icon: '🫁', cost: 6, req: 'guidance', desc: 'Unlocks the Life Support Unit recipe' },
-  { id: 'efficiency', name: 'Efficient Motors', icon: '🔌', cost: 3, desc: 'Machines draw 25% less power' },
-  { id: 'suppliers', name: 'Supplier Network', icon: '🤝', cost: 4, desc: 'Raw materials cost 20% less' },
-  { id: 'fastassembly', name: 'Robotic Assembly', icon: '🦾', cost: 4, desc: 'Assemblers work 30% faster' },
+// ---- Research: five branches, each a tree over 5 tiers ----
+// A node needs everything in `req` (which may sit in another branch), costs
+// ⭐ reputation plus cash, and takes time in the lab (one project at a time).
+// `fx` effects add up across everything researched (see rfx()).
+const RESEARCH_BRANCHES = [
+  { id: 'prod', name: 'Production', icon: '🏭', desc: 'Faster lines, assemblers and new machines' },
+  { id: 'ops', name: 'Operations', icon: '🔧', desc: 'Equipment, power and people' },
+  { id: 'logi', name: 'Logistics', icon: '🚚', desc: 'Trucks, suppliers and storage' },
+  { id: 'biz', name: 'Business', icon: '💼', desc: 'Contracts, prices and earnings' },
+  { id: 'aero', name: 'Aerospace', icon: '🚀', desc: 'Rocket technology' },
 ];
+// Default cost by tier: [⭐, $, seconds in the lab].
+const RESEARCH_TIER_COST = [null, [2, 1500, 60], [4, 6000, 180], [7, 20000, 480], [11, 60000, 1200], [18, 180000, 2700]];
+const LAUNCH_STARS = 15; // ⭐ reputation per rocket launch
+const RUSH_SECS_PER_GEM = 120; // 💎 to finish research now: 1 per 2 minutes left
+
+const R = (b, t, c, id, icon, name, desc, req = [], fx = {}, cost) => ({ b, t, c, id, icon, name, desc, req, fx, ...(cost || {}) });
+const RESEARCH = [
+  // 🏭 Production
+  R('prod', 1, 0, 'motors1', '⚙️', 'Tuned Motors', 'Belts and machines run 8% faster', [], { speed: 0.08 }),
+  R('prod', 1, 1, 'sorter', '🚦', 'Sorting Systems', 'Unlocks the Sorter: pull one product or cargo type off a line', [], {}, { cost: 1, money: 500, time: 30 }),
+  R('prod', 1, 2, 'wrapper', '🎁', 'Shrink Wrapping', 'Unlocks the Wrapper: ×2 value, protects fragile cargo'),
+  R('prod', 2, 0, 'express', '💨', 'Express Belts', 'Unlocks Express conveyor upgrades', ['motors1']),
+  R('prod', 2, 1, 'fastassembly', '🦾', 'Robotic Assembly', 'Assemblers work 20% faster', ['sorter'], { assembly: 0.2 }),
+  R('prod', 2, 2, 'chiller', '❄️', 'Cold Chain', 'Unlocks the Chiller for cold cargo', ['wrapper']),
+  R('prod', 3, 0, 'padding', '🫧', 'Air-Cushion Packing', 'Fragile cargo no longer breaks on Express belts', ['express']),
+  R('prod', 3, 1, 'assembly2', '🏗️', 'Assembly Line II', 'Assemblers work another 20% faster', ['fastassembly'], { assembly: 0.2 }),
+  R('prod', 3, 2, 'insulated', '🧤', 'Insulated Belts', 'Cold cargo spoils half as fast', ['chiller'], { coldDecay: 0.5 }),
+  R('prod', 4, 0, 'motors2', '🏎️', 'High-Torque Motors', 'Belts and machines run another 12% faster', ['padding'], { speed: 0.12 }),
+  R('prod', 4, 1, 'qc', '✅', 'Quality Control', '+10% value on every package', ['assembly2', 'wrapper'], { value: 0.1 }),
+  R('prod', 4, 2, 'cryo', '🧊', 'Cryogenic Lines', 'Cold cargo barely spoils (stacks with Insulated Belts)', ['insulated'], { coldDecay: 0.4 }),
+  R('prod', 5, 1, 'automation', '🤖', 'Full Automation', 'Assemblers +25% faster, and run at 60% (not 25%) with no crew', ['motors2', 'qc'], { assembly: 0.25, uncrewed: 0.6 }),
+  // 🔧 Operations
+  R('ops', 1, 0, 'maint', '🛠️', 'Heavy-Duty Parts', 'Equipment lasts 50% longer between breakdowns', [], { life: 0.5 }),
+  R('ops', 1, 1, 'efficiency', '🔌', 'Efficient Motors', 'Machines draw 15% less power', [], { power: 0.15 }),
+  R('ops', 1, 2, 'hygiene', '🧽', 'Easy-Clean Floors', 'Floors and buildings get dirty 25% slower', [], { dirt: 0.25 }),
+  R('ops', 2, 0, 'diagnostics', '🩺', 'Diagnostics', 'Technicians fix breakdowns 50% faster', ['maint'], { repair: 0.5 }),
+  R('ops', 2, 1, 'efficiency2', '💡', 'LED Lighting', 'Machines draw another 15% less power', ['efficiency'], { power: 0.15 }),
+  R('ops', 2, 2, 'wellness', '🧘', 'Wellness Program', '+5% morale at every site', ['hygiene'], { morale: 0.05 }),
+  R('ops', 3, 0, 'maint2', '⛓️', 'Industrial Parts', 'Equipment lasts another 50% longer', ['diagnostics'], { life: 0.5 }),
+  R('ops', 3, 1, 'powergrid', '⚡', 'Smart Grid', '+25% power capacity at every site', ['efficiency2'], { powerCap: 0.25 }),
+  R('ops', 3, 2, 'lean', '📉', 'Lean Operations', 'Staff wages -15%', ['wellness'], { wage: 0.15 }),
+  R('ops', 4, 0, 'predictive', '📈', 'Predictive Maintenance', 'Equipment lasts 50% longer and repairs go 50% faster', ['maint2'], { life: 0.5, repair: 0.5 }),
+  R('ops', 4, 1, 'safety', '🦺', 'Safety Culture', 'Half as many workplace accidents', ['powergrid', 'wellness'], { accident: 0.5 }),
+  R('ops', 4, 2, 'lean2', '🎯', 'Six Sigma', 'Staff wages another -15%', ['lean'], { wage: 0.15 }),
+  R('ops', 5, 1, 'cobots', '🦿', 'Cobots', '+10% speed and +5% morale at every site', ['predictive', 'lean2'], { speed: 0.1, morale: 0.05 }),
+  // 🚚 Logistics
+  R('logi', 1, 0, 'logistics', '🗺️', 'Logistics Network', 'Supplier trucks arrive 10% more often', [], { truckRate: 0.1 }),
+  R('logi', 1, 1, 'forklift', '🚜', 'Forklift Training', 'Rack crews handle 25% more moves', [], { handling: 0.25 }),
+  R('logi', 1, 2, 'routing', '🧭', 'Route Planning', 'Trucks between your sites drive 15% faster', [], { travel: 0.15 }),
+  R('logi', 2, 0, 'logistics2', '📑', 'Supplier Contracts', 'Supplier trucks arrive another 10% more often', ['logistics'], { truckRate: 0.1 }),
+  R('logi', 2, 1, 'pallet', '🛒', 'Pallet Jacks', 'Rack crews handle another 25% more moves', ['forklift'], { handling: 0.25 }),
+  R('logi', 2, 2, 'fleet', '🚛', 'Semi Trailers', 'Trucks between your sites carry 50% more', ['routing'], { fleetCap: 0.5 }),
+  R('logi', 3, 0, 'suppliers', '🤝', 'Supplier Network', 'Raw materials cost 20% less', ['logistics2'], { supplier: 0.2 }),
+  R('logi', 3, 1, 'wms', '🖥️', 'Warehouse Software', 'Rack crews handle 50% more moves', ['pallet'], { handling: 0.5 }),
+  R('logi', 3, 2, 'gps', '📍', 'GPS Dispatch', 'Trucks between your sites drive another 15% faster', ['fleet'], { travel: 0.15 }),
+  R('logi', 4, 0, 'bulkraw', '📦', 'Bulk Freight', 'Raw materials 10% cheaper and supplier trucks 10% more often', ['suppliers'], { supplier: 0.1, truckRate: 0.1 }),
+  R('logi', 4, 1, 'cameras', '📹', 'Security Cameras', 'Half as much theft at every site', ['wms'], { theft: 0.5 }),
+  R('logi', 4, 2, 'doubletrail', '🚚', 'Double Trailers', 'Trucks between your sites carry another 50% more', ['gps'], { fleetCap: 0.5 }),
+  R('logi', 5, 1, 'hub', '🌐', 'Logistics Hub', 'Supplier trucks 15% more often and site-to-site trips 20% faster', ['bulkraw', 'doubletrail'], { truckRate: 0.15, travel: 0.2 }),
+  // 💼 Business
+  R('biz', 1, 0, 'slots1', '👔', 'Account Manager', '+1 active contract slot', [], { slots: 1 }),
+  R('biz', 1, 1, 'bulk', '🏷️', 'Bulk Purchasing', 'Building and upgrades 10% cheaper', [], { discount: 0.1 }),
+  R('biz', 1, 2, 'marketing', '📣', 'Marketing', '+5% value on every package', [], { value: 0.05 }),
+  R('biz', 2, 0, 'negotiation', '🗣️', 'Negotiation', 'New contract offers pay 20% more', ['slots1'], { contractReward: 0.2 }),
+  R('biz', 2, 1, 'bulk2', '🧾', 'Volume Deals', 'Building and upgrades another 10% cheaper', ['bulk'], { discount: 0.1 }),
+  R('biz', 2, 2, 'premium', '💎', 'Premium Clients', '+10% value on every package', ['marketing'], { value: 0.1 }),
+  R('biz', 3, 0, 'slots2', '🏢', 'Sales Department', '+1 active contract slot', ['negotiation'], { slots: 1 }),
+  R('biz', 3, 1, 'nightshift', '🌙', 'Night Shift', 'Offline earnings +15% and last 4 hours longer', ['bulk2'], { offline: 0.15, offlineHours: 4 }),
+  R('biz', 3, 2, 'brand', '🏆', 'Brand Recognition', '+10% value on every package', ['premium'], { value: 0.1 }),
+  R('biz', 4, 0, 'prestige', '🎩', 'Prestige Clients', '+1 ⭐ from every contract', ['slots2'], { stars: 1 }),
+  R('biz', 4, 1, 'nightshift2', '🌃', 'Night Managers', 'Offline earnings another +15% and 4 more hours', ['nightshift'], { offline: 0.15, offlineHours: 4 }),
+  R('biz', 4, 2, 'export', '🌍', 'Export Markets', 'Selling lowers market prices 40% less', ['brand'], { marketDrop: 0.4 }),
+  R('biz', 5, 1, 'enterprise', '📊', 'Enterprise Sales', '+1 contract slot and offers pay another 25% more', ['prestige', 'export'], { slots: 1, contractReward: 0.25 }),
+  // 🚀 Aerospace (opens once Production can assemble at speed)
+  R('aero', 1, 1, 'aerospace', '🔭', 'Aerospace Program', 'Opens rocket-tech research', ['fastassembly'], {}, { cost: 4, money: 8000, time: 180 }),
+  R('aero', 2, 0, 'propulsion', '🔥', 'Propulsion', 'Unlocks Turbopump and Rocket Engine recipes', ['aerospace']),
+  R('aero', 2, 2, 'guidance', '🛰️', 'Guidance Systems', 'Unlocks Sensor Array, Flight Computer and Avionics recipes', ['aerospace']),
+  R('aero', 3, 0, 'thermal', '🌡️', 'Thermal Protection', 'Unlocks the Heat Shield recipe', ['propulsion']),
+  R('aero', 3, 1, 'habitat', '🫁', 'Crew Habitat', 'Unlocks the Life Support Unit recipe', ['guidance']),
+  R('aero', 3, 2, 'photovoltaics', '☀️', 'Photovoltaics', 'Unlocks the Solar Array recipe', ['guidance']),
+  R('aero', 4, 1, 'flighttest', '🧪', 'Flight Testing', '+50% ⭐ reputation from rocket launches', ['thermal', 'habitat'], { launchStars: 0.5 }),
+  R('aero', 5, 1, 'reusable', '♻️', 'Reusable Boosters', 'Each rocket needs 20% fewer parts', ['flighttest', 'photovoltaics'], { launchParts: 0.2 }),
+];
+for (const r of RESEARCH) {
+  const [cost, money, time] = RESEARCH_TIER_COST[r.t];
+  if (r.cost == null) r.cost = cost;
+  if (r.money == null) r.money = money;
+  if (r.time == null) r.time = time;
+}
 const RESEARCH_BY_ID = Object.fromEntries(RESEARCH.map((r) => [r.id, r]));
 
 // ---- Contracts ----
@@ -384,7 +449,6 @@ const BOOSTS = [
 ];
 // Offline earnings without a Night Crew: a fraction of your live rate.
 const OFFLINE_BASE_RATE = 0.3;
-const OFFLINE_RESEARCH_RATE = 0.45; // with Night Shift research
 // Coming-soon catalog entries (cosmetics never affect gameplay).
 const COSMETICS = [
   { icon: '✨', name: 'Belt skins', desc: 'Chrome, neon and wood conveyor styles' },

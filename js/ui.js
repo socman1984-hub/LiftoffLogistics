@@ -164,7 +164,7 @@ const OBJECTIVES = [
   { text: () => 'Check the <b>💹 Market</b>. Selling too much of one product drives its price down', done: () => ui.marketSeen || state.contracts.done > 0 },
   { text: () => 'Open <b>📋 Contracts</b> and accept an order', done: () => state.contracts.active.length > 0 || state.contracts.done > 0 },
   { text: () => 'Complete the contract to earn <b>⭐ reputation</b>', done: () => state.contracts.done > 0 },
-  { text: () => 'Spend ⭐ in <b>🔬 Research</b>. Try <b>Sorting Systems</b>', done: () => Object.keys(state.research).length > 0 },
+  { text: () => 'Spend ⭐ in <b>🔬 Research</b>. Try <b>Sorting Systems</b>', done: () => Object.keys(state.research).length > 0 || !!state.lab },
   { text: () => 'Tap the <b>🔒 door</b> to open the copper 🪙 dock, and build 🧵 Wiring', done: () => hasRecipe('wiring') },
   {
     text: () => 'Equipment wears out. Tap a breakdown ⚠️ to fix it, or hire a <b>🔧 Maintenance Tech</b> in 🏗️ Manage → Staff',
@@ -230,8 +230,7 @@ function refreshTopbar() {
   const c = state.contracts;
   const free = contractSlots() - c.active.length;
   setBadge('contracts', free > 0 && c.offers.length ? c.offers.length : '');
-  const canResearch = RESEARCH.some((r) => !hasResearch(r.id) && (!r.req || hasResearch(r.req)) && state.rep >= r.cost);
-  setBadge('research', canResearch ? '!' : '');
+  setBadge('research', state.lab ? '⏳' : researchReady() ? '!' : '');
   const stalled = Object.entries(state.fleet).some(([k, f]) => !f.trucks
     && Object.values(state.props[k.split('>')[0]].outbox[k.split('>')[1]] || {}).some((n) => n > 0));
   setBadge('map', stalled ? '!' : idleTrucks() > 0 ? idleTrucks() : '');
@@ -603,21 +602,6 @@ function contractsHTML() {
   return html;
 }
 
-function researchHTML() {
-  let html = `<p class="intro">Spend ⭐ reputation from contracts on company-wide tech. You have <b>⭐ ${state.rep}</b>.</p>`;
-  for (const r of RESEARCH) {
-    const done = hasResearch(r.id);
-    const reqMet = !r.req || hasResearch(r.req);
-    let btn;
-    if (done) btn = '<button class="btn secondary" disabled>✓ Done</button>';
-    else if (!reqMet) btn = '<button class="btn secondary" disabled>🔒</button>';
-    else btn = `<button class="btn" data-act="research" data-id="${r.id}" ${state.rep < r.cost ? 'disabled' : ''}>${r.cost} ⭐</button>`;
-    const meta = !done && !reqMet ? `Requires ${RESEARCH_BY_ID[r.req].name}` : '';
-    html += card(r.icon, r.name, r.desc, meta, btn, done ? 'done' : '');
-  }
-  return html;
-}
-
 function sorterHTML() {
   const at = ui.sorterAt;
   const t = at && curProp().tiles[at.y][at.x];
@@ -845,6 +829,7 @@ function onPanelClick(e) {
     closePanel();
     return;
   }
+  if (handleResearchAct(act, id)) { renderPanel(); refreshTopbar(); return; }
   const handled = handleEnterpriseAct(act, id);
   if (handled === 'stop') { refreshTopbar(); return; }
   if (handled) { renderPanel(); refreshTopbar(); refreshToolbar(); return; }
@@ -891,14 +876,6 @@ function onPanelClick(e) {
     acceptContract(Number(id));
   } else if (act === 'abandon') {
     if (confirm('Abandon this contract?')) abandonContract(Number(id));
-  } else if (act === 'research') {
-    const r = RESEARCH_BY_ID[id];
-    if (!hasResearch(id) && state.rep >= r.cost && (!r.req || hasResearch(r.req))) {
-      state.rep -= r.cost;
-      state.research[id] = true;
-      toast(`🔬 ${r.name} researched!`);
-      save();
-    }
   } else if (act === 'sorterfilter' || act === 'sorterdir' || act === 'sortw') {
     const o = prop.tiles[ui.sorterAt.y][ui.sorterAt.x].obj;
     if (o && o.k === 'sorter') {
