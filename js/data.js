@@ -297,7 +297,8 @@ const DIRT = {
   dirty: 60, // stains show
   filthy: 100, // unusable: floor blocks walking, buildings stop working
   cleanRate: 30, // dirt a janitor removes per second
-  worthCleaning: 35, // janitors start on things this dirty
+  stain: 20, // stains become visible from here
+  worthCleaning: 15, // janitors clean anything this dirty (below the visible-stain level)
 };
 // ---- Morale: low morale slows staff down and eventually makes them quit ----
 const MORALE = {

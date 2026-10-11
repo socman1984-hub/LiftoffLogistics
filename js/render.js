@@ -886,7 +886,7 @@ function render(tool) {
         case 'out': drawDock(t, px, py, s, time, dockDefs[x + ',' + y], waiting); break;
         default:
           drawFloor(px, py, s, x, y);
-          if (t.dirt > 20 && !t.obj) drawDirt(px, py, s, x, y, t.dirt);
+          if (t.dirt > DIRT.stain && !t.obj) drawDirt(px, py, s, x, y, t.dirt);
           if (t.obj) {
             if (t.obj.k === 'belt') drawBelt(t.obj, px, py, s, time, sm, beltShape(prop, def, x, y, t.obj));
             else if (t.obj.k === 'splitter') drawSplitter(px, py, s);
