@@ -78,9 +78,9 @@ const BASE_TRUCK_INTERVAL = 1.6; // seconds between packages per open IN dock
 // ---- Suppliers: who fills each raw-material door (see suppliers.js) ----
 // `floor` is the hidden lowest price (share of their list price) they'll sign at.
 const SUPPLIER_TIERS = {
-  budget: { label: 'Budget', icon: '🏚️', price: 0.8, speed: 0.75, patience: 2, floor: [0.62, 0.76], note: 'cheap, slow and touchy' },
-  standard: { label: 'Standard', icon: '🏢', price: 1, speed: 1, patience: 3, floor: [0.68, 0.82], note: 'fair all round' },
-  express: { label: 'Express', icon: '🚀', price: 1.25, speed: 1.35, patience: 4, floor: [0.76, 0.9], note: 'fast and patient, but pricey' },
+  budget: { label: 'Budget', icon: '🏚️', price: 0.8, speed: 0.75, patience: 2, floor: [0.72, 0.86], note: 'cheap, slow and touchy' },
+  standard: { label: 'Standard', icon: '🏢', price: 1, speed: 1, patience: 3, floor: [0.78, 0.92], note: 'fair all round' },
+  express: { label: 'Express', icon: '🚀', price: 1.25, speed: 1.35, patience: 4, floor: [0.84, 0.96], note: 'fast and patient, but pricey' },
 };
 const SUPPLIER_TIER_IDS = Object.keys(SUPPLIER_TIERS);
 const SUPPLIER_NAMES = {
@@ -94,7 +94,9 @@ const SUPPLIER_NAMES = {
   rareearth: ['Deep Dig Minerals', 'Rare Elements Ltd.', 'Prime Earth Couriers'],
   default: ['Bargain Freight', 'Reliable Supply', 'Express Freight'],
 };
-const DEAL_TERMS = [{ min: 10, bonus: 0 }, { min: 30, bonus: 0.03 }, { min: 60, bonus: 0.06 }]; // longer contracts, lower floor
+// Longer contracts lower their floor. Tuned so careful haggling lands ~83% of list, an agent ~89%,
+// and repeated lowballing ends in a walk-out (playthrough + simulation).
+const DEAL_TERMS = [{ min: 10, bonus: 0 }, { min: 30, bonus: 0.02 }, { min: 60, bonus: 0.04 }];
 const OFFER_STEPS = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95];
 const AGENT_SHARE = 0.55; // a Purchasing Agent closes this much of the gap back up to list price
 const AGENT_TERM = 30; // minutes per agent deal
