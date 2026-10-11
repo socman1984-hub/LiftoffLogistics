@@ -52,9 +52,16 @@ function rushResearch() {
 }
 
 // Lab time passes with the game clock (and while away; see main.js).
+// Research Benches at any site speed the lab up.
+function labSpeed() {
+  let n = 0;
+  for (const def of PROPERTIES) if (state.props[def.id].owned) n += facCount(def.id, 'bench');
+  return 1 + 0.25 * Math.min(BENCH_MAX, n);
+}
+
 function stepLab(dt) {
   if (!state.lab) return;
-  state.lab.left -= dt;
+  state.lab.left -= dt * labSpeed();
   if (state.lab.left <= 0) finishResearch();
 }
 
@@ -85,7 +92,8 @@ function labHTML() {
   const r = researchById(state.lab.id);
   const pct = Math.max(0, Math.min(100, (1 - state.lab.left / r.time) * 100));
   const gems = rushCost();
-  return `<div class="lab"><div class="lab-top"><span>${r.icon} <b>${r.name}</b></span><span>${fmtTime(Math.max(0, state.lab.left))} left</span></div>
+  const sp = labSpeed();
+  return `<div class="lab"><div class="lab-top"><span>${r.icon} <b>${r.name}</b></span><span>${fmtTime(Math.max(0, state.lab.left / sp))} left${sp > 1 ? ` · 🧪 ×${sp}` : ''}</span></div>
     <div class="bar"><div style="width:${pct}%"></div></div>
     <div class="lab-btns"><button class="btn small secondary" data-act="rescancel">Cancel</button>
     <button class="btn small gem" data-act="resrush" ${state.gems < gems ? 'disabled' : ''}>⚡ Finish now · ${gems} 💎</button></div></div>`;

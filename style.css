@@ -550,3 +550,14 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .route-ctl .send-now { margin-left: auto; }
 .route-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12px; }
 .link-btn.neg { color: #eb5757; }
+
+.unlock-box { border: 2px solid rgba(86, 204, 242, 0.5); }
+
+/* ---- Supplier negotiation ---- */
+.neg-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.neg-face { font-size: 40px; line-height: 1; }
+.neg-line { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; font-style: italic; margin-bottom: 10px; }
+.neg-row { display: flex; justify-content: space-between; font-size: 14px; margin: 4px 0; }
+.neg-offers .chip { font-size: 12px; }
+.neg-btns { display: flex; gap: 6px; margin: 10px 0 4px; }
+.neg-btns .btn { flex: 1; padding-left: 6px; padding-right: 6px; }

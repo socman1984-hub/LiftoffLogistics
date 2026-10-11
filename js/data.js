@@ -65,9 +65,40 @@ const EQUIP_PER_TECH = 30; // pieces of equipment one tech can cover
 
 const SPLITTER = { name: 'Splitter', cost: 120, speed: 2.0, life: 2200 };
 const SORTER = { name: 'Sorter', cost: 250, speed: 2.0, life: 2200, research: 'sorter' };
+// Unlocked by owning later sites (see `unlock` on TOOLS / FACILITIES).
+const BRIDGE = { name: 'Conveyor Bridge', cost: 300, speed: 2.0, life: 2500 }; // lines cross: packages keep going straight
+const BUFFER = { name: 'Accumulator', cost: 900, speed: 2.0, life: 1800, cap: 20 }; // holds packages, feeds them out steadily
+const SILO = { name: 'Silo', cost: 3000, cap: 100 }; // bulk storage for one product
+const BENCH_MAX = 8; // research benches that count
+const COBOT_RANGE = 3;
 const DOCK_SPEED = 2.0;
 const MACHINE_SPEED = 2.0;
 const BASE_TRUCK_INTERVAL = 1.6; // seconds between packages per open IN dock
+
+// ---- Suppliers: who fills each raw-material door (see suppliers.js) ----
+// `floor` is the hidden lowest price (share of their list price) they'll sign at.
+const SUPPLIER_TIERS = {
+  budget: { label: 'Budget', icon: '🏚️', price: 0.8, speed: 0.75, patience: 2, floor: [0.62, 0.76], note: 'cheap, slow and touchy' },
+  standard: { label: 'Standard', icon: '🏢', price: 1, speed: 1, patience: 3, floor: [0.68, 0.82], note: 'fair all round' },
+  express: { label: 'Express', icon: '🚀', price: 1.25, speed: 1.35, patience: 4, floor: [0.76, 0.9], note: 'fast and patient, but pricey' },
+};
+const SUPPLIER_TIER_IDS = Object.keys(SUPPLIER_TIERS);
+const SUPPLIER_NAMES = {
+  steel: ['Rustbelt Scrap', 'Ironclad Metals', 'Rapid Steel Co.'],
+  copper: ['Penny Mines', 'Coppertop Supply', 'Volt Express'],
+  silicon: ['Sandy Wafers', 'Silica Valley', 'Chipline Overnight'],
+  titanium: ['Grey Rock Mining', 'Titan Alloys', 'Aerometal Express'],
+  kerosene: ['Barrel Bros.', 'Coastal Fuels', 'Jetstream Energy'],
+  lox: ['Chilly Gas Co.', 'Polar Oxygen', 'Cryo Rush'],
+  composite: ['Fiber Works', 'Carbon Craft', 'Weave Express'],
+  rareearth: ['Deep Dig Minerals', 'Rare Elements Ltd.', 'Prime Earth Couriers'],
+  default: ['Bargain Freight', 'Reliable Supply', 'Express Freight'],
+};
+const DEAL_TERMS = [{ min: 10, bonus: 0 }, { min: 30, bonus: 0.03 }, { min: 60, bonus: 0.06 }]; // longer contracts, lower floor
+const OFFER_STEPS = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95];
+const AGENT_SHARE = 0.55; // a Purchasing Agent closes this much of the gap back up to list price
+const AGENT_TERM = 30; // minutes per agent deal
+const NEG_COOLDOWN = 180; // seconds a supplier won't talk after walking out
 
 // Tools shown in the toolbar, in order.
 const TOOLS = [
@@ -77,6 +108,9 @@ const TOOLS = [
   { id: 'assembler', name: 'Assembler', icon: '🏭', tip: 'Builds products from ingredients · tap it again to pick a recipe' },
   { id: 'sorter', name: 'Sorter', icon: '🚦', research: 'sorter', tip: 'Pulls one product off the line · tap it again to configure' },
   { id: 'rack', name: 'Rack', icon: '🗄️', tip: 'Storage racks: each tile holds products waiting on trucks' },
+  { id: 'silo', name: 'Silo', icon: '🫙', unlock: 'refinery', tip: 'Bulk storage: 100 of one product · tap it to pick which' },
+  { id: 'bridge', name: 'Bridge', icon: '🌉', unlock: 'mill', tip: 'Lets two lines cross: packages go straight through it' },
+  { id: 'buffer', name: 'Accumulator', icon: '🧺', unlock: 'foundry', tip: `Holds up to 20 packages and feeds them out steadily · out the arrow` },
   { id: 'facility', name: 'Facilities', icon: '🏢', tip: 'Restrooms, break rooms, ops center and more · pick a type' },
   { id: 'scanner', name: 'Scanner', icon: '🔍', tip: 'Tap to place · drag from it to aim its output' },
   { id: 'labeler', name: 'Labeler', icon: '🏷️', tip: 'Tap to place · drag from it to aim its output' },
@@ -89,9 +123,9 @@ const TOOLS = [
 
 // Toolbar groups: one row of group buttons; tapping one opens its tools.
 const TOOL_GROUPS = [
-  { id: 'convey', name: 'Conveyors', icon: '➡️', tools: ['belt', 'splitter', 'sorter', 'upgrade'] },
+  { id: 'convey', name: 'Conveyors', icon: '➡️', tools: ['belt', 'splitter', 'sorter', 'bridge', 'buffer', 'upgrade'] },
   { id: 'machines', name: 'Machines', icon: '🏭', tools: ['assembler', 'scanner', 'labeler', 'chiller', 'wrapper'] },
-  { id: 'build', name: 'Structures', icon: '🧱', tools: ['repair', 'rack', 'facility'] },
+  { id: 'build', name: 'Structures', icon: '🧱', tools: ['repair', 'rack', 'silo', 'facility'] },
   { id: 'edit', name: 'Edit', icon: '✋', tools: ['rotate', 'remove'] },
 ];
 
@@ -126,6 +160,7 @@ const STAFF = [
   { id: 'security', name: 'Security Guard', icon: '🛡️', wage: 10, max: 3, desc: 'Each guard halves package theft' },
   { id: 'safety', name: 'Safety Officer', icon: '⛑️', wage: 15, max: 2, desc: 'Each cuts workplace accidents by 75%' },
   { id: 'hr', name: 'HR Manager', icon: '🗂️', wage: 20, max: 1, desc: 'Everyone else here costs 20% less in wages' },
+  { id: 'buyer', name: 'Purchasing Agent', icon: '🧾', wage: 18, max: 1, desc: 'Renews supplier deals at this site\'s doors automatically. Settles for less than you could get yourself' },
 ];
 const STAFF_BY_ID = Object.fromEntries(STAFF.map((s) => [s.id, s]));
 const HIRE_FEE_MINUTES = 10; // signing fee = 10 minutes of wages
@@ -334,7 +369,7 @@ const RACK = { cost: 150, slots: 15, perLevel: 5 };
 // multiple of the rack's build price.
 RACK.levels = [15, 25, 35, 50];
 RACK.upMult = [0, 2, 3.5, 5];
-const rackCapOf = (o) => RACK.levels[(o.lvl || 1) - 1];
+const rackCapOf = (o) => (o.silo ? SILO.cap : RACK.levels[(o.lvl || 1) - 1]);
 
 // ---- Facilities: one-tile buildings for your staff ----
 const FACILITIES = {
@@ -353,8 +388,17 @@ const FACILITIES = {
   securitybooth: { name: 'Security Booth', icon: '🛡️', color: '#2c3e50', cost: 1200, power: 1, desc: 'Halves package theft (stacks with guards)' },
   maintshop: { name: 'Maintenance Shop', icon: '🔧', color: '#7f8c8d', cost: 2500, power: 2, desc: 'Techs repair twice as fast and service gear more often' },
   generator: { name: 'Generator', icon: '🔌', color: '#b7950b', cost: 2000, power: -12, outside: true, desc: '+12 ⚡ power capacity. Built outside, on the building\'s outer wall' },
+  crane: { name: 'Loading Crane', icon: '🏗️', color: '#d35400', cost: 4000, power: 4, outside: true, unlock: 'depot', desc: '+50% rack handling here: trucks load and unload faster, forklifts are freed up. Built outside, on the outer wall' },
+  bench: { name: 'Research Bench', icon: '🧪', color: '#16a085', cost: 6000, power: 3, unlock: 'lab', desc: `+25% research speed for every bench you own, at any site (up to ${BENCH_MAX})` },
+  cobot: { name: 'Cobot Station', icon: '🦾', color: '#5d6d7e', cost: 8000, power: 4, unlock: 'hub', desc: `A robot arm that counts as one extra crew member at every assembler within ${COBOT_RANGE} tiles. No wages, no breaks` },
 };
 const FACILITY_IDS = Object.keys(FACILITIES);
+// Owning a site unlocks its new buildings everywhere.
+const unlockedBy = (site) => !site || (typeof state !== 'undefined' && state && state.props[site] && state.props[site].owned);
+const UNLOCK_LIST = (site) => [
+  ...TOOLS.filter((t) => t.unlock === site).map((t) => ({ icon: t.icon, name: t.name === 'Bridge' ? 'Conveyor Bridge' : t.name, desc: t.tip })),
+  ...Object.values(FACILITIES).filter((f) => f.unlock === site).map((f) => ({ icon: f.icon, name: f.name, desc: f.desc })),
+];
 const FAC_UPGRADE_MULT = [0, 2, 4]; // upgrade to level 2 costs 2× the build price, level 3 costs 4×
 const facLevel = (o) => FACILITIES[o.k].levels[(o.lvl || 1) - 1];
 // ---- Dirt: floors get dirty from foot traffic, buildings from use / time ----

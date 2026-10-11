@@ -111,6 +111,8 @@ function siteDetailHTML(id) {
   if (!prop.owned) {
     html += `<button class="btn" data-act="buyprop" data-id="${id}" ${state.money < def.price ? 'disabled' : ''}>Buy ${fmt(def.price)}</button></div>`;
     html += `<p class="intro">${def.desc}</p>`;
+    const unl = UNLOCK_LIST(id);
+    if (unl.length) html += `<p class="intro small">🆕 Unlocks: ${unl.map((u) => `${u.icon} <b>${u.name}</b>`).join(', ')}</p>`;
     return html;
   }
   html += state.current === id

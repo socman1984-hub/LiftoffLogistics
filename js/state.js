@@ -287,6 +287,9 @@ function buildCost(kind, def, tier = 0) {
   if (kind === 'sorter') return Math.round(SORTER.cost * m);
   if (kind === 'assembler') return Math.round(ASSEMBLER.cost * m);
   if (kind === 'rack') return Math.round(RACK.cost * m);
+  if (kind === 'silo') return Math.round(SILO.cost * m);
+  if (kind === 'bridge') return Math.round(BRIDGE.cost * m);
+  if (kind === 'buffer') return Math.round(BUFFER.cost * m);
   if (FACILITIES[kind]) return Math.round(FACILITIES[kind].cost * m);
   return Math.round(MACHINES[kind].cost * m);
 }
@@ -357,7 +360,8 @@ function handlingRate(id) {
   const prop = state.props[id];
   const blocked = runtime[id] && runtime[id].racksBlocked; // forklifts can't reach the racks
   return (HANDLING_BASE + (blocked ? 0 : HANDLING_PER_OP * staffCount(id, prop, 'forklift')))
-    * (1 + 0.15 * staffCount(id, prop, 'ops')) * (1 + 0.25 * facCount(id, 'opscenter')) * (1 + rfx('handling'));
+    * (1 + 0.15 * staffCount(id, prop, 'ops')) * (1 + 0.25 * facCount(id, 'opscenter')) * (1 + rfx('handling'))
+    * (1 + 0.5 * facCount(id, 'crane'));
 }
 
 function valueMult(id, prop) {

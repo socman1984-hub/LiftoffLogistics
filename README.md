@@ -55,6 +55,13 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   🔬 Clean Room Lab (💠 rare earth), 🏟️ Mega Hub (final assembly: assemblers 50% faster, rocket parts worth
   +50%), plus the 🚀 Launch Site. Staff cost more at bigger sites (wages scale a bit slower than build costs).
   Buying a site shows a **💡 Make it pay** checklist (roof, sales reps, scanner/labeler, wrapper), also on Manage → Upgrades.
+- **🆕 Each site unlocks a new building** (usable everywhere once you own it): 🏭 Mill → 🌉 Conveyor Bridge
+  (two lines cross), ⚒️ Foundry → 🧺 Accumulator (holds 20 packages, feeds them out steadily), 🏬 Depot →
+  🏗️ Loading Crane (outside; +50% rack handling), 🏗️ Refinery → 🫙 Silo (100 of one product), 🔬 Lab →
+  🧪 Research Bench (+25% research speed each, up to 8), 🏟️ Hub → 🦾 Cobot Station (extra crew for assemblers within 3 tiles).
+- **🚚 Suppliers**: tap a raw-material door to pick its supplier (Budget: cheap and slow · Standard · Express: fast
+  and pricey) and **🤝 negotiate** a contract: make offers, read their mood, and don't run out their patience. Longer
+  contracts get lower prices. A 🧾 **Purchasing Agent** renews deals automatically, but settles for less.
 - **🏭 Assemblers** turn ingredients into products (pick a recipe; wrong items back up, so sort first).
   Each has a mode: ▶ Run, ⏸ Pause, or 🚀 *Until the rocket has enough* (stops while the launch pad has enough
   of its part, letting shared ingredients flow on to the next assembler):

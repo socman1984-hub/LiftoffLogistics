@@ -45,7 +45,7 @@ function acceptsFrom(prop, def, x, y, side) {
   const o = t.obj;
   if (o.k === 'rack') return true; // conveyors can feed racks directly
   if (FACILITIES[o.k]) return false; // solid buildings
-  if (o.k === 'splitter') return true;
+  if (o.k === 'splitter' || o.k === 'bridge') return true;
   if (o.k === 'sorter') return side !== o.dir && !sorterMatchDirs(o).includes(side);
   return o.dir !== side; // can't push into a tile's output face
 }
@@ -64,6 +64,7 @@ function canEnter(prop, def, r, x, y, side, it) {
   if (t.base === 'out') return !it || canShip(def.id, prop, it.product);
   if (t.obj.jammed) return false;
   if (t.obj.k === 'assembler') return assemblerWants(t.obj, it);
+  if (t.obj.k === 'buffer') return (t.obj.q || []).length < BUFFER.cap;
   if (t.obj.k === 'rack') return !it || (rackAllows(t.obj, it.product) && storageRoomFor(def.id, it.product) > 0); // racks absorb into storage
   return !r.occ[y][x];
 }
@@ -94,6 +95,8 @@ function chooseSplitterDir(prop, def, r, it, obj) {
 function baseLife(o) {
   if (o.k === 'belt') return BELT_TIERS[o.tier].life;
   if (o.k === 'splitter') return SPLITTER.life;
+  if (o.k === 'bridge') return BRIDGE.life;
+  if (o.k === 'buffer') return BUFFER.life;
   if (o.k === 'sorter') return SORTER.life;
   if (o.k === 'assembler') return ASSEMBLER.life;
   return MACHINES[o.k].life;
@@ -103,7 +106,7 @@ function equipLife(o) {
   return Math.round(baseLife(o) * (1 + rfx('life')) * (0.75 + Math.random() * 0.5));
 }
 
-const EQUIP_NAMES = { belt: 'Conveyor', splitter: 'Splitter', sorter: 'Sorter', assembler: 'Assembler' };
+const EQUIP_NAMES = { belt: 'Conveyor', splitter: 'Splitter', sorter: 'Sorter', assembler: 'Assembler', bridge: 'Bridge', buffer: 'Accumulator' };
 const equipName = (o) => EQUIP_NAMES[o.k] || MACHINES[o.k].name;
 
 // One package's worth of wear; equipment past its life breaks down.
@@ -422,9 +425,12 @@ function advanceItem(id, prop, def, r, it, dt) {
         if (it.sortDir == null) it.sortDir = chooseSortDir(prop, def, r, it, o);
         outDir = it.sortDir;
       } else outDir = o.dir;
-    } else if (o.k === 'assembler') {
-      speed = MACHINE_SPEED * sm; // freshly built product leaving
+    } else if (o.k === 'assembler' || o.k === 'buffer') {
+      speed = MACHINE_SPEED * sm; // freshly built product (or a held package) leaving
       outDir = o.dir;
+    } else if (o.k === 'bridge') {
+      speed = BRIDGE.speed * sm;
+      outDir = opposite(it.fromDir); // straight on, whichever way it came in
     } else {
       // Machine: pause at the centre while processing.
       const m = MACHINES[o.k];
@@ -490,6 +496,12 @@ function tryMove(id, prop, def, r, it) {
     const st = nt.obj.stock || (nt.obj.stock = {});
     if (rackLoad(nt.obj) < rackCapOf(nt.obj) && rackAllows(nt.obj, it.product)) st['stored:' + it.product] = (st['stored:' + it.product] || 0) + 1;
     addFloater(id, r, nx + 0.5, ny + 0.3, '🗄️', '242,201,76');
+    it.dead = true;
+    return true;
+  }
+  if (nt.obj && nt.obj.k === 'buffer') {
+    // The accumulator swallows the package into its queue.
+    (nt.obj.q || (nt.obj.q = [])).push([it.product, it.value, it.fresh, it.tags.join(',')]);
     it.dead = true;
     return true;
   }
@@ -570,15 +582,16 @@ function stepProperty(id, dt) {
 
   // Supplier trucks drop raw material at open IN docks; receiving docks
   // unload whatever your other sites have trucked in.
-  const interval = truckInterval(id, prop);
+  const recvInterval = truckInterval(id, prop);
   for (const d of def.inDocks) {
     const t = prop.tiles[d.y][d.x];
     if (t.locked) continue;
+    const interval = d.receive ? recvInterval : dockInterval(id, prop, d); // supplier sets the pace
     const key = d.x + ',' + d.y;
     r.timers[key] = (r.timers[key] || 0) + dt;
     if (r.timers[key] < interval) continue;
     const product = d.receive ? (movesReady(id) ? nextInboxProduct(prop, r) : null) : pickCargo(d.cargo);
-    const cost = d.receive ? 0 : supplierCost(product);
+    const cost = d.receive ? 0 : dockCost(id, d, product);
     if (!product || r.occ[d.y][d.x] || state.money < cost) {
       r.timers[key] = interval; // backed up, nothing to unload, or can't pay the supplier — wait
       continue;
@@ -721,6 +734,16 @@ function stepAssemblers(id, prop, def, r, dt) {
   for (let y = 0; y < def.rows; y++) {
     for (let x = 0; x < def.cols; x++) {
       const o = prop.tiles[y][x].obj;
+      if (o && o.k === 'buffer' && !o.jammed && o.q && o.q.length && !r.occ[y][x]) {
+        // Accumulator: release the oldest package out of its arrow.
+        const [product, value, fresh, tags] = o.q.shift();
+        const it = makeItem(product, x, y, 0.5, opposite(o.dir), o.dir);
+        it.value = value; it.fresh = fresh; it.tags = tags ? tags.split(',') : []; it.processed = true;
+        r.items.push(it);
+        r.occ[y][x] = it;
+        wearOut(id, prop, def, o);
+        continue;
+      }
       if (!o || o.k !== 'assembler' || o.jammed || !o.recipe || assemblerIdle(o)) continue;
       const crew = r.crewed.get(x + ',' + y) || 0;
       // No operator: it still crawls along (25%) so a line can never deadlock.
@@ -886,9 +909,11 @@ function stepMarket(dt) {
     : `📉 Glut: ${PRODUCTS[p].icon} ${PRODUCTS[p].name} prices crashed to 60%`);
 }
 
+let supplierTick = 0;
 function stepWorld(dt) {
   state.clock += dt;
   stepLab(dt);
+  if ((supplierTick += dt) >= 1) { supplierTick = 0; stepSuppliers(); }
   for (const def of PROPERTIES) {
     if (state.props[def.id].owned) stepProperty(def.id, dt);
   }

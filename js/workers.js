@@ -17,6 +17,7 @@ const ROLE_LOOK = {
   security: { icon: '🛡️', color: '#34495e' },
   safety: { icon: '⛑️', color: '#c0392b' },
   hr: { icon: '🗂️', color: '#7f8c8d' },
+  buyer: { icon: '🧾', color: '#a569bd' },
 };
 const ROLE_HOME = { ops: 'opscenter', security: 'securitybooth', safety: 'firstaid' };
 const WORKER_NAMES = ['Ava', 'Ben', 'Carlos', 'Dana', 'Eli', 'Fatima', 'Gus', 'Hana', 'Ivan', 'Jade', 'Kofi', 'Lena',
@@ -32,7 +33,7 @@ function walkable(prop, def, x, y, wade) {
   if (t.base !== 'floor') return false; // broken floor, walls, pillars
   if (!wade && (t.dirt || 0) >= DIRT.filthy) return false; // a mess nobody can get through
   const o = t.obj;
-  return !o || o.k === 'belt' || o.k === 'splitter' || o.k === 'sorter'; // step over conveyors
+  return !o || o.k === 'belt' || o.k === 'splitter' || o.k === 'sorter' || o.k === 'bridge'; // step over conveyors
 }
 
 function entranceOf(prop, def) {
@@ -228,7 +229,10 @@ function stepWorkers(id, prop, def, r, dt) {
     const a = assemblers.filter((q) => crew.get(q.key) < MAX_CREW).sort((p, q) => crew.get(p.key) - crew.get(q.key))[0];
     if (a) { w.assign = a.key; crew.set(a.key, crew.get(a.key) + 1); }
   }
-  const lonely = assemblers.filter((a) => !crew.get(a.key));
+  // Cobot Stations crew every assembler in range.
+  const cobots = tilesOf(prop, 'cobot', true);
+  const botCrewed = new Set(assemblers.filter((a) => cobots.some((c) => Math.abs(c.x - a.x) + Math.abs(c.y - a.y) <= COBOT_RANGE)).map((a) => a.key));
+  const lonely = assemblers.filter((a) => !crew.get(a.key) && !botCrewed.has(a.key));
   if (lonely.length) {
     setAlert(r, 'nocrew', `${lonely.length} assembler${lonely.length > 1 ? 's have' : ' has'} no operator and run${lonely.length > 1 ? '' : 's'} at 25% speed. Hire 👷 Assembler Operators in Manage → Staff.`, lonely[0].x, lonely[0].y);
   }
@@ -312,6 +316,8 @@ function stepWorkers(id, prop, def, r, dt) {
       else wander(prop, def, r, w, dt);
     }
   }
+
+  for (const k of botCrewed) r.crewed.set(k, (r.crewed.get(k) || 0) + 1);
 
   stepDirt(id, prop, def, r, dt);
 

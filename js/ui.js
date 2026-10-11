@@ -23,18 +23,20 @@ function toast(msg) {
 
 // ---------------- Toolbar ----------------
 const TOOL_BY_ID = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
-const isPlaceable = (id) => ['belt', 'splitter', 'sorter', 'assembler'].includes(id) || !!MACHINES[id];
-const isBuilding = (k) => k === 'rack' || !!FACILITIES[k]; // solid one-tile buildings
+const isPlaceable = (id) => ['belt', 'splitter', 'sorter', 'assembler', 'bridge', 'buffer'].includes(id) || !!MACHINES[id];
+const isBuilding = (k) => k === 'rack' || k === 'silo' || !!FACILITIES[k]; // solid one-tile buildings
 
 function toolLocked(id) {
   const t = TOOL_BY_ID[id];
-  return !!(t.research && !hasResearch(t.research));
+  return !!((t.research && !hasResearch(t.research)) || (t.unlock && !unlockedBy(t.unlock)));
 }
+const lockReason = (t) => (t.unlock && !unlockedBy(t.unlock) ? `🔒 Buy the ${PROP_BY_ID[t.unlock].name} to unlock the ${t.name}` : `🔬 Research "${RESEARCH_BY_ID[t.research].name}" to unlock`);
 
 function toolCost(id, def) {
   if (!def) return null;
   if (id === 'repair') return def.repairCost;
   if (id === 'rack') return buildCost('rack', def);
+  if (id === 'silo') return buildCost('silo', def);
   if (id === 'facility') return ui.facilityType ? buildCost(ui.facilityType, def) : null;
   if (id === 'upgrade') return buildCost('belt', def, 1); // cheapest step, for the "can't afford" tint
   if (isPlaceable(id)) return buildCost(id, def);
@@ -84,7 +86,7 @@ function selectTool(id) {
   const t = TOOL_BY_ID[id];
   if (ui.pending) cancelPlan();
   if (toolLocked(id)) {
-    toast(`🔬 Research "${RESEARCH_BY_ID[t.research].name}" to unlock`);
+    toast(lockReason(t));
     return;
   }
   // Tapping the active tool again turns it off (inspect mode).
@@ -263,6 +265,8 @@ const PANELS = {
   map: { title: '🗺️ Your Enterprise', html: () => mapHTML() },
   logistics: { title: '🚚 Logistics', html: () => logisticsHTML() },
   recvdock: { title: '📥 Receiving Dock', html: () => recvDockHTML() },
+  supplier: { title: '🚚 Supplier', html: () => supplierHTML() },
+  negotiate: { title: '🤝 Negotiate', html: () => negotiateHTML() },
   assembler: { title: '🏭 Assembler Recipe', html: () => assemblerHTML() },
   building: { title: '🏗️ Manage Site', html: () => buildingHTML() },
   contracts: { title: '💹 Market', html: () => marketHTML() },
@@ -280,8 +284,8 @@ const PANELS = {
   confirmreplace: { title: '🔁 Replace?', html: () => confirmReplaceHTML() },
   finance: { title: '💵 Finances', html: () => financeHTML() },
 };
-const LIVE_PANELS = ['map', 'logistics', 'recvdock', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker', 'finance'];
-const SLOW_PANELS = ['map', 'logistics', 'recvdock']; // lots of buttons; refresh less often
+const LIVE_PANELS = ['map', 'logistics', 'recvdock', 'supplier', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker', 'finance'];
+const SLOW_PANELS = ['map', 'logistics', 'recvdock', 'supplier']; // lots of buttons; refresh less often
 
 function renderPanel() {
   const panel = PANELS[openPanelName];
@@ -412,6 +416,10 @@ function facilitiesHTML() {
     ${moraleSummary(id)}</p>`;
   for (const k of FACILITY_IDS) {
     const f = FACILITIES[k];
+    if (f.unlock && !unlockedBy(f.unlock)) {
+      html += card(f.icon, `${f.name} <span class="count">🔒</span>`, f.desc, `Buy the ${PROP_BY_ID[f.unlock].name} to unlock`, '<button class="btn secondary" disabled>🔒</button>', 'done');
+      continue;
+    }
     const n = facCount(id, k);
     const full = f.max && n >= f.max;
     const power = f.power < 0 ? `+${-f.power} ⚡` : f.power ? `uses ${f.power} ⚡` : 'no power';
@@ -441,10 +449,13 @@ function rackDetailHTML() {
   const used = here.reduce((a, b) => a + b.n, 0);
   const lvl = o.lvl || 1;
   const kindLabel = { stored: '🗄️ stored', outgoing: '🚚 waiting for a truck', incoming: '📥 trucked in' };
-  let html = `<div class="power-box"><div class="power-head"><span>Rack #${info.k + 1} · level ${lvl}/${RACK.levels.length}</span><b>${used} / ${slots}</b></div>
+  $('modalTitle').textContent = o.silo ? '🫙 Silo' : '🗄️ Rack';
+  let html = `<div class="power-box"><div class="power-head"><span>${o.silo ? `Silo (rack #${info.k + 1})` : `Rack #${info.k + 1} · level ${lvl}/${RACK.levels.length}`}</span><b>${used} / ${slots}</b></div>
     <div class="bar"><div style="width:${(used / slots) * 100}%;background:${used >= slots ? '#eb5757' : '#6fcf97'}"></div></div>
     <div class="power-note">${here.length ? here.map((u) => `${PRODUCTS[u.p].icon} ${u.n} ${PRODUCTS[u.p].name} <span class="muted">(${kindLabel[u.kind]})</span>`).join('<br>') : 'Empty'}</div></div>`;
-  if (lvl < RACK.levels.length) {
+  if (o.silo) {
+    html += '<p class="intro small">🫙 A silo holds 100 of one product. Pick it below (until you do, it takes anything).</p>';
+  } else if (lvl < RACK.levels.length) {
     const cost = Math.round(buildCost('rack', curDef()) * RACK.upMult[lvl]);
     html += card('⏫', `Upgrade this rack to level ${lvl + 1}`, `Holds ${RACK.levels[lvl]} instead of ${slots}`, '',
       `<button class="btn" data-act="rackup" ${state.money < cost ? 'disabled' : ''}>${fmt(cost)}</button>`);
@@ -825,6 +836,7 @@ function onPanelClick(e) {
         for (const row of curProp().tiles) for (const t of row) if (t.obj && t.obj.k === 'rack' && t.obj !== o) { t.obj.allow = o.allow ? [...o.allow] : undefined; n++; }
         toast(`🗄️ Copied to ${n} other rack${n === 1 ? '' : 's'}`);
       } else if (id === '*') delete o.allow;
+      else if (o.silo) o.allow = [id]; // a silo holds one product
       else {
         const set = new Set(o.allow || []);
         if (set.has(id)) set.delete(id); else set.add(id);
@@ -877,6 +889,9 @@ function onPanelClick(e) {
     return;
   }
   if (handleResearchAct(act, id)) { renderPanel(); refreshTopbar(); return; }
+  const sup = handleSupplierAct(act, id);
+  if (sup === 'stop') { refreshTopbar(); return; }
+  if (sup) { renderPanel(); refreshTopbar(); return; }
   const handled = handleEnterpriseAct(act, id);
   if (handled === 'stop') { refreshTopbar(); return; }
   if (handled) { renderPanel(); refreshTopbar(); refreshToolbar(); return; }
@@ -894,6 +909,8 @@ function onPanelClick(e) {
       if (id !== 'shed') {
         showMessage(`Welcome to the ${pd.name}! ${pd.emoji}`, `<p class="intro">${pd.desc}</p>
           <p class="intro">A new site earns little until you boost what its packages are worth. Bigger sites multiply every boost:</p>
+          ${UNLOCK_LIST(id).length ? `<div class="power-box unlock-box"><div class="power-head"><span>🆕 New to build, at every site</span></div>
+            <div class="power-note">${UNLOCK_LIST(id).map((u) => `<b>${u.icon} ${u.name}</b>: ${u.desc}`).join('<br>')}</div></div>` : ''}
           ${siteBoostHTML(id, true)}
           <p class="intro small">Staff here cost more than at your first site, so hire only who you need.</p>`);
       }
@@ -971,7 +988,7 @@ function switchProperty(id) {
 function totalCost(o, def) {
   let v = 0;
   if (o.k === 'belt') for (let i = 0; i <= o.tier; i++) v += buildCost('belt', def, i);
-  else v = buildCost(o.k, def) + (o.spent || 0);
+  else v = buildCost(o.silo ? 'silo' : o.k, def) + (o.spent || 0);
   return v;
 }
 
@@ -989,7 +1006,7 @@ function refund(o, def) {
 }
 
 // Pieces that sit in a conveyor line; placing one on another swaps it.
-const isLinePiece = (k) => ['belt', 'splitter', 'sorter', 'assembler'].includes(k) || !!MACHINES[k];
+const isLinePiece = (k) => ['belt', 'splitter', 'sorter', 'assembler', 'bridge', 'buffer'].includes(k) || !!MACHINES[k];
 
 function makeObj(kind, dir, def) {
   let o;
@@ -997,6 +1014,8 @@ function makeObj(kind, dir, def) {
   else if (kind === 'splitter') o = { k: 'splitter', dir, rr: 0 };
   else if (kind === 'sorter') o = { k: 'sorter', dir, filter: defaultSorterFilter(def), out: (dir + 1) % 4 };
   else if (kind === 'assembler') o = { k: 'assembler', dir, recipe: null, buf: {}, craftT: 0 };
+  else if (kind === 'silo') o = { k: 'rack', silo: true, dir: 0 };
+  else if (kind === 'buffer') o = { k: 'buffer', dir, q: [] };
   else o = { k: kind, dir };
   if (!isBuilding(kind)) {
     o.wear = 0;
@@ -1205,10 +1224,15 @@ function handleTap(x, y) {
     openPanel('recvdock');
     return;
   }
+  if (t.base === 'in' && tool !== 'remove') {
+    ui.supplyAt = { site: state.current, x, y }; // a supplier's door: deals and suppliers
+    openPanel('supplier');
+    return;
+  }
   if (t.obj && t.obj.jammed && tool !== 'remove') { fixMachine(x, y); return; }
   // Building something different on top of an existing piece always asks first.
   const newKind = tool === 'facility' ? ui.facilityType : tool;
-  const buildTool = tool && (isPlaceable(tool) || tool === 'rack' || (tool === 'facility' && newKind));
+  const buildTool = tool && (isPlaceable(tool) || tool === 'rack' || tool === 'silo' || (tool === 'facility' && newKind));
   const outsideOnly = FACILITIES[newKind] && FACILITIES[newKind].outside && t.base === 'floor';
   if (buildTool && t.obj && t.obj.k !== newKind && !outsideOnly) { askReplace(x, y, newKind); return; }
   if (t.obj && FACILITIES[t.obj.k] && tool !== 'remove') {
@@ -1223,8 +1247,8 @@ function handleTap(x, y) {
       if (spend(cost, 'repair', 'Floor cleaning')) { t.dirt = 0; toast(`🧽 Cleaned for ${fmt(cost)}`); } else toast(`Need ${fmt(cost)}`);
     } else if (t.base !== 'broken') toast('Floor is fine here');
     else repairTile(x, y);
-  } else if (tool === 'rack') {
-    if (!t.obj) placeObj(x, y, 'rack', 0);
+  } else if (tool === 'rack' || tool === 'silo') {
+    if (!t.obj) { if (placeObj(x, y, tool, 0) && tool === 'silo') { ui.rackSel = { x, y }; openPanel('rackdetail'); } }
     else if (t.obj.k === 'rack') { ui.rackSel = { x, y }; openPanel('rackdetail'); }
     else toast('Remove what is here first');
   } else if (tool === 'facility') {

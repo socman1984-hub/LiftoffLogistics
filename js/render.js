@@ -234,9 +234,68 @@ function feedsFrom(prop, def, x, y, side) {
   const o = n.obj;
   if (!o) return false;
   if (o.k === 'rack' || FACILITIES[o.k]) return false; // buildings never push packages out
-  if (o.k === 'splitter') return true;
+  if (o.k === 'splitter' || o.k === 'bridge') return true;
   if (o.k === 'sorter') return o.dir === toward || sorterMatchDirs(o).includes(toward);
   return o.dir === toward;
+}
+
+// Conveyor bridge: one line passes over the other.
+function drawBridge(px, py, s) {
+  ctx.fillStyle = '#3a3f47';
+  ctx.fillRect(px + 2, py + s * 0.3, s - 4, s * 0.4);
+  ctx.fillStyle = '#5d6d7e';
+  roundRect(px + s * 0.3, py + 2, s * 0.4, s - 4, s * 0.08);
+  ctx.fill();
+  ctx.strokeStyle = '#f2c94c';
+  ctx.lineWidth = Math.max(1, s * 0.04);
+  ctx.strokeRect(px + s * 0.3, py + 2, s * 0.4, s - 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = `${Math.floor(s * 0.3)}px system-ui`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🌉', px + s / 2, py + s / 2);
+}
+
+// Accumulator: a hopper with its queue count.
+function drawBuffer(o, px, py, s) {
+  const n = (o.q || []).length;
+  ctx.fillStyle = '#2a2d33';
+  ctx.fillRect(px + 2, py + 2, s - 4, s - 4);
+  ctx.fillStyle = '#7d5a3c';
+  roundRect(px + s * 0.1, py + s * 0.1, s * 0.8, s * 0.8, s * 0.12);
+  ctx.fill();
+  const k = n / BUFFER.cap;
+  ctx.fillStyle = k >= 1 ? '#eb5757' : '#f2c94c';
+  ctx.fillRect(px + s * 0.18, py + s * 0.82 - s * 0.6 * k, s * 0.64, s * 0.6 * k);
+  ctx.fillStyle = '#fff';
+  ctx.font = `800 ${Math.floor(s * 0.2)}px system-ui`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(n), px + s / 2, py + s * 0.45);
+  const d = DIRS[o.dir];
+  drawArrow(px + s / 2 + d.x * s * 0.4, py + s / 2 + d.y * s * 0.4, s * 0.1, o.dir, '#ffffff');
+}
+
+// Silo: a round bin with its fill level.
+function drawSilo(px, py, s, fill, used, cap) {
+  ctx.fillStyle = '#2a2d33';
+  ctx.fillRect(px + 2, py + 2, s - 4, s - 4);
+  ctx.fillStyle = '#95a5a6';
+  ctx.beginPath(); ctx.arc(px + s / 2, py + s / 2, s * 0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#566573';
+  ctx.beginPath(); ctx.arc(px + s / 2, py + s / 2, s * 0.32, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = fill >= 1 ? '#eb5757' : '#6fcf97';
+  ctx.beginPath(); ctx.moveTo(px + s / 2, py + s / 2);
+  ctx.arc(px + s / 2, py + s / 2, s * 0.32, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, fill)); ctx.fill();
+  if (used > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(px + s * 0.2, py + s * 0.02, s * 0.6, s * 0.18);
+    ctx.fillStyle = '#fff';
+    ctx.font = `700 ${Math.floor(s * 0.12)}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${used}/${cap}`, px + s / 2, py + s * 0.11);
+  }
 }
 
 // Belts shape themselves from their neighbours, like factory games:
@@ -912,19 +971,32 @@ function render(tool) {
         case 'broken': drawBroken(px, py, s, x, y, showRepair && tool === 'repair', repairCost); break;
         case 'pillar': drawPillar(px, py, s, x, y); break;
         case 'in':
-        case 'out': drawDock(t, px, py, s, time, dockDefs[x + ',' + y], waiting); break;
+        case 'out': {
+          drawDock(t, px, py, s, time, dockDefs[x + ',' + y], waiting);
+          const dd = dockDefs[x + ',' + y];
+          if (t.base === 'in' && dd && !dd.receive && !t.locked && activeDeal(supplyOf(prop, dd))) {
+            ctx.font = `${Math.floor(s * 0.22)}px system-ui`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🤝', px + s * 0.82, py + s * 0.82);
+          }
+          break;
+        }
         default:
           drawFloor(px, py, s, x, y);
           if (t.dirt > DIRT.stain && !t.obj) drawDirt(px, py, s, x, y, t.dirt);
           if (t.obj) {
             if (t.obj.k === 'belt') drawBelt(t.obj, px, py, s, time, sm, beltShape(prop, def, x, y, t.obj));
             else if (t.obj.k === 'splitter') drawSplitter(px, py, s);
+            else if (t.obj.k === 'bridge') drawBridge(px, py, s);
+            else if (t.obj.k === 'buffer') drawBuffer(t.obj, px, py, s);
             else if (t.obj.k === 'sorter') drawSorter(t.obj, px, py, s);
             else if (t.obj.k === 'assembler') drawAssembler(t.obj, px, py, s, r.crewed.get(x + ',' + y) || 0);
             else if (t.obj.k === 'rack') {
               const info = racksIdx.get(x + ',' + y);
               const used = Math.min(info.cap, rackLoad(t.obj));
-              drawRack(px, py, s, used / info.cap, x * 31 + y * 17, used, info.cap);
+              if (t.obj.silo) drawSilo(px, py, s, used / info.cap, used, info.cap);
+              else drawRack(px, py, s, used / info.cap, x * 31 + y * 17, used, info.cap);
               if (t.obj.allow) {
                 const icons = t.obj.allow.slice(0, 3).map((p) => PRODUCTS[p].icon).join('') + (t.obj.allow.length > 3 ? '…' : '');
                 ctx.fillStyle = 'rgba(0,0,0,0.75)';
