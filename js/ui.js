@@ -36,6 +36,7 @@ function toolCost(id, def) {
   if (id === 'repair') return def.repairCost;
   if (id === 'rack') return buildCost('rack', def);
   if (id === 'facility') return ui.facilityType ? buildCost(ui.facilityType, def) : null;
+  if (id === 'upgrade') return buildCost('belt', def, 1); // cheapest step, for the "can't afford" tint
   if (isPlaceable(id)) return buildCost(id, def);
   return null;
 }
@@ -123,7 +124,9 @@ function refreshToolbar() {
     b.classList.toggle('active', id === ui.tool);
     b.classList.toggle('locked', locked);
     const c = toolCost(id, def);
-    b.querySelector('.cost').textContent = locked ? '🔒' : c == null ? '' : fmt(c);
+    b.querySelector('.cost').textContent = locked ? '🔒' : id === 'upgrade' && def
+      ? `${fmt(buildCost('belt', def, 1))}–${fmt(buildCost('belt', def, 2))}` // Basic→Fast, Fast→Express
+      : c == null ? '' : fmt(c);
     if (id === 'facility') {
       const f = FACILITIES[ui.facilityType];
       b.querySelector('.ico').textContent = f ? f.icon : '🏢';
@@ -1011,7 +1014,13 @@ function upgradeTile(x, y) {
   if (!spend(cost)) { toast(`Need ${fmt(cost)}`); return false; }
   t.obj.tier++;
   t.obj.life = equipLife(t.obj);
+  toast(`⏫ ${next.name} conveyor (−${fmt(cost)})`);
   return true;
+}
+
+// Price of the next upgrade step for a belt, or null if it's maxed out.
+function beltUpgradeCost(o, def) {
+  return o.tier < BELT_TIERS.length - 1 ? buildCost('belt', def, o.tier + 1) : null;
 }
 
 function fixCost(o, def) {
@@ -1079,7 +1088,10 @@ function inspectTile(x, y) {
   if (o && o.k === 'sorter') { ui.sorterAt = { x, y }; openPanel('sorter'); return; }
   if (o && o.k === 'rack') { ui.rackSel = { x, y }; openPanel('rackdetail'); return; }
   let msg;
-  if (o && o.k === 'belt') msg = `➡️ ${BELT_TIERS[o.tier].name} conveyor${worn(o)}`;
+  if (o && o.k === 'belt') {
+    const up = beltUpgradeCost(o, def);
+    msg = `➡️ ${BELT_TIERS[o.tier].name} conveyor${worn(o)}${up != null ? ` · upgrade to ${BELT_TIERS[o.tier + 1].name}: ${fmt(up)}` : ' · max speed'}`;
+  }
   else if (o && o.k === 'splitter') msg = `🔀 Splitter${worn(o)}`;
   else if (o && o.k === 'rack') msg = `🗄️ Rack · holds ${rackCapOf(o)} products`;
   else if (o && MACHINES[o.k]) msg = `${MACHINES[o.k].icon} ${MACHINES[o.k].name}${worn(o)} · ${MACHINES[o.k].desc()}`;

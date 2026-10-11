@@ -637,6 +637,22 @@ function drawPlacementHints(prop, def, s, time) {
       ctx.fillRect(view.ox + x * s + 1, view.oy + y * s + 1, s - 2, s - 2);
       ctx.strokeStyle = line;
       ctx.strokeRect(view.ox + x * s + 3, view.oy + y * s + 3, s - 6, s - 6);
+      if (tool === 'upgrade') {
+        const o = prop.tiles[y][x].obj;
+        const next = BELT_TIERS[o.tier + 1];
+        const cost = beltUpgradeCost(o, def);
+        const locked = next.research && !hasResearch(next.research);
+        const label = locked ? '🔒' : fmt(cost);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.fillRect(view.ox + x * s + s * 0.08, view.oy + y * s + s * 0.34, s * 0.84, s * 0.32);
+        ctx.fillStyle = locked ? '#ffffff' : state.money < cost ? '#ff8a8a' : '#ffe9a8';
+        ctx.font = `800 ${Math.floor(s * 0.22)}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, view.ox + (x + 0.5) * s, view.oy + (y + 0.5) * s);
+        ctx.setLineDash([s * 0.14, s * 0.1]);
+      }
     }
   }
   ctx.restore();
