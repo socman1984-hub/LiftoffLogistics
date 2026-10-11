@@ -263,6 +263,7 @@ function closePanel() {
 const PANELS = {
   map: { title: '🗺️ Your Enterprise', html: () => mapHTML() },
   logistics: { title: '🚚 Logistics', html: () => logisticsHTML() },
+  recvdock: { title: '📥 Receiving Dock', html: () => recvDockHTML() },
   assembler: { title: '🏭 Assembler Recipe', html: () => assemblerHTML() },
   building: { title: '🏗️ Manage Site', html: () => buildingHTML() },
   contracts: { title: '💹 Market', html: () => marketHTML() },
@@ -280,8 +281,8 @@ const PANELS = {
   confirmreplace: { title: '🔁 Replace?', html: () => confirmReplaceHTML() },
   finance: { title: '💵 Finances', html: () => financeHTML() },
 };
-const LIVE_PANELS = ['map', 'logistics', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker', 'finance'];
-const SLOW_PANELS = ['map', 'logistics']; // lots of buttons; refresh less often
+const LIVE_PANELS = ['map', 'logistics', 'recvdock', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker', 'finance'];
+const SLOW_PANELS = ['map', 'logistics', 'recvdock']; // lots of buttons; refresh less often
 
 function renderPanel() {
   const panel = PANELS[openPanelName];
@@ -1168,6 +1169,10 @@ function handleTap(x, y) {
     ui.logSite = state.current;
     ui.logTab = 'dist';
     openPanel('logistics');
+    return;
+  }
+  if (t.base === 'in' && tool !== 'remove' && (curDef().inDocks.find((k) => k.x === x && k.y === y) || {}).receive) {
+    openPanel('recvdock');
     return;
   }
   if (t.obj && t.obj.jammed && tool !== 'remove') { fixMachine(x, y); return; }

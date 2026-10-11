@@ -300,7 +300,14 @@ function fleetHTML() {
     return html;
   }
   html += '<p class="intro small">Assign trucks to each route. A truck loads at the source, drives over, unloads and comes back. The departure rule sets how long a part-loaded truck waits for more cargo.</p>';
-  for (const key of keys) {
+  for (const key of keys) html += routeCardHTML(key, idle);
+  return html;
+}
+
+// One route's card: trucks assigned, what's waiting, departure rule.
+function routeCardHTML(key, idle) {
+  {
+    let html = '';
     const st = routeStats(key);
     const busy = st.waiting > st.perMin * 1.5;
     html += `<div class="plan route-card ${!st.f.trucks && st.waiting ? 'alert' : ''}">
@@ -317,6 +324,42 @@ function fleetHTML() {
       <div class="choice"><span class="ctl-lbl">Leave</span>${TRUCK_WAITS.map((w) =>
     `<button class="chip small ${st.f.wait === w.id ? 'on' : ''}" data-act="twait" data-id="${key}|${w.id}">${w.label}</button>`).join('')}</div>
     </div>`;
+    return html;
+  }
+}
+
+// Tapping a RECV door: what's arriving here, and the truck routes that bring it.
+function recvDockHTML() {
+  const id = state.current;
+  const prop = state.props[id];
+  const idle = idleTrucks();
+  const waiting = Object.values(prop.inbox).reduce((a, b) => a + b, 0);
+  let html = `<p class="intro">Trucks from your other sites unload here. Products arrive when another site's distribution plan sends them to <b>${siteName(id)}</b> and its route has trucks.</p>`;
+  html += `<div class="power-box"><div class="power-head"><span>📥 Unloaded, waiting to go on the line</span><b>${waiting}</b></div>
+    <div class="power-note">${countList(prop.inbox) || 'Nothing yet'}</div></div>`;
+  // What the assemblers here use, so the player knows what to send.
+  const needs = new Set();
+  for (const row of prop.tiles) for (const t of row) {
+    if (t.obj && t.obj.k === 'assembler' && t.obj.recipe) for (const p of Object.keys(RECIPES[t.obj.recipe].in || {})) needs.add(p);
+  }
+  if (needs.size) html += `<p class="intro small">Assemblers here use: ${[...needs].map((p) => `${PRODUCTS[p].icon} ${PRODUCTS[p].name}`).join(', ')}</p>`;
+
+  html += `<div class="garage"><div><b>🚚 ${state.garage.trucks}</b> trucks · <b class="${idle ? 'gold' : ''}">${idle}</b> idle</div>
+    <button class="btn small" data-act="buytruck" ${state.money < truckCost() ? 'disabled' : ''}>Buy ${fmt(truckCost())}</button></div>`;
+  const inbound = Object.keys(state.fleet).filter((k) => k.split('>')[1] === id);
+  html += '<h3 class="sec">Routes into this site</h3>';
+  if (inbound.length) for (const key of inbound) html += routeCardHTML(key, idle);
+  else html += '<p class="intro small">No trucks come here yet.</p>';
+  // Other sites: jump to their plan to send products here.
+  const others = PROPERTIES.filter((d) => d.id !== id && state.props[d.id].owned);
+  html += '<h3 class="sec">Send products here</h3>';
+  if (!others.length) html += '<p class="intro small">Buy another site on the 🗺️ Map; its products can then be trucked here.</p>';
+  else {
+    html += '<p class="intro small">Open a site&#39;s plan and add this site as a destination for a product. Its route then shows up above, ready for trucks.</p>';
+    for (const d of others) {
+      html += `<div class="sell-row"><span>${siteEmoji(d.id)} ${d.name}</span>
+        <button class="btn small secondary" data-act="openlog" data-id="${d.id}">📦 Its plan ›</button></div>`;
+    }
   }
   return html;
 }
