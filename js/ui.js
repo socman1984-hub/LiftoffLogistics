@@ -235,7 +235,8 @@ function refreshTopbar() {
   setBadge('research', state.lab ? '⏳' : researchReady() ? '!' : '');
   const stalled = Object.entries(state.fleet).some(([k, f]) => !f.trucks
     && Object.values(state.props[k.split('>')[0]].outbox[k.split('>')[1]] || {}).some((n) => n > 0));
-  setBadge('map', stalled ? '!' : idleTrucks() > 0 ? idleTrucks() : '');
+  const rocketWaiting = state.launch.owned && launchReady() && !(state.launch.count >= 1 && state.launch.auto);
+  setBadge('map', rocketWaiting ? '🚀' : stalled ? '!' : idleTrucks() > 0 ? idleTrucks() : '');
 }
 
 function setBadge(panel, text) {

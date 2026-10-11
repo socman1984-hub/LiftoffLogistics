@@ -565,3 +565,17 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .route-hit { stroke: transparent; stroke-width: 5; cursor: pointer; }
 .map .truck { cursor: pointer; }
 .route-card.flash { box-shadow: 0 0 0 3px var(--accent); transition: box-shadow 0.3s; }
+
+/* ---- First launch cinematic ---- */
+#launchFx { position: fixed; inset: 0; z-index: 2000; background: #000; animation: lfxIn 0.4s ease; }
+#launchFx.out { opacity: 0; transition: opacity 0.45s ease; }
+#launchFx canvas { width: 100%; height: 100%; display: block; }
+.lfx-skip { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; background: rgba(0,0,0,0.45); color: #fff; border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 8px 14px; font-weight: 700; }
+.lfx-text { position: absolute; left: 0; right: 0; top: 18%; text-align: center; color: #fff; font-weight: 900; font-size: 34px; text-shadow: 0 3px 12px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.35s ease; pointer-events: none; }
+.lfx-text.show { opacity: 1; }
+.lfx-text.big { font-size: 96px; top: 22%; }
+.lfx-text.small { font-size: 20px; top: 12%; }
+.lfx-text.pop.show { animation: lfxPop 0.9s ease; }
+.lfx-sub { font-size: 16px; font-weight: 600; margin-top: 8px; opacity: 0.9; }
+@keyframes lfxPop { 0% { transform: scale(1.6); opacity: 0; } 30% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.85; } }
+@keyframes lfxIn { from { opacity: 0; } to { opacity: 1; } }

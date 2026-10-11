@@ -913,7 +913,7 @@ let supplierTick = 0;
 function stepWorld(dt) {
   state.clock += dt;
   stepLab(dt);
-  if ((supplierTick += dt) >= 1) { supplierTick = 0; stepSuppliers(); sampleRates(); }
+  if ((supplierTick += dt) >= 1) { supplierTick = 0; stepSuppliers(); sampleRates(); checkLaunch(); }
   for (const def of PROPERTIES) {
     if (state.props[def.id].owned) stepProperty(def.id, dt);
   }

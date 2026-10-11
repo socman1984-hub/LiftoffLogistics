@@ -469,9 +469,14 @@ function launchDetailHTML() {
       <div class="title">${st.name}${st.done ? ' ✅' : ''}</div>${rows}</div></div>`;
   }
   if (state.launch.owned) {
-    html += launchReady()
+    html += launchReady() && !(state.launch.count >= 1 && state.launch.auto)
       ? '<button class="btn launch" data-act="launch">🚀 LAUNCH!</button>'
       : '<p class="intro">Truck parts here: in 🚚 Logistics → Distribution, add 🚀 Launch Site as a destination, then assign trucks to the route.</p>';
+    if (state.launch.count >= 1) {
+      html += `<div class="choice"><span class="ctl-lbl">Launch</span>
+        <button class="chip ${state.launch.auto ? 'on' : ''}" data-act="autolaunch" data-id="on">🔁 Automatically when ready</button>
+        <button class="chip ${!state.launch.auto ? 'on' : ''}" data-act="autolaunch" data-id="off">👆 When I press Launch</button></div>`;
+    }
   }
   return html;
 }
@@ -558,7 +563,8 @@ function launchStageProgress() {
   });
 }
 
-function doLaunch() {
+// The first launch plays the cinematic; `auto` launches (later rockets) just report.
+function doLaunch(opts = {}) {
   if (!launchReady()) return;
   state.launch.count++;
   state.launch.parts = {};
@@ -566,14 +572,36 @@ function doLaunch() {
   const stars = Math.round(LAUNCH_STARS * (1 + rfx('launchStars')));
   state.rep += stars;
   save();
-  const mins = Math.round(state.clock / 60);
   const n = state.launch.count;
+  if (opts.auto) {
+    toast(`🚀 Rocket #${n} launched automatically! +${GEMS.perLaunch} 💎 +${stars} ⭐`);
+    return;
+  }
+  if (n === 1) {
+    closePanel();
+    playLaunchAnimation(() => launchMessage(n, stars));
+  } else launchMessage(n, stars);
+}
+
+function launchMessage(n, stars) {
+  const mins = Math.round(state.clock / 60);
   showMessage(n === 1 ? '🚀 LIFTOFF! You win!' : `🚀 Rocket #${n} launched!`, `
     <div class="victory">🚀</div>
     <p class="intro">${n === 1
     ? `From a rusty shed to a rocket in <b>${Math.floor(mins / 60)}h ${mins % 60}m</b> of play. Your supply chain did it!`
     : 'Another flawless launch.'}</p>
-    <p class="intro">+${GEMS.perLaunch} 💎 · +${stars} ⭐ · Keep going: the next rocket needs ${LAUNCH.growth}× the parts.</p>`);
+    <p class="intro">+${GEMS.perLaunch} 💎 · +${stars} ⭐ · Keep going: the next rocket needs ${LAUNCH.growth}× the parts.</p>
+    ${n === 1 ? '<p class="intro small">From now on you can let rockets launch themselves as soon as their parts arrive: 🚀 Launch Site → Auto-launch.</p>' : ''}`);
+}
+
+// Auto-launch (after the first rocket) and a heads-up when one is ready to go.
+function checkLaunch() {
+  if (!state.launch.owned || !launchReady()) { ui.launchReadyToasted = false; return; }
+  if (state.launch.count >= 1 && state.launch.auto) { doLaunch({ auto: true }); return; }
+  if (!ui.launchReadyToasted) {
+    ui.launchReadyToasted = true;
+    toast(state.launch.count ? '🚀 A rocket is ready: open the 🚀 Launch Site to fire it' : '🚀 Your first rocket is ready! Open the 🚀 Launch Site on the Map and press LAUNCH');
+  }
 }
 
 // Panel button handlers for this module. Returns true if handled.
@@ -685,6 +713,7 @@ function handleEnterpriseAct(act, id) {
     return true;
   }
   if (act === 'launch') { doLaunch(); return 'stop'; }
+  if (act === 'autolaunch') { state.launch.auto = id === 'on'; save(); if (state.launch.auto) checkLaunch(); return true; }
   if (act === 'asmfeed') {
     const o = curProp().tiles[ui.assemblerAt.y][ui.assemblerAt.x].obj;
     if (o && o.k === 'assembler') { if (id === 'off') o.noFeed = true; else delete o.noFeed; save(); }

@@ -131,6 +131,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   product drops as you sell it and recovers over time, with random booms and gluts.
 - **⚡ Power**: machines and assemblers draw power; overloading a site slows them. Electrical adds capacity.
 - **Research gates** advanced recipes: Propulsion (🌀 🔥), Guidance (📡 💻 🛰️), Thermal (🌡️), Habitat (🫁), Photovoltaics (☀️).
+- **🚀 Launching**: the first rocket launches when you press LAUNCH, with a full cinematic (countdown, ignition,
+  liftoff, staging, into space; skippable). After that, rockets can launch automatically as soon as their parts
+  arrive (Launch Site → Auto-launch), with no animation. The Map button shows 🚀 when one is waiting.
 - **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).
