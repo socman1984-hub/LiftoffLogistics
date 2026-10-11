@@ -398,6 +398,7 @@ const STAFF_PER_BREAKROOM = 8;
 // Rack handling: every put-away or pick is one "move". A site manages
 // HANDLING_BASE moves/min alone; Forklift Operators add more.
 const HANDLING_BASE = 10;
+const FORKLIFT_CARRY = 10; // products a forklift brings an assembler from storage in one trip (one handling move)
 const HANDLING_PER_OP = 30;
 const HANDLING_BURST = 8; // moves that can bank up while handlers are idle
 

@@ -132,7 +132,9 @@ function syncWorkers(id, prop, def, r) {
   const have = {};
   r.workers = r.workers.filter((w) => {
     have[w.role] = (have[w.role] || 0) + 1;
-    return have[w.role] <= want[w.role];
+    const keep = have[w.role] <= want[w.role];
+    if (!keep) returnCarry(prop, w);
+    return keep;
   });
   const door = entranceOf(prop, def);
   for (const s of STAFF) {
@@ -236,6 +238,13 @@ function stepWorkers(id, prop, def, r, dt) {
   r.skip = r.skip || {};
   const racks = tilesOf(prop, 'rack');
   r.racksBlocked = false;
+  // Restocking jobs, each taken by one forklift at a time.
+  const jobs = supplyJobs(prop);
+  const claimed = new Set(r.workers.filter((w) => w.job).map((w) => w.job.key));
+  if (jobs.length && !r.workers.some((w) => w.role === 'forklift')) {
+    const j = jobs[0];
+    setAlert(r, 'nofeed', `${PRODUCTS[j.p].icon} ${PRODUCTS[j.p].name} is in storage but an assembler is out of it. Hire a 🚜 Forklift Operator to bring it over.`, j.ax, j.ay);
+  }
 
   for (const w of r.workers) {
     // Breaks come first (but never in the middle of a repair).
@@ -283,6 +292,11 @@ function stepWorkers(id, prop, def, r, dt) {
     } else if (w.role === 'janitor') {
       stepJanitor(id, prop, def, r, w, dt);
     } else if (w.role === 'forklift') {
+      if (!w.job && jobs.length) {
+        const j = jobs.find((q) => !claimed.has(q.key));
+        if (j) { w.job = j; claimed.add(j.key); w.path = []; w.wait = 0; }
+      }
+      if (w.job) { stepSupplyRun(id, prop, def, r, w, dt); continue; }
       if (!racks.length) { wander(prop, def, r, w, dt); continue; }
       const door = entranceOf(prop, def);
       const goal = w.leg === 'rack' ? nextToAny(racks) : nextTo(door.x, door.y);
@@ -303,6 +317,71 @@ function stepWorkers(id, prop, def, r, dt) {
 
   // Drop alerts that weren't refreshed recently.
   for (const [k, a] of Object.entries(r.alerts)) if (r.time - a.t > 1.5) delete r.alerts[k];
+}
+
+// ---- Forklift restocking ----
+// An assembler that's out of an ingredient gets a forklift load of it from
+// stored stock on the racks: up to FORKLIFT_CARRY per trip, one handling move.
+function supplyJobs(prop) {
+  const jobs = [];
+  if (!Object.values(prop.held).some((n) => n > 0)) return jobs;
+  const racks = tilesOf(prop, 'rack');
+  prop.tiles.forEach((row, ay) => row.forEach((t, ax) => {
+    const o = t.obj;
+    if (!o || o.k !== 'assembler' || !o.recipe || o.jammed || o.noFeed || assemblerIdle(o)) return;
+    const rec = RECIPES[o.recipe];
+    for (const [p, n] of Object.entries(rec.in)) {
+      if (((o.buf && o.buf[p]) || 0) >= n || !(prop.held[p] > 0)) continue; // only when it can't make the next one
+      const rack = racks.find((q) => ((prop.tiles[q.y][q.x].obj.stock || {})['stored:' + p] || 0) > 0);
+      if (rack) jobs.push({ ax, ay, key: ax + ',' + ay + ':' + p, p, rx: rack.x, ry: rack.y });
+    }
+  }));
+  return jobs;
+}
+
+// Put a carried load back into storage (job cancelled, assembler gone, etc.).
+function returnCarry(prop, w) {
+  if (!w.carry) return;
+  prop.held[w.carry.p] = (prop.held[w.carry.p] || 0) + w.carry.n;
+  w.carry = null;
+}
+
+function stepSupplyRun(id, prop, def, r, w, dt) {
+  const j = w.job;
+  const a = prop.tiles[j.ay][j.ax].obj;
+  const valid = a && a.k === 'assembler' && a.recipe && RECIPES[a.recipe].in[j.p] && !a.noFeed;
+  if (!valid) { returnCarry(prop, w); w.job = null; return; }
+  if (!w.carry) {
+    // Pick up at the rack.
+    const ro = prop.tiles[j.ry][j.rx].obj;
+    const there = ro && ro.k === 'rack' ? (ro.stock || {})['stored:' + j.p] || 0 : 0;
+    if (!there || !(prop.held[j.p] > 0)) { w.job = null; return; }
+    if (!walkTo(prop, def, r, w, nextTo(j.rx, j.ry), dt, '🚜 Forklift can\'t reach the rack with the stock. Repair the floor around it.', j.rx, j.ry)) { w.mode = 'walk'; return; }
+    w.mode = 'work';
+    w.wait += dt;
+    if (w.wait < 1 || !takeMove(id)) return; // loading the forks
+    w.wait = 0;
+    const cap = Math.max(RECIPES[a.recipe].in[j.p] * ASSEMBLER.bufferRecipes, FORKLIFT_CARRY);
+    const n = Math.max(1, Math.min(FORKLIFT_CARRY, there, prop.held[j.p], cap - ((a.buf && a.buf[j.p]) || 0)));
+    ro.stock['stored:' + j.p] -= n;
+    if (!ro.stock['stored:' + j.p]) delete ro.stock['stored:' + j.p];
+    prop.held[j.p] -= n;
+    if (!prop.held[j.p]) delete prop.held[j.p];
+    w.carry = { p: j.p, n };
+    w.path = [];
+    return;
+  }
+  // Drop it at the assembler.
+  if (!walkTo(prop, def, r, w, nextTo(j.ax, j.ay), dt, `🚜 Forklift can't reach the ${objName(a)}. Repair the floor or clear a path to it.`, j.ax, j.ay)) { w.mode = 'walk'; return; }
+  w.mode = 'work';
+  w.wait += dt;
+  if (w.wait < 0.6) return;
+  w.wait = 0;
+  const buf = a.buf || (a.buf = {});
+  buf[w.carry.p] = (buf[w.carry.p] || 0) + w.carry.n;
+  addFloater(id, r, j.ax + 0.5, j.ay + 0.2, `🚜 +${w.carry.n} ${PRODUCTS[w.carry.p].icon}`, '242,201,76');
+  w.carry = null;
+  w.job = null;
 }
 
 // ---- Morale ----
@@ -500,8 +579,15 @@ function workerActivity(prop, w) {
       const what = o && FACILITIES[o.k] ? `the ${FACILITIES[o.k].name}` : 'the floor';
       return w.mode === 'work' ? `Cleaning ${what}` : `Walking over to clean ${what}`;
     }
-    case 'forklift':
+    case 'forklift': {
+      if (w.job) {
+        const a = at(w.job.ax + ',' + w.job.ay);
+        const what = a ? objName(a) : 'assembler';
+        const P = PRODUCTS[w.job.p];
+        return w.carry ? `Bringing ${w.carry.n} ${P.icon} ${P.name} to the ${what}` : `Fetching ${P.icon} ${P.name} from the racks for the ${what}`;
+      }
       return w.leg === 'rack' ? 'Taking products to the racks' : 'Fetching products from the doors';
+    }
     default: {
       const home = ROLE_HOME[w.role];
       if (home && tilesOf(prop, home, true).length) return `Working at the ${FACILITIES[home].name}`;
@@ -547,6 +633,7 @@ function payRateHTML(prop) {
 // How a worker is doing, as a small badge on their icon.
 function workerBadge(r, w) {
   if (w.stuck) return null; // the ❗ bubble covers it
+  if (w.carry) return '📦';
   if (w.mode === 'break' && w.path.length) return FACILITIES[w.breakKind].icon; // heading to a break
   const m = r.morale == null ? 1 : r.morale;
   if (m < MORALE.quit) return '😠';

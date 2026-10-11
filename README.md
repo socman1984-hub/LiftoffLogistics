@@ -79,6 +79,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   door shows how full they are. Full racks back up the line, and arriving trucks wait to unload.
   Stored stock leaves on a truck when a destination has room, or via "Sell stored stock".
   Tap a rack to choose **what goes on it** (anything, or only certain products) to reserve space for specific goods.
+  When an assembler runs out of an ingredient that's in storage, a 🚜 Forklift Operator fetches up to 10 at a
+  time from the racks and drops them at the assembler (one handling move per trip; can be set to belt-only per assembler).
 - **👷 Workers walk the floor**: every staff member is a visible worker who path-finds over repaired
   floor and doors (stepping over conveyors), never over broken floor, walls, machines, racks or
   facilities. **Assembler Operators** crew assemblers (an assembler only runs while its operator stands
@@ -97,7 +99,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **🚜 Rack handling**: every put-away, truck load, truck unload and pick is one *move*. A site manages
   10 moves/min alone; each Forklift Operator adds 30, Operations Managers add 15% each. Goods sold
   straight to vendors skip the racks.
-- **🚚 Logistics → Fleet**: buy trucks into your garage and assign them to routes; set each route's
+- **🚚 Logistics → Fleet**: each route lists its trucks live (loading n/cap with a departure countdown, idle time,
+  arrival time, stuck unloading and why), with advice, Send now and Assign idle trucks. Buy trucks into your garage and assign them to routes; set each route's
   departure rule (ASAP / 10s / 30s / when full). Routes with no trucks pile up. New sites come with a truck; each truck you own makes the next 25% dearer.
 - **Sell vs. supply**: Scanners, Labelers and Wrappers raise only the *sale* price.
 - **🚀 Launch Site**: three stages (Booster, Upper Stage, Crew Capsule): 12 🛡️, 8 🛢️, 6 🔥, 16 🧪, 4 🛰️,

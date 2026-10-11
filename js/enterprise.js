@@ -515,6 +515,12 @@ function assemblerHTML() {
         : 'Running. Pause it to let its ingredients reach assemblers further down the line.';
     html += `<h3 class="sec">Mode</h3><div class="choice">${chip('run', '▶ Run')}${chip('pause', '⏸ Pause')}${rocket ? chip('auto', '🚀 Until the rocket has enough') : ''}</div>
       <p class="intro small">${note}</p>`;
+    const prop = curProp();
+    const stored = Object.keys(RECIPES[o.recipe].in).filter((p) => prop.held[p] > 0).map((p) => `${PRODUCTS[p].icon} ${prop.held[p]}`).join(' · ');
+    html += `<h3 class="sec">Restock from storage</h3><div class="choice">
+      <button class="chip ${!o.noFeed ? 'on' : ''}" data-act="asmfeed" data-id="on">🚜 Forklifts restock it</button>
+      <button class="chip ${o.noFeed ? 'on' : ''}" data-act="asmfeed" data-id="off">Belt only</button></div>
+      <p class="intro small">${o.noFeed ? 'Only takes ingredients from the belts.' : `When it runs out of an ingredient that's stored on this site's racks, a 🚜 Forklift Operator brings up to ${FORKLIFT_CARRY} at a time.`} ${stored ? `In storage now: ${stored}.` : 'None of its ingredients are in storage right now.'}</p>`;
   }
   for (const p of RECIPE_IDS) {
     const r = RECIPES[p];
@@ -663,6 +669,11 @@ function handleEnterpriseAct(act, id) {
     return true;
   }
   if (act === 'launch') { doLaunch(); return 'stop'; }
+  if (act === 'asmfeed') {
+    const o = curProp().tiles[ui.assemblerAt.y][ui.assemblerAt.x].obj;
+    if (o && o.k === 'assembler') { if (id === 'off') o.noFeed = true; else delete o.noFeed; save(); }
+    return true;
+  }
   if (act === 'asmmode') {
     const o = curProp().tiles[ui.assemblerAt.y][ui.assemblerAt.x].obj;
     if (o && o.k === 'assembler') { o.mode = id === 'run' ? undefined : id; save(); }

@@ -203,6 +203,7 @@ function snapshotRuntime() {
       sales: r.sales.filter((s) => s.t >= r.time - 30).map((s) => [r1(r.time - s.t), r1(s.v)]),
       costs: r.costs.filter((c) => c.t >= r.time - 30).map((c) => [r1(r.time - c.t), r1(c.v)]),
       workers: r.workers.map((w) => [w.role, w.name, Math.round(w.x), Math.round(w.y), Math.round(w.breakIn || 60)]),
+      carried: r.workers.filter((w) => w.carry).map((w) => [w.carry.p, w.carry.n]),
       items: r.items.filter((it) => !it.dead).map((it) => [it.product, it.x, it.y, r1(it.p), it.fromDir, it.outDir, r1(it.value), r1(it.fresh), it.tags.join(','), it.processed ? 1 : 0]),
     };
   }
@@ -219,6 +220,7 @@ function restoreRuntime(snap) {
     const r = rt(id);
     r.sales = (s.sales || []).map(([age, v]) => ({ t: r.time - age, v }));
     r.costs = (s.costs || []).map(([age, v]) => ({ t: r.time - age, v }));
+    for (const [p, n] of s.carried || []) if (PRODUCTS[p]) prop.held[p] = (prop.held[p] || 0) + n; // loads on forklifts go back on the racks
     for (const [role, name, x, y, breakIn] of s.workers || []) {
       if (!STAFF_BY_ID[role] || !prop.tiles[y] || !prop.tiles[y][x]) continue;
       r.workers.push({ id: nextWorkerId++, role, name, x, y, fx: x, fy: y, path: [], mode: 'idle', breakIn, wait: 0 });
