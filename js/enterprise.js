@@ -219,7 +219,7 @@ function storageBoxHTML(id) {
     <div class="power-head"><span>🗄️ Racks</span><b>${used} / ${cap}</b></div>
     <div class="bar"><div style="width:${pct}%;background:${used >= cap ? '#eb5757' : pct > 75 ? '#f2c94c' : '#6fcf97'}"></div></div>
     <div class="power-note">📥 Incoming: ${countList(prop.inbox) || 'none'}<br>🚚 Outgoing: ${countList(outgoing) || 'none'}<br>🗄️ Stored: ${countList(prop.held) || 'none'}</div>
-    ${countList(prop.held) ? `<div class="dest-ctl"><button class="btn small secondary" data-act="sellstored" data-id="${id}">💰 Sell stored stock</button></div>` : ''}
+    ${storedSellHTML(id)}
     <div class="power-note">${layoutOf(id).racks} rack${layoutOf(id).racks === 1 ? '' : 's'} (${layoutOf(id).rackSlots} slots) + ${STORAGE_BASE} dock staging. Build more with the 🗄️ Rack tool, or tap a rack to upgrade it.</div>
     <div class="power-head" style="margin-top:10px"><span>🚜 Handling</span><b>${rate} moves/min</b></div>
     <div class="bar"><div style="width:${busy}%;background:${busy > 90 ? '#eb5757' : busy > 70 ? '#f2c94c' : '#6fcf97'}"></div></div>
@@ -227,6 +227,22 @@ function storageBoxHTML(id) {
     <div class="dest-ctl"><span class="ctl-lbl">Forklift operators ${ops}/${opDef.max}</span>
       <button class="btn small" data-act="hire" data-id="forklift" ${ops >= opDef.max || state.money < fee || id !== state.current ? 'disabled' : ''}>${id !== state.current ? 'Hire there' : `+ Hire ${fmt(fee)}`}</button></div>
   </div>`;
+}
+
+// Sell stored stock: per product, or all at once (with estimated value).
+function storedSellHTML(id) {
+  const held = Object.entries(state.props[id].held).filter(([, n]) => n > 0);
+  if (!held.length) return '';
+  let all = 0;
+  let html = '<div class="sell-list"><div class="ctl-lbl">Sell stored stock</div>';
+  for (const [p, n] of held) {
+    const v = storedSaleValue(id, p, n);
+    all += v;
+    html += `<div class="sell-row"><span>${PRODUCTS[p].icon} ${n} ${PRODUCTS[p].name}<span class="muted"> · ≈${fmt(v)}</span></span>
+      <button class="btn small secondary" data-act="sellstored" data-id="${id}|${p}">💰 Sell</button></div>`;
+  }
+  if (held.length > 1) html += `<button class="btn small" style="width:100%;margin-top:6px" data-act="sellstored" data-id="${id}">💰 Sell all (≈${fmt(all)})</button>`;
+  return html + '</div>';
 }
 
 function fleetHTML() {
@@ -419,7 +435,12 @@ function handleEnterpriseAct(act, id) {
     return true;
   }
   if (act === 'rdel') { delete state.fleet[id]; save(); return true; }
-  if (act === 'sellstored') { toast(`💰 Sold stored stock for ${fmt(sellStored(id))}`); save(); return true; }
+  if (act === 'sellstored') {
+    const [site, p] = id.split('|');
+    toast(`💰 Sold ${p ? PRODUCTS[p].name : 'all stored stock'} for ${fmt(sellStored(site, p))}`);
+    save();
+    return true;
+  }
   if (act === 'buylaunch') {
     if (!state.launch.owned && spend(LAUNCH.price, 'property', 'Launch Site')) {
       state.launch.owned = true;

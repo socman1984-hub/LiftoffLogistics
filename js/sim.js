@@ -591,18 +591,31 @@ function releaseStored(id, prop, r) {
   }
 }
 
-function sellStored(id) {
+// What selling `n` of `p` would bring right now (each sale nudges the price down).
+function storedSaleValue(id, p, n) {
+  const prop = state.props[id];
+  let d = demandOf(p), total = 0;
+  for (let i = 0; i < n; i++) {
+    total += PRODUCTS[p].value * d * eventMult(p) * valueMult(id, prop);
+    d = Math.max(MARKET.floor, d - MARKET.drop[productTier(p)]);
+  }
+  return total;
+}
+
+// Sell stored stock: one product, or everything when `only` is omitted.
+function sellStored(id, only) {
   const prop = state.props[id];
   let total = 0;
   for (const [p, n] of Object.entries(prop.held)) {
+    if (only && p !== only) continue;
     for (let i = 0; i < n; i++) {
       total += marketPrice(p) * valueMult(id, prop);
       state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - MARKET.drop[productTier(p)]);
     }
+    delete prop.held[p];
   }
-  earn(total, 'stored', 'Stored stock', id);
+  earn(total, 'stored', only ? `Sold stored ${PRODUCTS[only].name}` : 'Sold all stored stock', id);
   prop.earned += total;
-  prop.held = {};
   return total;
 }
 
