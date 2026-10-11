@@ -84,6 +84,7 @@ function mapHTML() {
     const [from, to] = key.split('>');
     const a = MAP_POS[from], b = MAP_POS[to];
     html += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="route"/>`;
+    html += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="route-hit" data-act="maproute" data-id="${key}"><title>${siteName(from)} → ${siteName(to)}: tap for trucks</title></line>`;
   }
   html += '<g id="mapTrucks"></g>';
   for (const id of SITE_IDS) {
@@ -493,7 +494,7 @@ function updateMapDynamic() {
       else continue; // loading trucks sit at the depot
       const x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k;
       const flip = (u.phase === 'go') === (b.x < a.x) ? '' : ' flip';
-      svg += `<text x="${x}" y="${y + 1.5}" class="truck${flip}${u.phase === 'back' ? ' empty' : ''}">🚚</text>`;
+      svg += `<text x="${x}" y="${y + 1.5}" class="truck${flip}${u.phase === 'back' ? ' empty' : ''}" data-act="maproute" data-id="${key}">🚚</text>`;
     }
   }
   g.innerHTML = svg;
@@ -618,6 +619,19 @@ function handleEnterpriseAct(act, id) {
     if (Number(delta) < 0 && f.trucks > 0) f.trucks--;
     save();
     return true;
+  }
+  if (act === 'maproute') {
+    // Straight to that route's trucks, opened and in view.
+    const [from] = id.split('>');
+    ui.logTab = 'fleet';
+    ui.logSite = from;
+    ui.routeOpen = { ...(ui.routeOpen || {}), [id]: true };
+    openPanel('logistics');
+    setTimeout(() => {
+      const el = document.querySelector(`[data-route-chips="${id}"]`);
+      if (el) { const card = el.closest('.route-card'); card.scrollIntoView({ block: 'start', behavior: 'smooth' }); card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 1200); }
+    }, 50);
+    return 'stop';
   }
   if (act === 'rtoggle') {
     ui.routeOpen = ui.routeOpen || {};

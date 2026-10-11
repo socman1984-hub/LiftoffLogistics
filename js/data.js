@@ -154,13 +154,13 @@ const STAFF = [
     desc: 'Fixes breakdowns for free and services worn equipment before it fails. Keeps offline output up.',
   },
   { id: 'operator', name: 'Assembler Operator', icon: '👷', wage: 10, max: 12, desc: 'Crews an assembler (without one it crawls at 25% speed). Up to 3 per assembler, +50% speed each extra' },
-  { id: 'ops', name: 'Operations Manager', icon: '📋', wage: 25, max: 3, desc: '+10% line speed and +15% rack handling each' },
+  { id: 'ops', name: 'Operations Manager', icon: '📋', wage: 25, max: 3, research: 'diagnostics', desc: '+10% line speed and +15% rack handling each' },
   { id: 'forklift', name: 'Forklift Operator', icon: '🚜', wage: 15, max: 6, desc: 'Puts products away in the racks and picks them out: +30 moves/min each' },
-  { id: 'sales', name: 'Sales Rep', icon: '💼', wage: 25, max: 3, desc: '+10% value on packages shipped here, each' },
-  { id: 'security', name: 'Security Guard', icon: '🛡️', wage: 10, max: 3, desc: 'Each guard halves package theft' },
-  { id: 'safety', name: 'Safety Officer', icon: '⛑️', wage: 15, max: 2, desc: 'Each cuts workplace accidents by 75%' },
-  { id: 'hr', name: 'HR Manager', icon: '🗂️', wage: 20, max: 1, desc: 'Everyone else here costs 20% less in wages' },
-  { id: 'buyer', name: 'Purchasing Agent', icon: '🧾', wage: 18, max: 1, desc: 'Renews supplier deals at this site\'s doors automatically. Settles for less than you could get yourself' },
+  { id: 'sales', name: 'Sales Rep', icon: '💼', wage: 25, max: 3, research: 'marketing', desc: '+10% value on packages shipped here, each' },
+  { id: 'security', name: 'Security Guard', icon: '🛡️', wage: 10, max: 3, research: 'logistics', desc: 'Each guard halves package theft' },
+  { id: 'safety', name: 'Safety Officer', icon: '⛑️', wage: 15, max: 2, research: 'hygiene', desc: 'Each cuts workplace accidents by 75%' },
+  { id: 'hr', name: 'HR Manager', icon: '🗂️', wage: 20, max: 1, research: 'wellness', desc: 'Everyone else here costs 20% less in wages' },
+  { id: 'buyer', name: 'Purchasing Agent', icon: '🧾', wage: 18, max: 1, research: 'negotiation', desc: 'Renews supplier deals at this site\'s doors automatically. Settles for less than you could get yourself' },
 ];
 const STAFF_BY_ID = Object.fromEntries(STAFF.map((s) => [s.id, s]));
 const HIRE_FEE_MINUTES = 10; // signing fee = 10 minutes of wages
@@ -256,6 +256,9 @@ const RESEARCH = [
   R('aero', 5, 1, 'reusable', '♻️', 'Reusable Boosters', 'Each rocket needs 20% fewer parts', ['flighttest', 'photovoltaics'], { launchParts: 0.2 }),
 ];
 for (const r of RESEARCH) {
+  // Nodes that open up a job say so.
+  const job = STAFF.find((st) => st.research === r.id);
+  if (job) r.desc += ` · unlocks the ${job.icon} ${job.name} job`;
   const [cost, money, time] = RESEARCH_TIER_COST[r.t];
   if (r.cost == null) r.cost = cost;
   if (r.money == null) r.money = money;

@@ -67,6 +67,15 @@ function stepLab(dt) {
 
 // ---- Panel ----
 function researchHTML() {
+  // Contracts earn the ⭐ that research spends, so they're one tap away.
+  const c = state.contracts;
+  const tabs = `<div class="tabs"><button class="tab ${ui.resView !== 'contracts' ? 'on' : ''}" data-act="resview" data-id="tree">🔬 Research</button>
+    <button class="tab ${ui.resView === 'contracts' ? 'on' : ''}" data-act="resview" data-id="contracts">📋 Contracts${c.offers.length ? ` (${c.offers.length} new)` : c.active.length ? ` (${c.active.length})` : ''}</button></div>`;
+  if (ui.resView === 'contracts') return tabs + contractsHTML();
+  return tabs + researchTreeHTML();
+}
+
+function researchTreeHTML() {
   if (!ui.resBranch) ui.resBranch = 'prod';
   const done = RESEARCH.filter((r) => hasResearch(r.id)).length;
   let html = `<div class="res-head"><span>⭐ <b>${state.rep}</b> reputation · <b>${fmt(state.money)}</b></span><span class="muted">${done}/${RESEARCH.length} researched</span></div>`;
@@ -155,6 +164,13 @@ function treeHTML(branch) {
 }
 
 function handleResearchAct(act, id) {
+  if (act === 'resview') { ui.resView = id; return true; }
+  if (act === 'openresearchnode') {
+    const r = researchById(id);
+    ui.resView = 'tree'; ui.resBranch = r.b; ui.resSel = openPanelName === 'contracts' ? null : r.id;
+    openPanel('research');
+    return 'stop';
+  }
   if (act === 'resbranch') { ui.resBranch = id; ui.resSel = null; return true; }
   if (act === 'ressel') {
     ui.resSel = ui.resSel === id ? null : id;

@@ -348,7 +348,7 @@ function siteBoostHTML(id, full) {
   const has = (k) => prop.tiles.some((row) => row.some((t) => t.obj && t.obj.k === k));
   const items = [
     [roof >= 2, `🏚️ Roof & Walls ${roof}/${roofMax}`, '+25% value each (Manage → Upgrades)'],
-    [sales >= 1, `💼 Sales Reps ${sales}/${salesMax}`, '+10% value each (Manage → Staff)'],
+    [sales >= 1, `💼 Sales Reps ${sales}/${salesMax}`, `+10% value each (Manage → Staff${hasResearch('marketing') ? '' : '; research 📣 Marketing first'})`],
     [has('scanner') || has('labeler'), '🔍🏷️ Scanner or Labeler on the line', 'before the SHIP door'],
     [has('wrapper'), '🎁 Wrapper', '×2 value (needs Shrink Wrapping research)'],
   ];
@@ -547,6 +547,12 @@ function staffHTML(def, prop) {
     const wage = staffWage(s, def, prop);
     const fee = Math.round(wage * HIRE_FEE_MINUTES);
     const n = prop.staff[s.id];
+    if (s.research && !hasResearch(s.research) && !n) {
+      const rr = RESEARCH_BY_ID[s.research];
+      html += card(s.icon, `${s.name} <span class="count">🔒</span>`, s.desc,
+        `🔬 Research ${rr.icon} ${rr.name} (${branchOf(rr.b).name}) to unlock`, '<button class="btn secondary small" data-act="openresearchnode" data-id="' + rr.id + '">🔬 View</button>', 'done');
+      continue;
+    }
     const full = n >= s.max;
     const btns = `<div class="hire-btns">
       <button class="btn secondary small" data-act="fire" data-id="${s.id}" ${n ? '' : 'disabled'}>−</button>
@@ -614,7 +620,7 @@ function contractsHTML() {
   const c = state.contracts;
   if (!state.current) return '<p class="intro">Buy a warehouse first.</p>';
   const slots = contractSlots();
-  let html = `<p class="intro">Clients pay cash <b>and ⭐ reputation</b> for orders. Spend ⭐ in 🔬 Research.<br>
+  let html = `<p class="intro">Clients pay cash <b>and ⭐ reputation</b> for orders. ${openPanelName === 'research' ? 'Spend ⭐ on the 🔬 Research tab.' : '<button class="link-btn" data-act="openresearchnode" data-id="sorter">Spend ⭐ in 🔬 Research ›</button>'}<br>
     Slots ${c.active.length}/${slots} · ⭐ ${state.rep} · ${c.done} completed</p>`;
   if (c.active.length) html += '<h3 class="sec">Active</h3>';
   for (const a of c.active) {
@@ -888,7 +894,9 @@ function onPanelClick(e) {
     closePanel();
     return;
   }
-  if (handleResearchAct(act, id)) { renderPanel(); refreshTopbar(); return; }
+  const res = handleResearchAct(act, id);
+  if (res === 'stop') { refreshTopbar(); return; }
+  if (res) { renderPanel(); refreshTopbar(); return; }
   const sup = handleSupplierAct(act, id);
   if (sup === 'stop') { refreshTopbar(); return; }
   if (sup) { renderPanel(); refreshTopbar(); return; }
@@ -934,6 +942,7 @@ function onPanelClick(e) {
     }
   } else if (act === 'hire') {
     const s = STAFF_BY_ID[id];
+    if (s.research && !hasResearch(s.research)) { toast(`🔬 Research ${RESEARCH_BY_ID[s.research].name} to hire a ${s.name}`); return; }
     if (prop.staff[id] < s.max && spend(Math.round(staffWage(s, def, prop) * HIRE_FEE_MINUTES), 'hiring', s.name)) {
       prop.staff[id]++;
       toast(`${s.icon} ${s.name} hired`);

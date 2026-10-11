@@ -561,3 +561,7 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .neg-offers .chip { font-size: 12px; }
 .neg-btns { display: flex; gap: 6px; margin: 10px 0 4px; }
 .neg-btns .btn { flex: 1; padding-left: 6px; padding-right: 6px; }
+
+.route-hit { stroke: transparent; stroke-width: 5; cursor: pointer; }
+.map .truck { cursor: pointer; }
+.route-card.flash { box-shadow: 0 0 0 3px var(--accent); transition: box-shadow 0.3s; }
