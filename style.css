@@ -468,9 +468,12 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .sell-list { margin-top: 8px; }
 .sell-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #3a404c; font-size: 13px; }
 
-.sell-row { flex-wrap: wrap; gap: 6px; }
-.sell-ctl { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-.sell-ctl b { min-width: 26px; text-align: center; }
-.sell-ctl .step { min-width: 30px; padding: 0 6px; }
-.sell-ctl .chip { padding: 4px 10px; }
-.sell-btn { width: 100%; }
+/* ---- Sell popup ---- */
+#sellPop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.sell-card { background: var(--panel); border-radius: 16px; padding: 18px; width: 100%; max-width: 340px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.sell-card h3 { margin: 0 0 2px; font-size: 18px; }
+.sell-card input[type=range] { width: 100%; margin: 16px 0 8px; accent-color: var(--accent); }
+.sell-quick { justify-content: center; }
+.sell-sum { text-align: center; margin: 12px 0; font-size: 15px; }
+.sell-btns { display: flex; gap: 8px; }
+.sell-btns .btn { flex: 1; }

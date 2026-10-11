@@ -235,19 +235,57 @@ function storedSellHTML(id) {
   if (!held.length) return '';
   let all = 0;
   let html = '<div class="sell-list"><div class="ctl-lbl">Sell stored stock</div>';
-  const qtys = ui.sellQty || (ui.sellQty = {});
   for (const [p, n] of held) {
-    all += storedSaleValue(id, p, n);
-    // How many to sell: defaults to all of it, and follows the stock if it shrinks.
-    const q = Math.max(1, Math.min(n, qtys[p] || n));
-    const step = (delta, label, dis) => `<button class="step" data-act="sellq" data-id="${id}|${p}|${delta}" ${dis ? 'disabled' : ''}>${label}</button>`;
-    html += `<div class="sell-row"><span>${PRODUCTS[p].icon} ${n} ${PRODUCTS[p].name}</span>
-      <span class="sell-ctl">${step(-10, '−10', q <= 1)}${step(-1, '−', q <= 1)}<b>${q}</b>${step(1, '+', q >= n)}${step(10, '+10', q >= n)}
-        <button class="chip ${q === n ? 'on' : ''}" data-act="sellq" data-id="${id}|${p}|max">All</button></span>
-      <button class="btn small secondary sell-btn" data-act="sellstored" data-id="${id}|${p}|${q}">💰 Sell ${q} · ≈${fmt(storedSaleValue(id, p, q))}</button></div>`;
+    const v = storedSaleValue(id, p, n);
+    all += v;
+    html += `<div class="sell-row"><span>${PRODUCTS[p].icon} ${n} ${PRODUCTS[p].name}<span class="muted"> · ≈${fmt(v)}</span></span>
+      <button class="btn small secondary" data-act="sellpick" data-id="${id}|${p}">💰 Sell…</button></div>`;
   }
   if (held.length > 1) html += `<button class="btn small" style="width:100%;margin-top:6px" data-act="sellstored" data-id="${id}">💰 Sell all (≈${fmt(all)})</button>`;
   return html + '</div>';
+}
+
+// Popup for selling some or all of one stored product.
+function openSellPop(site, p) {
+  closeSellPop();
+  const n = state.props[site].held[p] || 0;
+  if (!n) return;
+  const pop = document.createElement('div');
+  pop.id = 'sellPop';
+  pop.innerHTML = `<div class="sell-card">
+    <h3>${PRODUCTS[p].icon} Sell ${PRODUCTS[p].name}</h3>
+    <div class="muted">${n} on the racks</div>
+    ${n > 1 ? `<input type="range" id="sellRange" min="1" max="${n}" value="${n}">
+    <div class="choice sell-quick">${[0.25, 0.5, 1].map((f) => `<button class="chip" data-f="${f}">${f === 1 ? 'All' : f * 100 + '%'}</button>`).join('')}</div>` : ''}
+    <div class="sell-sum" id="sellSum"></div>
+    <div class="sell-btns"><button class="btn secondary" id="sellNo">Cancel</button><button class="btn" id="sellYes"></button></div></div>`;
+  document.body.appendChild(pop);
+  const range = pop.querySelector('#sellRange');
+  const qty = () => (range ? Number(range.value) : 1);
+  const update = () => {
+    const q = qty();
+    pop.querySelector('#sellSum').innerHTML = `<b>${q}</b> × ${PRODUCTS[p].name} ≈ <b class="pos">${fmt(storedSaleValue(site, p, q))}</b>`;
+    pop.querySelector('#sellYes').textContent = q === n ? '💰 Sell all' : `💰 Sell ${q}`;
+    pop.querySelectorAll('[data-f]').forEach((c) => c.classList.toggle('on', Math.max(1, Math.round(n * c.dataset.f)) === q));
+  };
+  if (range) range.addEventListener('input', update);
+  pop.querySelectorAll('[data-f]').forEach((c) => c.addEventListener('click', () => { range.value = Math.max(1, Math.round(n * c.dataset.f)); update(); }));
+  pop.querySelector('#sellNo').addEventListener('click', closeSellPop);
+  pop.addEventListener('click', (e) => { if (e.target === pop) closeSellPop(); });
+  pop.querySelector('#sellYes').addEventListener('click', () => {
+    const q = Math.min(qty(), state.props[site].held[p] || 0);
+    closeSellPop();
+    if (!q) return;
+    toast(`💰 Sold ${q} ${PRODUCTS[p].name} for ${fmt(sellStored(site, p, q))}`);
+    save();
+    renderPanel();
+  });
+  update();
+}
+
+function closeSellPop() {
+  const el = document.getElementById('sellPop');
+  if (el) el.remove();
 }
 
 function fleetHTML() {
@@ -439,21 +477,12 @@ function handleEnterpriseAct(act, id) {
     save();
     return true;
   }
-  if (act === 'sellq') {
-    const [site, p, d] = id.split('|');
-    const have = state.props[site].held[p] || 0;
-    const qtys = ui.sellQty || (ui.sellQty = {});
-    const cur = Math.max(1, Math.min(have, qtys[p] || have));
-    qtys[p] = d === 'max' ? have : Math.max(1, Math.min(have, cur + Number(d)));
-    renderPanel();
-    return true;
-  }
+  if (act === 'sellpick') { const [site, p] = id.split('|'); openSellPop(site, p); return true; }
   if (act === 'rdel') { delete state.fleet[id]; save(); return true; }
   if (act === 'sellstored') {
     const [site, p, q] = id.split('|');
     const n = Number(q) || 0;
     toast(`💰 Sold ${p ? `${n || 'all'} ${PRODUCTS[p].name}` : 'all stored stock'} for ${fmt(sellStored(site, p, n))}`);
-    if (p && ui.sellQty) delete ui.sellQty[p];
     save();
     return true;
   }
