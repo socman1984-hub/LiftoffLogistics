@@ -336,8 +336,26 @@ function powerRowHTML(id) {
     : 'Assembler 4 · Wrapper 5 · Labeler/Chiller 3 · Scanner 2 · Sorter 1. Belts are free.'}</div></div>`;
 }
 
+// What makes a site's packages worth more. New sites earn little until these are in.
+function siteBoostHTML(id, full) {
+  const def = PROP_BY_ID[id], prop = state.props[id];
+  const roof = prop.upgrades.roof, roofMax = UPGRADES.find((u) => u.id === 'roof').max;
+  const sales = prop.staff.sales || 0, salesMax = STAFF_BY_ID.sales.max;
+  const has = (k) => prop.tiles.some((row) => row.some((t) => t.obj && t.obj.k === k));
+  const items = [
+    [roof >= 2, `🏚️ Roof & Walls ${roof}/${roofMax}`, '+25% value each (Manage → Upgrades)'],
+    [sales >= 1, `💼 Sales Reps ${sales}/${salesMax}`, '+10% value each (Manage → Staff)'],
+    [has('scanner') || has('labeler'), '🔍🏷️ Scanner or Labeler on the line', 'before the SHIP door'],
+    [has('wrapper'), '🎁 Wrapper', '×2 value (needs Shrink Wrapping research)'],
+  ];
+  const todo = items.filter(([ok]) => !ok).length;
+  if (!full && todo <= 1) return '';
+  return `<div class="power-box boost-box"><div class="power-head"><span>💡 Make ${def.name} pay</span><b>${items.length - todo}/${items.length}</b></div>
+    <div class="power-note">${items.map(([ok, label, why]) => `${ok ? '✅' : '⬜'} ${label} <span class="muted">· ${why}</span>`).join('<br>')}</div></div>`;
+}
+
 function upgradesHTML(def, prop) {
-  let html = powerRowHTML(state.current);
+  let html = powerRowHTML(state.current) + siteBoostHTML(state.current);
   let broken = 0;
   for (const row of prop.tiles) for (const t of row) if (t.base === 'broken') broken++;
   if (broken > 0) {
@@ -844,6 +862,12 @@ function onPanelClick(e) {
       switchProperty(id);
       closePanel();
       toast(`Welcome to the ${pd.name}!`);
+      if (id !== 'shed') {
+        showMessage(`Welcome to the ${pd.name}! ${pd.emoji}`, `<p class="intro">${pd.desc}</p>
+          <p class="intro">A new site earns little until you boost what its packages are worth. Bigger sites multiply every boost:</p>
+          ${siteBoostHTML(id, true)}
+          <p class="intro small">Staff here cost more than at your first site, so hire only who you need.</p>`);
+      }
       save();
     }
   } else if (act === 'goto') {

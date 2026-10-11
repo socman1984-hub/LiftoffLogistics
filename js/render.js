@@ -475,7 +475,16 @@ function drawAssembler(o, px, py, s, crewed) {
   }
   const d = DIRS[o.dir];
   drawArrow(px + s / 2 + d.x * s * 0.42, py + s / 2 + d.y * s * 0.42, s * 0.09, o.dir, '#ffffff');
-  if (o.recipe && !crewed) {
+  if (o.recipe && assemblerIdle(o)) {
+    // Paused, or the rocket already has enough: dim it and say why.
+    ctx.fillStyle = 'rgba(20,22,27,0.6)';
+    ctx.fillRect(px + s * 0.08, py + s * 0.08, s * 0.84, s * 0.84);
+    ctx.fillStyle = o.mode === 'pause' ? 'rgba(90,96,110,0.95)' : 'rgba(39,174,96,0.95)';
+    ctx.fillRect(px + s * 0.1, py + s * 0.02, s * 0.8, s * 0.2);
+    ctx.fillStyle = '#fff';
+    ctx.font = `800 ${Math.floor(s * 0.14)}px system-ui`;
+    ctx.fillText(o.mode === 'pause' ? '⏸ PAUSED' : '🚀 ENOUGH', px + s / 2, py + s * 0.12);
+  } else if (o.recipe && !crewed) {
     ctx.fillStyle = 'rgba(160,30,30,0.85)';
     ctx.fillRect(px + s * 0.1, py + s * 0.02, s * 0.8, s * 0.2);
     ctx.fillStyle = '#fff';

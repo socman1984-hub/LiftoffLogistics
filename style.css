@@ -513,3 +513,5 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .rd-name { font-weight: 800; }
 .rd-desc { font-size: 13px; }
 .rd-req, .rd-cost { font-size: 12px; margin-top: 6px; }
+
+.boost-box { border: 2px solid rgba(242, 201, 76, 0.5); }

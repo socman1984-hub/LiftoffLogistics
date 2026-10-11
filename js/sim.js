@@ -53,7 +53,7 @@ function acceptsFrom(prop, def, x, y, side) {
 // Assemblers swallow ingredients for their recipe into an internal buffer.
 function assemblerWants(o, it) {
   const rec = o.recipe && RECIPES[o.recipe];
-  if (!rec || !it || !rec.in[it.product]) return false;
+  if (!rec || !it || !rec.in[it.product] || assemblerIdle(o)) return false; // idle ones let ingredients pass by
   return ((o.buf && o.buf[it.product]) || 0) < rec.in[it.product] * ASSEMBLER.bufferRecipes;
 }
 
@@ -345,7 +345,8 @@ function shipOut(id, prop, r, it, x, y) {
   }
   // Market demand moves the price; selling floods it a little.
   const p = it.product;
-  const amount = it.value * demandOf(p) * eventMult(p) * valueMult(id, prop) * (boostActive('double') ? 2 : 1);
+  const hubBonus = LAUNCH.needs[p] ? 1 + (PROP_BY_ID[id].rocketBonus || 0) : 1;
+  const amount = it.value * demandOf(p) * eventMult(p) * valueMult(id, prop) * hubBonus * (boostActive('double') ? 2 : 1);
   state.market.demand[p] = Math.max(MARKET.floor, demandOf(p) - marketDrop(p));
   earn(amount, 'sales', PRODUCTS[p].name, id);
   prop.earned += amount;
@@ -688,11 +689,11 @@ function nextInboxProduct(prop, r) {
 }
 
 function stepAssemblers(id, prop, def, r, dt) {
-  const speed = speedMult(id, prop) * (1 + rfx('assembly')) * r.power;
+  const speed = speedMult(id, prop) * (1 + rfx('assembly')) * r.power * (def.asmSpeed || 1);
   for (let y = 0; y < def.rows; y++) {
     for (let x = 0; x < def.cols; x++) {
       const o = prop.tiles[y][x].obj;
-      if (!o || o.k !== 'assembler' || o.jammed || !o.recipe) continue;
+      if (!o || o.k !== 'assembler' || o.jammed || !o.recipe || assemblerIdle(o)) continue;
       const crew = r.crewed.get(x + ',' + y) || 0;
       // No operator: it still crawls along (25%) so a line can never deadlock.
       const crewMult = crew ? 1 + CREW_BONUS * (Math.min(crew, MAX_CREW) - 1) : Math.max(NO_CREW_SPEED, rfx('uncrewed'));
@@ -733,6 +734,24 @@ function ensureRoute(a, b) {
 const assignedTrucks = () => Object.values(state.fleet).reduce((n, f) => n + f.trucks, 0);
 const idleTrucks = () => state.garage.trucks - assignedTrucks();
 const routeWait = (f) => (TRUCK_WAITS.find((w) => w.id === f.wait) || TRUCK_WAITS[1]).wait;
+
+// Rocket parts at the pad plus everything queued or on the road to it.
+function launchStock(p) {
+  let n = state.launch.parts[p] || 0;
+  for (const def of PROPERTIES) {
+    const prop = state.props[def.id];
+    if (!prop.owned) continue;
+    n += ((prop.outbox.launch || {})[p] || 0) + inTransit(def.id, 'launch', p);
+  }
+  return n;
+}
+
+// 'pause' stops an assembler; 'auto' stops it while the rocket has enough of its part.
+function assemblerIdle(o) {
+  if (o.mode === 'pause') return true;
+  if (o.mode !== 'auto' || !state.launch.owned || !LAUNCH.needs[o.recipe]) return false;
+  return launchStock(o.recipe) >= (launchNeeds()[o.recipe] || 0);
+}
 
 function launchNeeds() {
   const mult = Math.pow(LAUNCH.growth, state.launch.count) * (1 - rfx('launchParts'));

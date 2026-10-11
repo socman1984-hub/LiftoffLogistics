@@ -361,11 +361,14 @@ function supplierCost(p) {
   return PRODUCTS[p].cost * (1 - rfx('supplier'));
 }
 
+// Staff cost more at bigger sites, but less steeply than buildings do.
+const wageMult = (def) => Math.pow(def.costMult, 0.8);
+
 // Wage for one person in role `s` at a property.
 function staffWage(s, def, prop) {
   const hr = prop && s.id !== 'hr' && prop.staff.hr > 0 ? 0.8 : 1;
   const pay = prop ? PAY_RATES[prop.payRate || 0].mult : 1;
-  return s.wage * def.costMult * (1 - rfx('wage')) * hr * pay;
+  return s.wage * wageMult(def) * (1 - rfx('wage')) * hr * pay;
 }
 
 function wagesPerMin(id) {

@@ -52,8 +52,12 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 
 - **7 warehouses**, each with its own raw material and role: 🛖 Rusty Shed (🔩 🪙), 🏭 Old Textile Mill (💿),
   ⚒️ Old Foundry (🥈 titanium), 🏬 Regional Depot (🧊 🧱), 🏗️ Coastal Refinery (⛽ kerosene),
-  🔬 Clean Room Lab (💠 rare earth), 🏟️ Mega Hub (final assembly), plus the 🚀 Launch Site.
-- **🏭 Assemblers** turn ingredients into products (pick a recipe; wrong items back up, so sort first):
+  🔬 Clean Room Lab (💠 rare earth), 🏟️ Mega Hub (final assembly: assemblers 50% faster, rocket parts worth
+  +50%), plus the 🚀 Launch Site. Staff cost more at bigger sites (wages scale a bit slower than build costs).
+  Buying a site shows a **💡 Make it pay** checklist (roof, sales reps, scanner/labeler, wrapper), also on Manage → Upgrades.
+- **🏭 Assemblers** turn ingredients into products (pick a recipe; wrong items back up, so sort first).
+  Each has a mode: ▶ Run, ⏸ Pause, or 🚀 *Until the rocket has enough* (stops while the launch pad has enough
+  of its part, letting shared ingredients flow on to the next assembler):
 
   | Product | Recipe | Product | Recipe |
   | --- | --- | --- | --- |
@@ -93,7 +97,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   10 moves/min alone; each Forklift Operator adds 30, Operations Managers add 15% each. Goods sold
   straight to vendors skip the racks.
 - **🚚 Logistics → Fleet**: buy trucks into your garage and assign them to routes; set each route's
-  departure rule (ASAP / 10s / 30s / when full). Routes with no trucks pile up. New sites come with a truck.
+  departure rule (ASAP / 10s / 30s / when full). Routes with no trucks pile up. New sites come with a truck; each truck you own makes the next 25% dearer.
 - **Sell vs. supply**: Scanners, Labelers and Wrappers raise only the *sale* price.
 - **🚀 Launch Site**: three stages (Booster, Upper Stage, Crew Capsule): 12 🛡️, 8 🛢️, 6 🔥, 16 🧪, 4 🛰️,
   4 🌡️, 2 🫁, 4 ☀️. Later rockets need 2× the parts.

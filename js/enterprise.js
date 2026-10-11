@@ -29,7 +29,7 @@ function routeTargets(from, product) {
 }
 
 function truckCost() {
-  return Math.round(TRUCK_BASE_COST * Math.pow(1.45, state.garage.trucks));
+  return Math.round(TRUCK_BASE_COST * Math.pow(TRUCK_COST_GROWTH, state.garage.trucks));
 }
 
 const destLabel = (to) => (to === 'sell' ? '💰 Sell' : to === 'store' ? '🗄️ Store here' : `🚚 ${siteEmoji(to)} ${siteName(to)}`);
@@ -421,6 +421,18 @@ function assemblerHTML() {
   if (!t || !t.obj || t.obj.k !== 'assembler') return '<p class="intro">That assembler is gone.</p>';
   const o = t.obj;
   let html = '<p class="intro">Feed ingredients in from any side except the output arrow. Wrong items will back up, so sort them first.</p>';
+  if (o.recipe) {
+    const rocket = !!LAUNCH.needs[o.recipe];
+    const mode = o.mode || 'run';
+    const chip = (m, label) => `<button class="chip ${mode === m ? 'on' : ''}" data-act="asmmode" data-id="${m}">${label}</button>`;
+    let note = mode === 'pause' ? 'Paused: it takes no ingredients, so they flow on to whatever is next on the line.'
+      : mode === 'auto' ? (!state.launch.owned ? 'Runs until you own the Launch Site, then stops whenever the rocket already has enough of this part.'
+        : assemblerIdle(o) ? `✅ The rocket has enough (${launchStock(o.recipe)}/${launchNeeds()[o.recipe]}), so it's idle and ingredients flow past.`
+          : `Working: the rocket has ${launchStock(o.recipe)}/${launchNeeds()[o.recipe]}.`)
+        : 'Running. Pause it to let its ingredients reach assemblers further down the line.';
+    html += `<h3 class="sec">Mode</h3><div class="choice">${chip('run', '▶ Run')}${chip('pause', '⏸ Pause')}${rocket ? chip('auto', '🚀 Until the rocket has enough') : ''}</div>
+      <p class="intro small">${note}</p>`;
+  }
   for (const p of RECIPE_IDS) {
     const r = RECIPES[p];
     const on = o.recipe === p;
@@ -439,13 +451,13 @@ function assemblerHTML() {
 
 // Delivered parts fill the stages in order (booster first).
 function launchStageProgress() {
-  const mult = Math.pow(LAUNCH.growth, state.launch.count);
+  const mult = Math.pow(LAUNCH.growth, state.launch.count) * (1 - rfx('launchParts'));
   const left = { ...state.launch.parts };
   return LAUNCH.stages.map((st) => {
     const needs = {}, have = {};
     let done = true;
     for (const [p, n] of Object.entries(st.needs)) {
-      needs[p] = n * mult;
+      needs[p] = Math.max(1, Math.round(n * mult));
       have[p] = Math.min(needs[p], left[p] || 0);
       left[p] = (left[p] || 0) - have[p];
       if (have[p] < needs[p]) done = false;
@@ -540,6 +552,11 @@ function handleEnterpriseAct(act, id) {
     return true;
   }
   if (act === 'launch') { doLaunch(); return 'stop'; }
+  if (act === 'asmmode') {
+    const o = curProp().tiles[ui.assemblerAt.y][ui.assemblerAt.x].obj;
+    if (o && o.k === 'assembler') { o.mode = id === 'run' ? undefined : id; save(); }
+    return true;
+  }
   if (act === 'recipe') {
     const o = curProp().tiles[ui.assemblerAt.y][ui.assemblerAt.x].obj;
     const rr = RECIPES[id].research;

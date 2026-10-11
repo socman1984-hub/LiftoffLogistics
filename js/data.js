@@ -314,7 +314,8 @@ const MAP_POS = {
 };
 const TRAVEL_PER_UNIT = 0.8; // seconds of truck travel per map unit
 const TRUCK_CAP = 20; // products per truck
-const TRUCK_BASE_COST = 2000; // price of your next truck grows ×1.45 per truck owned
+const TRUCK_BASE_COST = 2000;
+const TRUCK_COST_GROWTH = 1.25; // each truck you own makes the next one 25% dearer
 // Departure rules a route can use: seconds a part-loaded truck waits (null = only when full).
 const TRUCK_WAITS = [
   { id: 'asap', label: 'ASAP', wait: 3 },
@@ -486,14 +487,14 @@ const PROPERTIES = [
   },
   {
     id: 'mill', name: 'Old Textile Mill', emoji: '🏭', role: 'Electronics',
-    desc: 'Brick, big, and full of pigeons. Silicon arrives here. Perfect for circuit boards.',
+    desc: 'Brick, big, and full of pigeons. Silicon arrives here (a second silicon dock opens on the west wall). Perfect for circuit boards.',
     price: 20000, cols: 10, rows: 14, costMult: 3, theft: 0.04, power: 14,
     repairCost: 30, brokenPct: 0.85,
     inDocks: [
       { x: 2, y: 0, dir: 2, price: 0, cargo: { silicon: 1 } },
       { x: 5, y: 0, dir: 2, price: 0, receive: true },
       { x: 8, y: 0, dir: 2, price: 9000, cargo: { copper: 1 } },
-      { x: 0, y: 6, dir: 1, price: 15000, cargo: { steel: 1 } },
+      { x: 0, y: 6, dir: 1, price: 15000, cargo: { silicon: 1 } },
     ],
     outDocks: [
       { x: 3, y: 13, price: 0 },
@@ -579,7 +580,8 @@ const PROPERTIES = [
   },
   {
     id: 'hub', name: 'Mega Fulfillment Hub', emoji: '🏟️', role: 'Engines & final assembly',
-    desc: 'The big leagues. Room to assemble the most advanced rocket parts.',
+    desc: 'The big leagues. Final assembly: assemblers here work 50% faster, and rocket parts made here are worth 50% more.',
+    asmSpeed: 1.5, rocketBonus: 0.5,
     price: 5000000, cols: 12, rows: 18, costMult: 35, theft: 0.08, power: 28,
     repairCost: 350, brokenPct: 0.9,
     inDocks: [
