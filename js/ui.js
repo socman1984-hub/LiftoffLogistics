@@ -273,6 +273,7 @@ const PANELS = {
   heat: { title: '🌡️ Overlays', html: () => heatMenuHTML() },
   rackdetail: { title: '🗄️ Rack', html: () => rackDetailHTML() },
   worker: { title: '👷 Worker', html: () => workerHTML() },
+  confirmremove: { title: '🗑️ Remove?', html: () => confirmRemoveHTML() },
 };
 const LIVE_PANELS = ['map', 'logistics', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker'];
 const SLOW_PANELS = ['map', 'logistics']; // lots of buttons; refresh less often
@@ -751,6 +752,13 @@ function onPanelClick(e) {
       save();
     }
     renderPanel();
+    return;
+  }
+  if (act === 'doremove') {
+    if (ui.removeAt) removeTile(ui.removeAt.x, ui.removeAt.y);
+    ui.removeAt = null;
+    closePanel();
+    refreshToolbar();
     return;
   }
   if (act === 'rackremove') {
@@ -1299,12 +1307,55 @@ function onPointerUp() {
   if (!drag.active) return;
   drag.active = false;
   const person = !drag.moved && (!ui.tool || ui.tool === 'rotate') ? workerAt(drag.px.x, drag.px.y) : null;
-  if (person) { ui.workerSel = person.id; openPanel('worker'); } else if (!drag.moved) handleTap(drag.start.x, drag.start.y);
+  if (person) { ui.workerSel = person.id; openPanel('worker'); } else if (!drag.moved) tapOrDoubleTap(drag.start.x, drag.start.y);
   else if (ui.tool === 'belt' && drag.plan.length > 1) {
     ui.pending = buildPlan(drag.plan);
     showConfirm();
   }
   refreshToolbar();
+}
+
+// Taps on built things wait a moment: a second tap on the same tile asks to
+// remove it instead. Taps on empty floor act immediately.
+const DOUBLE_TAP_MS = 260;
+function tapOrDoubleTap(x, y) {
+  const t = curProp().tiles[y][x];
+  const key = x + ',' + y;
+  if (!t.obj) { clearTimeout(ui.tapTimer); ui.tapTimer = null; handleTap(x, y); return; }
+  if (ui.tapTimer && ui.tapKey === key) {
+    clearTimeout(ui.tapTimer);
+    ui.tapTimer = null;
+    ui.removeAt = { x, y };
+    openPanel('confirmremove');
+    return;
+  }
+  clearTimeout(ui.tapTimer);
+  ui.tapKey = key;
+  ui.tapTimer = setTimeout(() => { ui.tapTimer = null; handleTap(x, y); refreshToolbar(); }, DOUBLE_TAP_MS);
+}
+
+function objLabel(o) {
+  if (o.k === 'belt') return `${BELT_TIERS[o.tier].name} conveyor`;
+  if (o.k === 'rack') return '🗄️ Rack';
+  if (o.k === 'splitter') return '🔀 Splitter';
+  if (o.k === 'sorter') return '🚦 Sorter';
+  if (o.k === 'assembler') return `🏭 ${o.recipe ? PRODUCTS[o.recipe].name + ' ' : ''}Assembler`;
+  if (FACILITIES[o.k]) return `${FACILITIES[o.k].icon} ${FACILITIES[o.k].name}`;
+  if (MACHINES[o.k]) return `${MACHINES[o.k].icon} ${MACHINES[o.k].name}`;
+  return 'this';
+}
+
+function confirmRemoveHTML() {
+  const at = ui.removeAt;
+  const o = at && curProp().tiles[at.y][at.x].obj;
+  if (!o) return '<p class="intro">Nothing there anymore.</p>';
+  const back = refund(o, curDef());
+  const pct = Math.round(refundFraction(o) * 100);
+  return `<p class="intro">Remove the <b>${objLabel(o)}</b>?<br>You'll get <b class="gold">${fmt(back)}</b> back (${pct}% refund).</p>
+    <div class="confirm-row">
+      <button class="btn secondary" data-act="close">Cancel</button>
+      <button class="btn danger" data-act="doremove">🗑️ Remove (+${fmt(back)})</button>
+    </div>`;
 }
 
 function initInput() {

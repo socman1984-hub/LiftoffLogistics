@@ -439,3 +439,6 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 #tutCard.min { right: auto; padding: 0; background: transparent; border: 0; box-shadow: none; }
 .tut-pill { background: #6c5ce7; color: #fff; font-weight: 800; padding: 7px 12px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
 .tut-skip + .tut-skip { margin-left: 10px; }
+
+.confirm-row { display: flex; gap: 10px; }
+.confirm-row .btn { flex: 1; }

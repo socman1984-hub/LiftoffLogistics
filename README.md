@@ -33,6 +33,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   **✅ Place** or **✖ Cancel**. Placing a line piece (scanner, assembler, splitter, sorter…) on another one
   swaps it, keeping its direction.
 - **Refunds**: 100% if removed within 2 minutes of building, sliding to 25% over the next 10 minutes.
+  **Double-tap** anything you built to remove it (asks first, shows the refund).
 - **People**: tap a worker (🔍 Inspect) to see who they are, what they're doing, mood, pace and wage.
 - **🔍 Inspect** (no tool selected): tapping shows what's there (wear, contents, costs) and opens
   assembler, sorter, rack and facility details without building anything.
