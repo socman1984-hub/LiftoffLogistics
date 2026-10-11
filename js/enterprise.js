@@ -291,41 +291,124 @@ function closeSellPop() {
 function fleetHTML() {
   const idle = idleTrucks();
   const cost = truckCost();
-  let html = `<div class="garage"><div><b>🚚 ${state.garage.trucks}</b> trucks owned · <b class="${idle ? 'gold' : ''}">${idle}</b> idle
-    <div class="muted">${truckCap()} packages per truck</div></div>
-    <button class="btn small" data-act="buytruck" ${state.money < cost ? 'disabled' : ''}>Buy ${fmt(cost)}</button></div>`;
   const keys = Object.keys(state.fleet);
+  const starving = keys.some((k) => routeStats(k).waiting > 0);
+  let html = `<div class="garage"><div><b>🚚 ${state.garage.trucks}</b> trucks owned · <b class="${idle ? 'gold' : ''}">${idle}</b> in the garage
+    <div class="muted">Each carries ${truckCap()} · next truck ${fmt(cost)}</div></div>
+    <div class="garage-btns">${idle && starving ? '<button class="btn small secondary" data-act="tauto">⚖️ Assign idle</button>' : ''}
+    <button class="btn small" data-act="buytruck" ${state.money < cost ? 'disabled' : ''}>Buy ${fmt(cost)}</button></div></div>`;
   if (!keys.length) {
     html += '<p class="intro">No routes yet. In 📦 Distribution, send a product to another site and its route appears here.</p>';
     return html;
   }
-  html += '<p class="intro small">Assign trucks to each route. A truck loads at the source, drives over, unloads and comes back. The departure rule sets how long a part-loaded truck waits for more cargo.</p>';
+  html += '<p class="intro small">Each truck loads at the source, drives over, unloads and comes back. Tap a route to open it.</p>';
   for (const key of keys) html += routeCardHTML(key, idle);
   return html;
 }
 
-// One route's card: trucks assigned, what's waiting, departure rule.
-function routeCardHTML(key, idle) {
-  {
-    let html = '';
-    const st = routeStats(key);
-    const busy = st.waiting > st.perMin * 1.5;
-    html += `<div class="plan route-card ${!st.f.trucks && st.waiting ? 'alert' : ''}">
-      <div class="plan-head">${siteEmoji(st.from)} ${siteName(st.from)} → ${siteEmoji(st.to)} <b>${siteName(st.to)}</b></div>
-      <div class="muted">${Math.round(st.trip)}s each way · ${st.moving}/${st.f.trucks} on the road · up to ~${st.perMin}/min</div>
-      <div class="muted ${busy ? 'neg' : ''}">${st.waiting ? `${st.waiting} waiting to load${busy ? ': add trucks or forklift operators!' : ''}` : 'Nothing waiting'}</div>
-      ${st.unloading ? `<div class="muted neg">${st.unloading} truck${st.unloading > 1 ? 's' : ''} waiting to unload at ${siteName(st.to)} (racks full or handlers busy)</div>` : ''}
-      <div class="dest-ctl">
-        <span class="ctl-lbl">Trucks</span>
-        <button class="step" data-act="tassign" data-id="${key}|-1" ${st.f.trucks ? '' : 'disabled'}>−</button><b>${st.f.trucks}</b>
-        <button class="step" data-act="tassign" data-id="${key}|1" ${idle > 0 ? '' : 'disabled'}>+</button>
-        ${!st.f.trucks && !st.waiting && !st.f.units.length ? `<button class="step x" data-act="rdel" data-id="${key}">✕</button>` : ''}
-      </div>
-      <div class="choice"><span class="ctl-lbl">Leave</span>${TRUCK_WAITS.map((w) =>
-    `<button class="chip small ${st.f.wait === w.id ? 'on' : ''}" data-act="twait" data-id="${key}|${w.id}">${w.label}</button>`).join('')}</div>
-    </div>`;
-    return html;
+const fmtSecs = (s) => { s = Math.max(0, Math.ceil(s)); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`; };
+const WAIT_TEXT = {
+  asap: 'Leaves 3 seconds after the first package goes on.',
+  '10s': 'Waits up to 10 seconds for more cargo after the first package.',
+  '30s': 'Waits up to 30 seconds for more cargo after the first package.',
+  full: 'Only leaves with a full load (slow routes can sit a long time).',
+};
+
+// One truck's status: what it's doing, a progress fraction and a tone.
+function truckStatus(key, u) {
+  const st = routeStats(key);
+  const cap = truckCap(), wait = routeWait(st.f), to = siteName(st.to), from = siteName(st.from);
+  const cargo = countList(u.load);
+  if (u.phase === 'load') {
+    if (!u.n) {
+      const idleFor = u.idle || 0;
+      return { icon: '⏳', text: `At ${from}, waiting for cargo${idleFor > 20 ? ` · idle ${fmtSecs(idleFor)}` : ''}`, k: 0, tone: idleFor > 90 ? 'warn' : '' };
+    }
+    const left = wait == null ? null : wait - u.t;
+    return { icon: '📦', text: `Loading ${u.n}/${cap} · ${left == null ? 'leaves when full' : `leaves in ${fmtSecs(left)}`}`, k: u.n / cap, cargo, tone: 'load' };
   }
+  if (u.phase === 'go') return { icon: '🚚', text: `Driving to ${to} · arrives in ${fmtSecs(st.trip - u.t)}`, k: u.t / st.trip, cargo, tone: 'go' };
+  if (u.phase === 'unload') {
+    return u.t > 4
+      ? { icon: '⚠️', text: `Stuck unloading at ${to} for ${fmtSecs(u.t)} · ${u.n} left (racks full or forklifts busy there)`, k: 1, cargo, tone: 'warn' }
+      : { icon: '📥', text: `Unloading at ${to} · ${u.n} left`, k: 1, cargo, tone: 'go' };
+  }
+  return { icon: '↩️', text: `Heading back to ${from} · ${fmtSecs(st.trip - u.t)}`, k: u.t / st.trip, tone: 'back' };
+}
+
+function truckListHTML(key) {
+  const f = state.fleet[key];
+  if (!f.units.length) return f.trucks ? '<div class="muted small">Trucks on their way to the dock…</div>' : '<div class="muted small">No trucks on this route.</div>';
+  return f.units.map((u, i) => {
+    const s = truckStatus(key, u);
+    return `<div class="truck-row ${s.tone}"><span class="tr-n">#${i + 1}</span><span class="tr-ic">${s.icon}</span>
+      <div class="tr-body"><div class="tr-text">${s.text}</div>
+      <div class="bar tr-bar"><div style="width:${Math.min(100, s.k * 100)}%"></div></div>
+      ${s.cargo ? `<div class="tr-cargo">${s.cargo}</div>` : ''}</div></div>`;
+  }).join('');
+}
+
+// Route status line and advice (no buttons, so it can refresh live).
+function routeLiveHTML(key) {
+  const st = routeStats(key);
+  const f = st.f;
+  const stuck = f.units.some((u) => u.phase === 'unload' && u.t > 4);
+  const idleLong = f.units.filter((u) => u.phase === 'load' && !u.n && (u.idle || 0) > 90).length;
+  let advice, tone = '';
+  if (!f.trucks && st.waiting) { advice = `${st.waiting} packages waiting and no trucks. Assign one!`; tone = 'neg'; }
+  else if (stuck) { advice = `Trucks can't unload at ${siteName(st.to)}: add racks or forklift operators there.`; tone = 'neg'; }
+  else if (st.waiting > truckCap() * Math.max(1, f.trucks)) { advice = `Cargo is piling up (${st.waiting} waiting). Add a truck.`; tone = 'neg'; }
+  else if (idleLong && f.trucks > 1) { advice = `${idleLong} truck${idleLong > 1 ? 's have' : ' has'} been idle a while. You could move one to a busier route.`; tone = 'gold'; }
+  else if (!st.waiting && !f.units.some((u) => u.n)) advice = 'Nothing to carry right now.';
+  else advice = 'Keeping up.';
+  return `<div class="route-stats"><span>⏱️ ${fmtSecs(st.trip)} each way</span><span>📈 up to ~${st.perMin}/min</span><span>📦 ${st.waiting} waiting at ${siteName(st.from)}</span></div>
+    ${st.waiting ? `<div class="muted small">Waiting: ${countList(state.props[st.from].outbox[st.to])}</div>` : ''}
+    <div class="route-advice ${tone}">${advice}</div>`;
+}
+
+// Compact status chips for a collapsed route.
+function routeChipsHTML(key) {
+  const st = routeStats(key);
+  const icons = st.f.units.map((u) => truckStatus(key, u).icon).join('');
+  return `<span class="rc-chip">🚚 ${st.f.trucks}</span>${st.waiting ? `<span class="rc-chip ${!st.f.trucks ? 'neg' : ''}">📦 ${st.waiting}</span>` : ''}<span class="rc-icons">${icons}</span>`;
+}
+
+// One route's card: live trucks, what's waiting, and the controls.
+function routeCardHTML(key, idle) {
+  const st = routeStats(key);
+  const f = st.f;
+  const keys = Object.keys(state.fleet);
+  const open = ui.routeOpen && key in ui.routeOpen ? ui.routeOpen[key] : keys.length <= 3 || (!f.trucks && st.waiting > 0);
+  const alert = (!f.trucks && st.waiting) || f.units.some((u) => u.phase === 'unload' && u.t > 4);
+  let html = `<div class="plan route-card ${alert ? 'alert' : ''}">
+    <button class="route-head" data-act="rtoggle" data-id="${key}">
+      <span class="rh-name">${siteEmoji(st.from)} ${siteName(st.from)} → ${siteEmoji(st.to)} <b>${siteName(st.to)}</b></span>
+      <span class="rh-chips" data-route-chips="${key}">${routeChipsHTML(key)}</span><span class="rh-caret">${open ? '▾' : '▸'}</span></button>`;
+  if (!open) return html + '</div>';
+  const canSend = f.units.some((u) => u.phase === 'load' && u.n > 0);
+  html += `<div data-route-live="${key}">${routeLiveHTML(key)}</div>
+    <div class="truck-list" data-truck-list="${key}">${truckListHTML(key)}</div>
+    <div class="dest-ctl route-ctl">
+      <span class="ctl-lbl">Trucks</span>
+      <button class="step" data-act="tassign" data-id="${key}|-1" ${f.trucks ? '' : 'disabled'}>−</button><b>${f.trucks}</b>
+      <button class="step" data-act="tassign" data-id="${key}|1" ${idle > 0 ? '' : 'disabled'}>+</button>
+      <span class="muted small">${idle ? `${idle} in garage` : 'garage empty'}</span>
+      <button class="btn small secondary send-now" data-act="tsend" data-id="${key}" ${canSend ? '' : 'disabled'}>🚀 Send now</button>
+    </div>
+    <div class="choice"><span class="ctl-lbl">Leave</span>${TRUCK_WAITS.map((w) =>
+    `<button class="chip small ${f.wait === w.id ? 'on' : ''}" data-act="twait" data-id="${key}|${w.id}">${w.label}</button>`).join('')}</div>
+    <div class="muted small">${WAIT_TEXT[f.wait] || WAIT_TEXT['10s']}</div>
+    <div class="route-links"><button class="link-btn" data-act="openlog" data-id="${st.from}">📦 Edit what ${siteName(st.from)} sends</button>
+      ${!f.trucks && !st.waiting && !f.units.length ? `<button class="link-btn neg" data-act="rdel" data-id="${key}">✕ Remove route</button>` : ''}</div>
+  </div>`;
+  return html;
+}
+
+// Truck rows and route status refresh every tick without rebuilding any buttons.
+function updateFleetDynamic() {
+  document.querySelectorAll('[data-truck-list]').forEach((el) => { const k = el.dataset.truckList; if (state.fleet[k]) el.innerHTML = truckListHTML(k); });
+  document.querySelectorAll('[data-route-live]').forEach((el) => { const k = el.dataset.routeLive; if (state.fleet[k]) el.innerHTML = routeLiveHTML(k); });
+  document.querySelectorAll('[data-route-chips]').forEach((el) => { const k = el.dataset.routeChips; if (state.fleet[k]) el.innerHTML = routeChipsHTML(k); });
 }
 
 // Tapping a RECV door: what's arriving here, and the truck routes that bring it.
@@ -525,6 +608,34 @@ function handleEnterpriseAct(act, id) {
     const f = state.fleet[key];
     if (Number(delta) > 0 && idleTrucks() > 0) f.trucks++;
     if (Number(delta) < 0 && f.trucks > 0) f.trucks--;
+    save();
+    return true;
+  }
+  if (act === 'rtoggle') {
+    ui.routeOpen = ui.routeOpen || {};
+    const st = routeStats(id);
+    const wasOpen = id in ui.routeOpen ? ui.routeOpen[id] : Object.keys(state.fleet).length <= 3 || (!st.f.trucks && st.waiting > 0);
+    ui.routeOpen[id] = !wasOpen;
+    return true;
+  }
+  if (act === 'tsend') {
+    let n = 0;
+    for (const u of state.fleet[id].units) if (u.phase === 'load' && u.n > 0) { u.phase = 'go'; u.t = 0; u.idle = 0; n++; }
+    toast(n ? `🚚 ${n} truck${n > 1 ? 's' : ''} sent` : 'No loaded trucks to send');
+    save();
+    return true;
+  }
+  if (act === 'tauto') {
+    // Hand idle trucks to the routes with the most cargo per truck.
+    let n = 0;
+    while (idleTrucks() > 0) {
+      const best = Object.keys(state.fleet).map((k) => ({ k, s: routeStats(k) })).filter((q) => q.s.waiting > 0)
+        .sort((a, b) => b.s.waiting / (b.s.f.trucks + 1) - a.s.waiting / (a.s.f.trucks + 1))[0];
+      if (!best) break;
+      state.fleet[best.k].trucks++;
+      n++;
+    }
+    toast(n ? `⚖️ Assigned ${n} truck${n > 1 ? 's' : ''}` : 'No routes need trucks right now');
     save();
     return true;
   }

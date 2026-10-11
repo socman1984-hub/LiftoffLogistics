@@ -79,6 +79,7 @@ function frame(now) {
     mapTick = (mapTick + 1) % 6;
     if (LIVE_PANELS.includes(openPanelName) && (!SLOW_PANELS.includes(openPanelName) || mapTick === 0)) renderPanel();
     if (openPanelName === 'map') updateMapDynamic();
+    if (openPanelName === 'logistics' || openPanelName === 'recvdock') updateFleetDynamic();
   }
   saveTimer += dt;
   if (saveTimer > 5) {

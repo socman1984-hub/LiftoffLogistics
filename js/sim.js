@@ -851,8 +851,8 @@ function stepFleet(dt) {
             u.n++;
           }
         }
-        if (u.n === 0) u.t = 0;
-        if (u.n >= cap || (u.n > 0 && wait != null && u.t >= wait)) { u.phase = 'go'; u.t = 0; }
+        if (u.n === 0) { u.t = 0; u.idle = (u.idle || 0) + dt; } else u.idle = 0;
+        if (u.n >= cap || (u.n > 0 && wait != null && u.t >= wait)) { u.phase = 'go'; u.t = 0; u.idle = 0; }
       } else if (u.phase === 'go' && u.t >= trip) {
         u.phase = 'unload';
         u.t = 0;

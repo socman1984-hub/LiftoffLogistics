@@ -519,3 +519,34 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .rack-allow .chip { font-size: 12px; padding: 5px 9px; }
 .rack-allow .chip.faint { opacity: 0.55; }
 .link-btn { background: none; border: none; color: var(--accent); text-decoration: underline; padding: 0; font-size: inherit; cursor: pointer; }
+
+/* ---- Fleet ---- */
+.garage-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.route-head { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: none; color: inherit; padding: 0; text-align: left; cursor: pointer; }
+.rh-name { flex: 1; font-size: 14px; }
+.rh-chips { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.rc-chip { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 1px 6px; font-size: 12px; }
+.rc-chip.neg { background: rgba(235,87,87,0.25); }
+.rc-icons { font-size: 12px; letter-spacing: 1px; }
+.rh-caret { opacity: 0.6; }
+.route-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 8px; opacity: 0.85; }
+.route-advice { font-size: 12px; margin: 6px 0; padding: 6px 8px; border-radius: 8px; background: rgba(111,207,151,0.12); }
+.route-advice.neg { background: rgba(235,87,87,0.18); }
+.route-advice.gold { background: rgba(242,201,76,0.15); }
+.truck-list { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 8px; }
+.truck-row { display: flex; gap: 8px; align-items: flex-start; background: rgba(0,0,0,0.18); border-radius: 10px; padding: 6px 8px; }
+.truck-row .tr-n { font-size: 11px; opacity: 0.6; min-width: 20px; padding-top: 2px; }
+.truck-row .tr-ic { font-size: 16px; }
+.truck-row .tr-body { flex: 1; min-width: 0; }
+.truck-row .tr-text { font-size: 12px; }
+.truck-row .tr-bar { margin-top: 4px; height: 5px; }
+.truck-row.load .tr-bar div { background: #f2c94c; }
+.truck-row.go .tr-bar div { background: #56ccf2; }
+.truck-row.back .tr-bar div { background: #9aa3b2; }
+.truck-row.warn { background: rgba(235,87,87,0.15); }
+.truck-row.warn .tr-bar div { background: #eb5757; }
+.truck-row .tr-cargo { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+.route-ctl { flex-wrap: wrap; }
+.route-ctl .send-now { margin-left: auto; }
+.route-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12px; }
+.link-btn.neg { color: #eb5757; }
