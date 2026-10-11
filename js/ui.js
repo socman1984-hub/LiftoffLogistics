@@ -449,6 +449,15 @@ function rackDetailHTML() {
     html += card('⏫', `Upgrade this rack to level ${lvl + 1}`, `Holds ${RACK.levels[lvl]} instead of ${slots}`, '',
       `<button class="btn" data-act="rackup" ${state.money < cost ? 'disabled' : ''}>${fmt(cost)}</button>`);
   } else html += '<p class="intro small">This rack is fully upgraded.</p>';
+  // What this rack may hold: anything, or only the products picked here.
+  const allow = o.allow || [];
+  const known = new Set([...PRODUCT_IDS.filter((p) => storageUnitsHave(id, p)), ...allow]);
+  html += `<h3 class="sec">What goes on this rack</h3>
+    <div class="choice rack-allow"><button class="chip ${!o.allow ? 'on' : ''}" data-act="rackallow" data-id="*">📦 Anything</button>
+    ${PRODUCT_IDS.filter((p) => ui.rackAllProducts || known.has(p)).map((p) => `<button class="chip ${allow.includes(p) ? 'on' : ''}" data-act="rackallow" data-id="${p}">${PRODUCTS[p].icon} ${PRODUCTS[p].name}</button>`).join('')}
+    <button class="chip faint" data-act="rackallmore">${ui.rackAllProducts ? '− Fewer' : '+ Show all products'}</button></div>
+    <p class="intro small">${o.allow ? `Only ${allow.map((p) => PRODUCTS[p].icon).join(' ')} can be put here. Anything else already on it stays until it ships.` : 'Pick products to reserve this rack for them. Racks set to Anything take whatever comes.'}
+    <button class="link-btn" data-act="rackallowall">Copy to every rack here</button></p>`;
   html += `<p class="intro small">Goods stay on the rack they were put on; upgrading adds room here for new stock. Run a conveyor into any rack to store products directly (no forklift needed).
     Stored stock leaves on a truck when a destination in its plan has room, or sell it below.</p>`;
   html += storageBoxHTML(id);
@@ -805,6 +814,26 @@ function onPanelClick(e) {
     ui.removeAt = null;
     closePanel();
     refreshToolbar();
+    return;
+  }
+  if (act === 'rackallmore') { ui.rackAllProducts = !ui.rackAllProducts; renderPanel(); return; }
+  if (act === 'rackallow' || act === 'rackallowall') {
+    const o = curProp().tiles[ui.rackSel.y][ui.rackSel.x].obj;
+    if (o && o.k === 'rack') {
+      if (act === 'rackallowall') {
+        let n = 0;
+        for (const row of curProp().tiles) for (const t of row) if (t.obj && t.obj.k === 'rack' && t.obj !== o) { t.obj.allow = o.allow ? [...o.allow] : undefined; n++; }
+        toast(`🗄️ Copied to ${n} other rack${n === 1 ? '' : 's'}`);
+      } else if (id === '*') delete o.allow;
+      else {
+        const set = new Set(o.allow || []);
+        if (set.has(id)) set.delete(id); else set.add(id);
+        if (set.size) o.allow = PRODUCT_IDS.filter((p) => set.has(p)); else delete o.allow;
+      }
+      markLayoutDirty(state.current);
+      save();
+    }
+    renderPanel();
     return;
   }
   if (act === 'rackremove') {

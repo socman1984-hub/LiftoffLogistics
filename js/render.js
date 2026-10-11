@@ -925,6 +925,15 @@ function render(tool) {
               const info = racksIdx.get(x + ',' + y);
               const used = Math.min(info.cap, rackLoad(t.obj));
               drawRack(px, py, s, used / info.cap, x * 31 + y * 17, used, info.cap);
+              if (t.obj.allow) {
+                const icons = t.obj.allow.slice(0, 3).map((p) => PRODUCTS[p].icon).join('') + (t.obj.allow.length > 3 ? '…' : '');
+                ctx.fillStyle = 'rgba(0,0,0,0.75)';
+                ctx.fillRect(px + s * 0.1, py + s * 0.76, s * 0.8, s * 0.2);
+                ctx.font = `${Math.floor(s * 0.15)}px system-ui`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(icons, px + s / 2, py + s * 0.86);
+              }
               if ((t.obj.lvl || 1) > 1) {
                 ctx.fillStyle = '#f2c94c';
                 ctx.font = `800 ${Math.floor(s * 0.15)}px system-ui`;

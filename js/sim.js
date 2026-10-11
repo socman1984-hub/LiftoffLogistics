@@ -64,7 +64,7 @@ function canEnter(prop, def, r, x, y, side, it) {
   if (t.base === 'out') return !it || canShip(def.id, prop, it.product);
   if (t.obj.jammed) return false;
   if (t.obj.k === 'assembler') return assemblerWants(t.obj, it);
-  if (t.obj.k === 'rack') return storageRoom(def.id) > 0; // racks absorb into storage
+  if (t.obj.k === 'rack') return !it || (rackAllows(t.obj, it.product) && storageRoomFor(def.id, it.product) > 0); // racks absorb into storage
   return !r.occ[y][x];
 }
 
@@ -185,6 +185,25 @@ function movesUsed(id) {
 
 const storageRoom = (id) => storageCap(id) - storageUsed(id);
 
+// A rack with an `allow` list only holds those products.
+const rackAllows = (o, p) => !o.allow || o.allow.includes(p);
+
+// Room for one more `p`: the dock staging takes anything, but racks only
+// count when they allow `p`.
+function storageRoomFor(id, p) {
+  const room = storageRoom(id);
+  const L = layoutOf(id);
+  if (room <= 0 || !L.filtered || !p) return room;
+  let onRacks = 0, freeForP = 0;
+  for (const o of L.rackObjs) {
+    const load = rackLoad(o);
+    onRacks += load;
+    if (rackAllows(o, p)) freeForP += Math.max(0, rackCapOf(o) - load);
+  }
+  const stagingFree = Math.max(0, STORAGE_BASE - (storageUsed(id) - onRacks));
+  return Math.min(room, stagingFree + freeForP);
+}
+
 // Everything on the racks as an ordered list: stored stock first, then
 // goods waiting for an outgoing truck, then goods trucked in.
 function storageUnits(id) {
@@ -260,8 +279,10 @@ function syncRacks(id) {
   // New arrivals (or goods waiting at the dock staging) go to the first rack with room.
   for (const [k, n] of Object.entries(want)) {
     let short = n - Math.max(0, Math.min(have[k] || 0, n));
+    const prod = k.slice(k.indexOf(':') + 1);
     for (const o of racks) {
       if (short <= 0) break;
+      if (!rackAllows(o, prod)) continue;
       const room = rackCapOf(o) - rackLoad(o);
       const m = Math.min(room, short);
       if (m <= 0) continue;
@@ -269,6 +290,13 @@ function syncRacks(id) {
       short -= m;
     }
   }
+}
+
+// Products this site stores or ships (shown brighter in the rack filter).
+function storageUnitsHave(id, p) {
+  const prop = state.props[id];
+  if (prop.held[p] || prop.inbox[p] || prop.shipped[p] || prop.made[p]) return true;
+  return Object.values(prop.outbox).some((b) => b[p]);
 }
 
 function rackContents(id, info) {
@@ -285,8 +313,8 @@ function destOpen(from, d, p, fromStorage) {
   if (!d.w || !destValid(from, d.to, p)) return false;
   if (d.to === 'sell') return true;
   // "Store here": park it on this site's racks (needs a free slot and a move).
-  if (d.to === 'store') return !fromStorage && storageRoom(from) > 0 && movesReady(from);
-  if (!fromStorage && (storageRoom(from) <= 0 || !movesReady(from))) return false;
+  if (d.to === 'store') return !fromStorage && storageRoomFor(from, p) > 0 && movesReady(from);
+  if (!fromStorage && (storageRoomFor(from, p) <= 0 || !movesReady(from))) return false;
   const stock = stockAt(from, d.to, p);
   if (d.to === 'launch' && stock >= (launchNeeds()[p] || 0)) return false; // rocket has enough
   return !d.cap || stock < d.cap;
@@ -296,7 +324,7 @@ function destOpen(from, d, p, fromStorage) {
 // racks are full too — then the SHIP doors refuse and the line backs up.
 function canShip(id, prop, p) {
   const plan = planOf(prop, p);
-  return plan.overflow !== 'hold' || (storageRoom(id) > 0 && movesReady(id)) || plan.dests.some((d) => destOpen(id, d, p));
+  return plan.overflow !== 'hold' || (storageRoomFor(id, p) > 0 && movesReady(id)) || plan.dests.some((d) => destOpen(id, d, p));
 }
 
 // Smooth weighted round-robin: exact shares, evenly interleaved.
@@ -307,7 +335,7 @@ function chooseDest(id, prop, r, p, fromStorage) {
   if (!open.length) {
     if (fromStorage) return null;
     if (plan.overflow !== 'hold') return 'sell';
-    return storageRoom(id) > 0 && movesReady(id) ? 'store' : null;
+    return storageRoomFor(id, p) > 0 && movesReady(id) ? 'store' : null;
   }
   if (open.length === 1) return open[0].to;
   const cur = (r.wrr || (r.wrr = {}))[p] || (r.wrr[p] = {});
@@ -460,7 +488,7 @@ function tryMove(id, prop, def, r, it) {
     // It lands on this rack when there's room; otherwise the next free one.
     prop.held[it.product] = (prop.held[it.product] || 0) + 1;
     const st = nt.obj.stock || (nt.obj.stock = {});
-    if (rackLoad(nt.obj) < rackCapOf(nt.obj)) st['stored:' + it.product] = (st['stored:' + it.product] || 0) + 1;
+    if (rackLoad(nt.obj) < rackCapOf(nt.obj) && rackAllows(nt.obj, it.product)) st['stored:' + it.product] = (st['stored:' + it.product] || 0) + 1;
     addFloater(id, r, nx + 0.5, ny + 0.3, '🗄️', '242,201,76');
     it.dead = true;
     return true;
@@ -786,7 +814,7 @@ function unloadTruck(to, u) {
   if (!state.props[to].owned) return;
   const inbox = state.props[to].inbox;
   for (const p of Object.keys(u.load)) {
-    while (u.load[p] > 0 && storageRoom(to) > 0 && takeMove(to)) {
+    while (u.load[p] > 0 && storageRoomFor(to, p) > 0 && takeMove(to)) {
       u.load[p]--;
       u.n--;
       inbox[p] = (inbox[p] || 0) + 1;

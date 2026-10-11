@@ -109,6 +109,7 @@ window.addEventListener('pagehide', save);
 function boot() {
   const loaded = load();
   state = loaded || newState();
+  if (loaded) { restoreRuntime(loaded.snap); delete state.snap; }
   buildToolbar();
   initInput();
   new ResizeObserver(resizeCanvas).observe(canvas);

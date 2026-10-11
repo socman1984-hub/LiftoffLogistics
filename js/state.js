@@ -183,9 +183,61 @@ function save() {
   state.lastRate = netRate();
   state.lastRates = {};
   for (const def of PROPERTIES) if (state.props[def.id].owned) state.lastRates[def.id] = propNet(def.id);
+  state.snap = snapshotRuntime();
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
   } catch (e) { /* storage unavailable — play continues unsaved */ }
+}
+
+// ---- Live-floor snapshot ----
+// Workers, packages on the belts and the last 30s of sales/costs normally
+// live only in memory. Saving a small snapshot lets a reload pick up where
+// you left off instead of starting from an empty floor (and a negative $/min).
+const r1 = (v) => Math.round(v * 10) / 10;
+function snapshotRuntime() {
+  const sites = {};
+  for (const def of PROPERTIES) {
+    const r = runtime[def.id];
+    if (!r || !state.props[def.id].owned) continue;
+    sites[def.id] = {
+      sales: r.sales.filter((s) => s.t >= r.time - 30).map((s) => [r1(r.time - s.t), r1(s.v)]),
+      costs: r.costs.filter((c) => c.t >= r.time - 30).map((c) => [r1(r.time - c.t), r1(c.v)]),
+      workers: r.workers.map((w) => [w.role, w.name, Math.round(w.x), Math.round(w.y), Math.round(w.breakIn || 60)]),
+      items: r.items.filter((it) => !it.dead).map((it) => [it.product, it.x, it.y, r1(it.p), it.fromDir, it.outDir, r1(it.value), r1(it.fresh), it.tags.join(','), it.processed ? 1 : 0]),
+    };
+  }
+  const buckets = [];
+  for (const [sec, b] of ledger.buckets) buckets.push([sec, b]);
+  return { sites, ledger: { buckets, recent: ledger.recent } };
+}
+
+function restoreRuntime(snap) {
+  if (!snap) return;
+  for (const [id, s] of Object.entries(snap.sites || {})) {
+    const def = PROP_BY_ID[id], prop = state.props[id];
+    if (!def || !prop || !prop.owned) continue;
+    const r = rt(id);
+    r.sales = (s.sales || []).map(([age, v]) => ({ t: r.time - age, v }));
+    r.costs = (s.costs || []).map(([age, v]) => ({ t: r.time - age, v }));
+    for (const [role, name, x, y, breakIn] of s.workers || []) {
+      if (!STAFF_BY_ID[role] || !prop.tiles[y] || !prop.tiles[y][x]) continue;
+      r.workers.push({ id: nextWorkerId++, role, name, x, y, fx: x, fy: y, path: [], mode: 'idle', breakIn, wait: 0 });
+    }
+    for (const [product, x, y, p, fromDir, outDir, value, fresh, tags, processed] of s.items || []) {
+      const t = prop.tiles[y] && prop.tiles[y][x];
+      // Only put packages back where the layout still carries them.
+      if (!PRODUCTS[product] || !t || r.occ[y][x] || !(t.obj || t.base === 'in')) continue;
+      if (t.obj && (t.obj.k === 'assembler' || t.obj.k === 'rack' || FACILITIES[t.obj.k])) continue;
+      const it = makeItem(product, x, y, p, fromDir, outDir);
+      it.value = value; it.fresh = fresh; it.tags = tags ? tags.split(',') : []; it.processed = !!processed;
+      r.items.push(it);
+      r.occ[y][x] = it;
+    }
+  }
+  if (snap.ledger) {
+    for (const [sec, b] of snap.ledger.buckets || []) ledger.buckets.set(sec, b);
+    ledger.recent = snap.ledger.recent || [];
+  }
 }
 
 function load() {
@@ -246,11 +298,14 @@ function upgradeCost(u, level, def) {
 function layoutOf(id) {
   const r = rt(id);
   if (r.layout && !r.layoutDirty) return r.layout;
-  const L = { racks: 0, rackSlots: 0, fac: {} };
+  const L = { racks: 0, rackSlots: 0, fac: {}, rackObjs: [], filtered: false };
   for (const row of state.props[id].tiles) {
     for (const t of row) {
       if (!t.obj) continue;
-      if (t.obj.k === 'rack') { L.racks++; L.rackSlots += rackCapOf(t.obj); }
+      if (t.obj.k === 'rack') {
+        L.racks++; L.rackSlots += rackCapOf(t.obj); L.rackObjs.push(t.obj);
+        if (t.obj.allow) L.filtered = true;
+      }
       else if (FACILITIES[t.obj.k] && (t.obj.dirt || 0) < DIRT.filthy) L.fac[t.obj.k] = (L.fac[t.obj.k] || 0) + 1; // filthy = out of order
     }
   }

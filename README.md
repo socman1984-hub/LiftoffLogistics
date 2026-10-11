@@ -78,6 +78,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   goods trucked in (waiting at the 📥 dock), and anything sent to **🗄️ Store here**. The bar on each SHIP
   door shows how full they are. Full racks back up the line, and arriving trucks wait to unload.
   Stored stock leaves on a truck when a destination has room, or via "Sell stored stock".
+  Tap a rack to choose **what goes on it** (anything, or only certain products) to reserve space for specific goods.
 - **👷 Workers walk the floor**: every staff member is a visible worker who path-finds over repaired
   floor and doors (stepping over conveyors), never over broken floor, walls, machines, racks or
   facilities. **Assembler Operators** crew assemblers (an assembler only runs while its operator stands
@@ -117,7 +118,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).
-- Progress autosaves to localStorage. Sites earn **30%** of their live rate while you're away (more with Night Shift / Night Managers research, scaled by maintenance coverage); a 🌙 **Night Crew** from the 💎 Gem Store keeps them at 100% for 4/8/24 banked hours.
+- Progress autosaves to localStorage, including a snapshot of the live floor (workers, packages on belts, recent
+  sales and the finance ledger) so a reload picks up where you left off. Sites earn **30%** of their live rate while you're away (more with Night Shift / Night Managers research, scaled by maintenance coverage); a 🌙 **Night Crew** from the 💎 Gem Store keeps them at 100% for 4/8/24 banked hours.
 
 ## Code layout
 
