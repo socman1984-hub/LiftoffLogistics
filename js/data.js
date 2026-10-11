@@ -386,16 +386,23 @@ const FACILITIES = {
     desc: 'Covers staff working within its range. Keeps morale up.',
     levels: [{ range: 4, cap: 8, speed: 1 }, { range: 6, cap: 12, speed: 1.35 }, { range: 9, cap: 16, speed: 1.8 }],
   },
-  opscenter: { name: 'Operations Center', icon: '🖥️', color: '#37474f', cost: 3000, power: 3, max: 1, desc: '+25% rack handling and +10% line speed (1 per site)' },
-  firstaid: { name: 'First Aid Station', icon: '🩹', color: '#c0392b', cost: 1500, power: 1, desc: 'Halves accidents; accidents stop work for 10s instead of 20s' },
-  securitybooth: { name: 'Security Booth', icon: '🛡️', color: '#2c3e50', cost: 1200, power: 1, desc: 'Halves package theft (stacks with guards)' },
-  maintshop: { name: 'Maintenance Shop', icon: '🔧', color: '#7f8c8d', cost: 2500, power: 2, desc: 'Techs repair twice as fast and service gear more often' },
-  generator: { name: 'Generator', icon: '🔌', color: '#b7950b', cost: 2000, power: -12, outside: true, desc: '+12 ⚡ power capacity. Built outside, on the building\'s outer wall' },
-  crane: { name: 'Loading Crane', icon: '🏗️', color: '#d35400', cost: 4000, power: 4, outside: true, unlock: 'depot', desc: '+50% rack handling here: trucks load and unload faster, forklifts are freed up. Built outside, on the outer wall' },
-  bench: { name: 'Research Bench', icon: '🧪', color: '#16a085', cost: 6000, power: 3, unlock: 'lab', desc: `+25% research speed for every bench you own, at any site (up to ${BENCH_MAX})` },
-  cobot: { name: 'Cobot Station', icon: '🦾', color: '#5d6d7e', cost: 8000, power: 4, unlock: 'hub', desc: `A robot arm that counts as one extra crew member at every assembler within ${COBOT_RANGE} tiles. No wages, no breaks` },
+  opscenter: { name: 'Operations Center', icon: '🖥️', color: '#37474f', cost: 3000, power: 3, max: 1, research: 'diagnostics', desc: '+25% rack handling and +10% line speed (1 per site)' },
+  firstaid: { name: 'First Aid Station', icon: '🩹', color: '#c0392b', cost: 1500, power: 1, research: 'hygiene', desc: 'Halves accidents; accidents stop work for 10s instead of 20s' },
+  securitybooth: { name: 'Security Booth', icon: '🛡️', color: '#2c3e50', cost: 1200, power: 1, research: 'logistics', desc: 'Halves package theft (stacks with guards)' },
+  maintshop: { name: 'Maintenance Shop', icon: '🔧', color: '#7f8c8d', cost: 2500, power: 2, research: 'maint', desc: 'Techs repair twice as fast and service gear more often' },
+  generator: { name: 'Generator', icon: '🔌', color: '#b7950b', cost: 2000, power: -12, outside: true, research: 'efficiency', desc: '+12 ⚡ power capacity. Built outside, on the building\'s outer wall' },
+  crane: { name: 'Loading Crane', icon: '🏗️', color: '#d35400', cost: 4000, power: 4, outside: true, unlock: 'depot', research: 'forklift', desc: '+50% rack handling here: trucks load and unload faster, forklifts are freed up. Built outside, on the outer wall' },
+  bench: { name: 'Research Bench', icon: '🧪', color: '#16a085', cost: 6000, power: 3, unlock: 'lab', research: 'fastassembly', desc: `+25% research speed for every bench you own, at any site (up to ${BENCH_MAX})` },
+  cobot: { name: 'Cobot Station', icon: '🦾', color: '#5d6d7e', cost: 8000, power: 4, unlock: 'hub', research: 'automation', desc: `A robot arm that counts as one extra crew member at every assembler within ${COBOT_RANGE} tiles. No wages, no breaks` },
 };
 const FACILITY_IDS = Object.keys(FACILITIES);
+for (const r of RESEARCH) {
+  const facs = FACILITY_IDS.filter((k) => FACILITIES[k].research === r.id);
+  if (facs.length) r.desc += ` · unlocks ${facs.map((k) => `${FACILITIES[k].icon} ${FACILITIES[k].name}`).join(', ')}`;
+}
+// Locked until its research is done (and, for some, until you own the site that unlocks it).
+const facLockReason = (f) => (f.unlock && !unlockedBy(f.unlock) ? `Buy the ${PROP_BY_ID[f.unlock].name} to unlock`
+  : f.research && !hasResearch(f.research) ? `🔬 Research ${RESEARCH_BY_ID[f.research].icon} ${RESEARCH_BY_ID[f.research].name} to unlock` : null);
 // Owning a site unlocks its new buildings everywhere.
 const unlockedBy = (site) => !site || (typeof state !== 'undefined' && state && state.props[site] && state.props[site].owned);
 const UNLOCK_LIST = (site) => [

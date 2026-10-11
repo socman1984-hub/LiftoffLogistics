@@ -416,8 +416,11 @@ function facilitiesHTML() {
     ${moraleSummary(id)}</p>`;
   for (const k of FACILITY_IDS) {
     const f = FACILITIES[k];
-    if (f.unlock && !unlockedBy(f.unlock)) {
-      html += card(f.icon, `${f.name} <span class="count">🔒</span>`, f.desc, `Buy the ${PROP_BY_ID[f.unlock].name} to unlock`, '<button class="btn secondary" disabled>🔒</button>', 'done');
+    const why = facLockReason(f);
+    if (why) {
+      const btn = f.research && !hasResearch(f.research) && unlockedBy(f.unlock)
+        ? `<button class="btn secondary small" data-act="openresearchnode" data-id="${f.research}">🔬 View</button>` : '<button class="btn secondary" disabled>🔒</button>';
+      html += card(f.icon, `${f.name} <span class="count">🔒${facCount(id, k) ? ` · ${facCount(id, k)} here` : ''}</span>`, f.desc, why, btn, 'done');
       continue;
     }
     const n = facCount(id, k);
@@ -874,6 +877,8 @@ function onPanelClick(e) {
     return;
   }
   if (act === 'pickfac') {
+    const why = facLockReason(FACILITIES[id]);
+    if (why) { toast(why); return; }
     ui.facilityType = id;
     ui.tool = 'facility';
     ui.toolGroup = null;
@@ -1263,6 +1268,7 @@ function handleTap(x, y) {
   } else if (tool === 'facility') {
     const type = ui.facilityType;
     if (!type) { openPanel('facilities'); return; }
+    if (facLockReason(FACILITIES[type])) { toast(facLockReason(FACILITIES[type])); return; }
     if (t.obj) { toast('Remove what is here first'); return; }
     const f = FACILITIES[type];
     if (f.max && facCount(state.current, type) >= f.max) { toast(`Only ${f.max} ${f.name} per site`); return; }

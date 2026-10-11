@@ -40,6 +40,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **Jobs behind research**: Janitors, Techs, Operators and Forklift Operators are open from the start; the
   specialists unlock through research: 💼 Sales Rep (Marketing), 🛡️ Security (Logistics Network), ⛑️ Safety
   (Easy-Clean Floors), 📋 Ops Manager (Diagnostics), 🗂️ HR (Wellness Program), 🧾 Purchasing Agent (Negotiation).
+  Facilities work the same way: Restrooms, Break Rooms and Racks are open; 🔌 Generator (Efficient Motors),
+  🔧 Maintenance Shop (Heavy-Duty Parts), 🩹 First Aid (Easy-Clean Floors), 🛡️ Security Booth (Logistics Network),
+  🖥️ Ops Center (Diagnostics), and the site unlocks also need 🏗️ Forklift Training, 🧪 Robotic Assembly, 🦾 Full Automation.
 - **People**: tap a worker (🔍 Inspect) to see who they are, what they're doing, mood, pace and wage, let them
   go, or raise the site's pay rate (+15/30/50% wages for +5/10/15% morale). Badges on worker icons show
   who is unhappy (😟/😠), heading to a break (🚻/☕) or due one soon (⏳).
