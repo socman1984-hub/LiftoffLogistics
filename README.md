@@ -135,7 +135,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).
 - Progress autosaves to localStorage, including a snapshot of the live floor (workers, packages on belts, recent
-  sales and the finance ledger) so a reload picks up where you left off. While you're away, sites earn **15%** of their ~5-minute average rate for the first 2 hours, then half that, up to 6 hours (Night Shift / Night Managers research add +7.5% and +2 h each; scaled by maintenance coverage). A 🌙 **Night Crew** from the 💎 Gem Store keeps them at 60% for 4/8 banked hours.
+  sales and the finance ledger) so a reload picks up where you left off. While you're away, sites earn **15%** of their ~5-minute average rate for the first 2 hours, then half that, up to 6 hours (Night Shift / Night Managers research add +7.5% and +2 h each; scaled by maintenance coverage). A 🌙 **Night Crew** from the 💎 Gem Store keeps them at 40% for 4/8 banked hours.
 
 ## Code layout
 

@@ -498,21 +498,21 @@ const GEMS = {
 };
 // Boosts only save time; nothing here is unobtainable without paying.
 // kind: 'play' = runs on the in-game clock, 'instant' = one-shot,
-//       'away' = banks hours of Night Crew earnings (60% speed) for time spent offline.
+//       'away' = banks hours of Night Crew earnings (40% speed) for time spent offline.
 const BOOSTS = [
   { id: 'double', kind: 'play', name: 'Double Earnings', icon: '💰', cost: 15, dur: 1800, desc: 'Every sale pays 2× for 30 minutes of play' },
   { id: 'freight', kind: 'play', name: 'Express Freight', icon: '🚛', cost: 10, dur: 1800, desc: 'Trucks between your sites drive 3× faster for 30 minutes of play' },
   { id: 'warp', kind: 'instant', name: 'Time Warp', icon: '⏱️', cost: 20, desc: 'Instantly collect 1 hour of your current net income' },
   { id: 'crew', kind: 'instant', name: 'Emergency Crew', icon: '🧰', cost: 5, desc: 'Instantly fix every breakdown and service all equipment' },
-  { id: 'night4', kind: 'away', hours: 4, name: 'Night Crew · 4 hours', icon: '🌙', cost: 10, desc: 'Your sites earn at 60% speed for your next 4 hours away' },
-  { id: 'night8', kind: 'away', hours: 8, name: 'Night Crew · 8 hours', icon: '🌙', cost: 18, desc: '60% earnings for your next 8 hours away (a good night\'s sleep)' },
+  { id: 'night4', kind: 'away', hours: 4, name: 'Night Crew · 4 hours', icon: '🌙', cost: 10, desc: 'Your sites earn at 40% speed for your next 4 hours away' },
+  { id: 'night8', kind: 'away', hours: 8, name: 'Night Crew · 8 hours', icon: '🌙', cost: 18, desc: '40% earnings for your next 8 hours away (a good night\'s sleep)' },
 ];
 // Offline earnings: a fraction of your average rate over the last few minutes.
 // The full fraction for the first OFFLINE_FULL_HOURS away, then half of it, up to the cap.
 const OFFLINE_BASE_RATE = 0.15;
 const OFFLINE_BASE_HOURS = 6;
 const OFFLINE_FULL_HOURS = 2;
-const NIGHT_CREW_RATE = 0.6; // a Night Crew keeps sites at 60% while you're away
+const NIGHT_CREW_RATE = 0.4; // a Night Crew keeps sites at 40% while you're away
 const RATE_AVG_SECS = 300; // offline pay uses a ~5 minute rolling average, not a momentary spike
 // Coming-soon catalog entries (cosmetics never affect gameplay).
 const COSMETICS = [
