@@ -24,9 +24,9 @@ const BULKY_SPEED = 0.6;
 
 // ---- Conveyors & machines ----
 const BELT_TIERS = [
-  { name: 'Basic', speed: 1.25, cost: 15, color: '#f2c94c', life: 700 },
-  { name: 'Fast', speed: 2.2, cost: 90, color: '#f2994a', life: 550 },
-  { name: 'Express', speed: 3.6, cost: 400, color: '#56ccf2', life: 400, research: 'express' },
+  { name: 'Basic', speed: 1.25, cost: 15, color: '#f2c94c', life: 1800 },
+  { name: 'Fast', speed: 2.2, cost: 90, color: '#f2994a', life: 1400 },
+  { name: 'Express', speed: 3.6, cost: 400, color: '#56ccf2', life: 1000, research: 'express' },
 ];
 
 // Machines process a package at the tile centre, then pass it on. Each package
@@ -35,22 +35,22 @@ const BELT_TIERS = [
 // (randomised ±25%) unless a Maintenance Tech services it first.
 const MACHINES = {
   scanner: {
-    name: 'Scanner', past: 'scanned', icon: '🔍', color: '#c0392b', cost: 300, time: 0.5, life: 150,
+    name: 'Scanner', past: 'scanned', icon: '🔍', color: '#c0392b', cost: 300, time: 0.5, life: 400,
     add: 0.5, // flat bonus: 50% of the product's base price
     desc: () => '+50% of base price (flat bonus)',
   },
   labeler: {
-    name: 'Labeler', past: 'labeled', icon: '🏷️', color: '#d4a017', cost: 1500, time: 1.0, life: 120,
+    name: 'Labeler', past: 'labeled', icon: '🏷️', color: '#d4a017', cost: 1500, time: 1.0, life: 300,
     mul: 1.5,
     desc: () => '+50% package value',
   },
   wrapper: {
-    name: 'Wrapper', past: 'wrapped', icon: '🎁', color: '#2980b9', cost: 6000, time: 2.0, life: 90,
+    name: 'Wrapper', past: 'wrapped', icon: '🎁', color: '#2980b9', cost: 6000, time: 2.0, life: 220,
     mul: 2, research: 'wrapper',
     desc: () => 'x2 value · makes fragile cargo safe',
   },
   chiller: {
-    name: 'Chiller', past: 'chilled', icon: '❄️', color: '#48a9c5', cost: 2500, time: 0.6, life: 130,
+    name: 'Chiller', past: 'chilled', icon: '❄️', color: '#48a9c5', cost: 2500, time: 0.6, life: 320,
     mul: 1.3, only: 'cold', research: 'chiller',
     desc: () => 'Stops cold cargo spoiling, +30%',
   },
@@ -63,11 +63,11 @@ const TECH_PM_REST = 6; // seconds a tech rests between services
 const PM_THRESHOLD = 0.4; // techs service equipment once it's 40% worn
 const EQUIP_PER_TECH = 30; // pieces of equipment one tech can cover
 
-const SPLITTER = { name: 'Splitter', cost: 120, speed: 2.0, life: 900 };
-const SORTER = { name: 'Sorter', cost: 250, speed: 2.0, life: 900, research: 'sorter' };
+const SPLITTER = { name: 'Splitter', cost: 120, speed: 2.0, life: 2200 };
+const SORTER = { name: 'Sorter', cost: 250, speed: 2.0, life: 2200, research: 'sorter' };
 const DOCK_SPEED = 2.0;
 const MACHINE_SPEED = 2.0;
-const BASE_TRUCK_INTERVAL = 2.0; // seconds between packages per open IN dock
+const BASE_TRUCK_INTERVAL = 1.6; // seconds between packages per open IN dock
 
 // Tools shown in the toolbar, in order.
 const TOOLS = [
@@ -119,7 +119,7 @@ const STAFF = [
     id: 'tech', name: 'Maintenance Tech', icon: '🔧', wage: 12, max: 6,
     desc: 'Fixes breakdowns for free and services worn equipment before it fails. Keeps offline output up.',
   },
-  { id: 'operator', name: 'Assembler Operator', icon: '👷', wage: 10, max: 12, desc: 'Crews an assembler (it only runs with an operator beside it). Up to 3 per assembler, +50% speed each extra' },
+  { id: 'operator', name: 'Assembler Operator', icon: '👷', wage: 10, max: 12, desc: 'Crews an assembler (without one it crawls at 25% speed). Up to 3 per assembler, +50% speed each extra' },
   { id: 'ops', name: 'Operations Manager', icon: '📋', wage: 25, max: 3, desc: '+10% line speed and +15% rack handling each' },
   { id: 'forklift', name: 'Forklift Operator', icon: '🚜', wage: 15, max: 6, desc: 'Puts products away in the racks and picks them out: +30 moves/min each' },
   { id: 'sales', name: 'Sales Rep', icon: '💼', wage: 25, max: 3, desc: '+10% value on packages shipped here, each' },
@@ -228,7 +228,7 @@ const RECIPES = {
   solar: { in: { silicon: 2, wiring: 1, alloy: 1 }, time: 5, research: 'photovoltaics' },
 };
 const RECIPE_IDS = Object.keys(RECIPES);
-const ASSEMBLER = { name: 'Assembler', cost: 400, life: 200, bufferRecipes: 2 };
+const ASSEMBLER = { name: 'Assembler', cost: 400, life: 500, bufferRecipes: 2 };
 
 const recipeText = (id) => Object.entries(RECIPES[id].in)
   .map(([p, n]) => `${n > 1 ? n + '× ' : ''}${PRODUCTS[p].icon}`).join(' + ');
@@ -271,12 +271,12 @@ const rackCapOf = (o) => RACK.levels[(o.lvl || 1) - 1];
 // ---- Facilities: one-tile buildings for your staff ----
 const FACILITIES = {
   restroom: {
-    name: 'Restroom', icon: '🚻', color: '#4a6fa5', cost: 400, power: 0, rangeTint: '74,111,165',
+    name: 'Restroom', icon: '🚻', color: '#4a6fa5', cost: 250, power: 0, rangeTint: '74,111,165',
     desc: 'Covers staff working within its range. Uncovered staff hurt morale.',
     levels: [{ range: 4, cap: 6, speed: 1 }, { range: 6, cap: 9, speed: 1.35 }, { range: 9, cap: 12, speed: 1.8 }],
   },
   breakroom: {
-    name: 'Break Room', icon: '☕', color: '#8d6e63', cost: 600, power: 1, rangeTint: '141,110,99',
+    name: 'Break Room', icon: '☕', color: '#8d6e63', cost: 350, power: 1, rangeTint: '141,110,99',
     desc: 'Covers staff working within its range. Keeps morale up.',
     levels: [{ range: 4, cap: 8, speed: 1 }, { range: 6, cap: 12, speed: 1.35 }, { range: 9, cap: 16, speed: 1.8 }],
   },
@@ -315,6 +315,7 @@ const MORALE = {
   quitAfter: 45,
 };
 const MAX_CREW = 3; // operators per assembler; each extra adds CREW_BONUS speed
+const NO_CREW_SPEED = 0.25; // an assembler nobody runs still limps along (no soft-locks)
 const CREW_BONUS = 0.5;
 const STAFF_PER_RESTROOM = 6;
 const STAFF_PER_BREAKROOM = 8;
@@ -402,7 +403,7 @@ const PROPERTIES = [
     repairCost: 8, brokenPct: 0.8,
     inDocks: [
       { x: 2, y: 0, dir: 2, price: 0, cargo: { steel: 1 } },
-      { x: 5, y: 0, dir: 2, price: 600, cargo: { copper: 1 } },
+      { x: 5, y: 0, dir: 2, price: 400, cargo: { copper: 1 } },
     ],
     outDocks: [
       { x: 4, y: 11, price: 0 },

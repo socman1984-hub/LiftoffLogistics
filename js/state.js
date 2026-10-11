@@ -2,7 +2,7 @@
 // Game state: creation, layout generation, persistence, cost/effect helpers.
 
 const SAVE_KEY = 'conveyor-tycoon-v1';
-const START_MONEY = 2000;
+const START_MONEY = 3000; // enough to follow the tutorial without waiting
 
 let state = null;
 

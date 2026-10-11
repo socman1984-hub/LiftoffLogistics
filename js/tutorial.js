@@ -34,7 +34,7 @@ const TUTORIAL = [
     done: () => hasRecipe('panel'),
   },
   {
-    text: 'Assemblers need a crew. Open <b>🏗️ Manage → Staff</b> and hire an <b>👷 Assembler Operator</b>.',
+    text: 'Without a crew your assembler crawls at 25% speed. Open <b>🏗️ Manage → Staff</b> and hire an <b>👷 Assembler Operator</b>.',
     target: '[data-panel="building"]', done: () => anyStaff('operator'),
   },
   {

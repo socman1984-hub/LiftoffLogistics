@@ -228,7 +228,7 @@ function stepWorkers(id, prop, def, r, dt) {
   }
   const lonely = assemblers.filter((a) => !crew.get(a.key));
   if (lonely.length) {
-    setAlert(r, 'nocrew', `${lonely.length} assembler${lonely.length > 1 ? 's have' : ' has'} no operator. Hire 👷 Assembler Operators in Manage → Staff.`, lonely[0].x, lonely[0].y);
+    setAlert(r, 'nocrew', `${lonely.length} assembler${lonely.length > 1 ? 's have' : ' has'} no operator and run${lonely.length > 1 ? '' : 's'} at 25% speed. Hire 👷 Assembler Operators in Manage → Staff.`, lonely[0].x, lonely[0].y);
   }
 
   // Techs: claim jobs nobody else has.
@@ -527,4 +527,42 @@ function workerHTML() {
   html += '</div>';
   html += '<p class="intro small">Manage staff in 🏗️ Manage → Staff.</p>';
   return html;
+}
+
+// ---- Path check when building ----
+// Which assemblers / facilities / racks staff can stand next to right now.
+function reachableTargets(prop, def) {
+  const seen = new Uint8Array(def.cols * def.rows);
+  const door = entranceOf(prop, def);
+  const q = [door.y * def.cols + door.x];
+  seen[q[0]] = 1;
+  for (let i = 0; i < q.length; i++) {
+    const cx = q[i] % def.cols, cy = (q[i] / def.cols) | 0;
+    for (const d of DIRS) {
+      const nx = cx + d.x, ny = cy + d.y;
+      if (!walkable(prop, def, nx, ny) || seen[ny * def.cols + nx]) continue;
+      seen[ny * def.cols + nx] = 1;
+      q.push(ny * def.cols + nx);
+    }
+  }
+  const out = new Map();
+  prop.tiles.forEach((row, y) => row.forEach((t, x) => {
+    const o = t.obj;
+    if (!o || !(o.k === 'assembler' || o.k === 'rack' || (FACILITIES[o.k] && t.base === 'floor'))) return;
+    if (DIRS.some((d) => seen[(y + d.y) * def.cols + (x + d.x)])) out.set(x + ',' + y, o);
+  }));
+  return out;
+}
+
+const targetName = (o) => (o.k === 'assembler' ? `${o.recipe ? PRODUCTS[o.recipe].name + ' ' : ''}assembler` : o.k === 'rack' ? 'racks' : FACILITIES[o.k].name);
+
+// Call with the reachable set from before a build; warns if something got cut off.
+function warnIfCutOff(prop, def, before) {
+  const after = reachableTargets(prop, def);
+  for (const [k, o] of before) {
+    if (!after.has(k) && prop.tiles[+k.split(',')[1]][+k.split(',')[0]].obj === o) {
+      toast(`⚠️ That blocks the only path to your ${targetName(o)}. Repair floor next to it for a walkway`);
+      return;
+    }
+  }
 }

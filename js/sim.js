@@ -592,11 +592,12 @@ function stepAssemblers(id, prop, def, r, dt) {
       const o = prop.tiles[y][x].obj;
       if (!o || o.k !== 'assembler' || o.jammed || !o.recipe) continue;
       const crew = r.crewed.get(x + ',' + y) || 0;
-      if (!crew) continue; // waits for its operator
+      // No operator: it still crawls along (25%) so a line can never deadlock.
+      const crewMult = crew ? 1 + CREW_BONUS * (Math.min(crew, MAX_CREW) - 1) : NO_CREW_SPEED;
       const rec = RECIPES[o.recipe];
       const buf = o.buf || (o.buf = {});
       if (!Object.entries(rec.in).every(([p, n]) => (buf[p] || 0) >= n)) { o.craftT = 0; continue; }
-      o.craftT = (o.craftT || 0) + dt * speed * workPace(id) * (1 + CREW_BONUS * (Math.min(crew, MAX_CREW) - 1));
+      o.craftT = (o.craftT || 0) + dt * speed * (crew ? workPace(id) : 1) * crewMult;
       if (o.craftT < rec.time) continue;
       if (r.occ[y][x]) { o.craftT = rec.time; continue; } // output backed up
       for (const [p, n] of Object.entries(rec.in)) buf[p] -= n;

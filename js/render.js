@@ -466,7 +466,7 @@ function drawAssembler(o, px, py, s, crewed) {
     ctx.fillRect(px + s * 0.1, py + s * 0.02, s * 0.8, s * 0.2);
     ctx.fillStyle = '#fff';
     ctx.font = `800 ${Math.floor(s * 0.14)}px system-ui`;
-    ctx.fillText('NO CREW', px + s / 2, py + s * 0.12);
+    ctx.fillText('NO CREW · 25%', px + s / 2, py + s * 0.12);
   } else if (crewed) {
     // Crew badge, top-right: how many operators are working here.
     const bx = px + s * 0.8, by = py + s * 0.2, br = s * 0.17;

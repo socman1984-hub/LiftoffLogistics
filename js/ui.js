@@ -942,10 +942,12 @@ function replaceObj(x, y, kind) {
   if (net > 0 && !spend(net)) { toast(`Need ${fmt(net)} more`); return false; }
   if (net < 0) state.money -= net;
   clearItemAt(state.current, x, y);
+  const before = reachableTargets(prop, def);
   const name = (k) => (k === 'belt' ? 'Conveyor' : k === 'assembler' ? 'Assembler' : k === 'splitter' ? 'Splitter' : k === 'sorter' ? 'Sorter' : MACHINES[k].name);
   t.obj = makeObj(kind, old.dir == null ? ui.lastDir : old.dir, def);
   markLayoutDirty(state.current);
   toast(`🔁 ${name(old.k)} → ${name(kind)} (${net >= 0 ? fmt(net) : '+' + fmt(-net) + ' back'})`);
+  warnIfCutOff(prop, def, before);
   return true;
 }
 
@@ -974,9 +976,12 @@ function placeObj(x, y, kind, dir) {
   if (prep < 0 || t.obj) return false;
   const cost = prep + buildCost(kind, def);
   if (!spend(cost)) { toast(`Need ${fmt(cost)}`); return false; }
+  const blocks = kind !== 'belt' && kind !== 'splitter' && kind !== 'sorter'; // workers can't walk through it
+  const before = blocks ? reachableTargets(prop, def) : null;
   t.base = 'floor';
   t.obj = makeObj(kind, dir, def);
   markLayoutDirty(state.current);
+  if (before) warnIfCutOff(prop, def, before);
   return true;
 }
 
