@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2a4a"/>
+      <stop offset="1" stop-color="#1e2229"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#sky)"/>
+  <circle cx="12" cy="12" r="1" fill="#fff" opacity=".7"/>
+  <circle cx="50" cy="9" r="1.2" fill="#fff" opacity=".8"/>
+  <circle cx="54" cy="24" r=".8" fill="#fff" opacity=".6"/>
+  <!-- rocket -->
+  <g transform="rotate(35 32 26)">
+    <path d="M32 6 C38 12 39 22 38 30 L26 30 C25 22 26 12 32 6 Z" fill="#eef1f5"/>
+    <circle cx="32" cy="18" r="3" fill="#56ccf2" stroke="#2d6a9f" stroke-width="1"/>
+    <path d="M26 24 L21 32 L26 31 Z M38 24 L43 32 L38 31 Z" fill="#eb5757"/>
+    <path d="M28 30 L32 40 L36 30 Z" fill="#f2c94c"/>
+  </g>
+  <!-- conveyor belt with a box -->
+  <rect x="6" y="46" width="52" height="11" rx="3" fill="#2a2d33"/>
+  <rect x="6" y="46" width="52" height="2.5" fill="#f2c94c"/>
+  <rect x="6" y="54.5" width="52" height="2.5" fill="#f2c94c"/>
+  <rect x="11" y="37" width="10" height="9" fill="#c89f6a" stroke="#7a5a33"/>
+  <rect x="15" y="37" width="2" height="9" fill="#7a5a33" opacity=".6"/>
+</svg>

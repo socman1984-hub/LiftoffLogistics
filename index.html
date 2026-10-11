@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1e2229">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Liftoff Logistics</title>
+  <meta name="apple-mobile-web-app-title" content="Liftoff">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css?v=38">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="stat">
+        <div id="money">$0</div>
+        <div id="rate">$0/min</div>
+      </div>
+      <div class="chips">
+        <button id="rep" class="rep-chip">⭐ 0</button>
+        <button id="gems" class="rep-chip gem-chip">💎 0</button>
+      </div>
+      <button id="propBtn" class="prop-btn">
+        <span id="propName">No warehouse</span>
+        <span class="caret">▾</span>
+      </button>
+    </header>
+
+    <div id="objective" class="hidden"></div>
+
+    <main id="stage">
+      <canvas id="game"></canvas>
+      <div id="toast" class="hidden"></div>
+      <button id="alertPill" class="hidden">⚠️ problems</button>
+      <button id="heatBtn" title="Overlays">🌡️</button>
+      <div id="heatLegend" class="hidden"></div>
+    </main>
+
+    <nav id="toolbar"></nav>
+
+    <footer id="actions">
+      <button data-panel="building"><span class="ico">🏗️</span>Building</button>
+      <button data-panel="contracts"><span class="ico">💹</span>Market<span class="badge hidden"></span></button>
+      <button data-panel="research"><span class="ico">🔬</span>Research<span class="badge hidden"></span></button>
+      <button data-panel="map"><span class="ico">🗺️</span>Map<span class="badge hidden"></span></button>
+      <button data-panel="help"><span class="ico">❓</span>Help</button>
+    </footer>
+  </div>
+
+  <div id="modal" class="hidden">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2 id="modalTitle"></h2>
+        <button id="modalClose" aria-label="Close">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js?v=38"></script>
+  <script src="js/state.js?v=38"></script>
+  <script src="js/sim.js?v=38"></script>
+  <script src="js/workers.js?v=38"></script>
+  <script src="js/heat.js?v=38"></script>
+  <script src="js/contracts.js?v=38"></script>
+  <script src="js/render.js?v=38"></script>
+  <script src="js/ui.js?v=38"></script>
+  <script src="js/enterprise.js?v=38"></script>
+  <script src="js/economy.js?v=38"></script>
+  <script src="js/dev.js?v=38"></script>
+  <script src="js/main.js?v=38"></script>
+</body>
+</html>

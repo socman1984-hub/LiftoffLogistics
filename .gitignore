@@ -1,0 +1,7 @@
+# Local Claude Code tool settings
+.claude/
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
