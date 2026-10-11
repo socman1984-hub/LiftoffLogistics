@@ -235,7 +235,7 @@ function feedsFrom(prop, def, x, y, side) {
   if (!o) return false;
   if (o.k === 'rack' || FACILITIES[o.k]) return false; // buildings never push packages out
   if (o.k === 'splitter') return true;
-  if (o.k === 'sorter') return o.dir === toward || sorterSideDir(o) === toward;
+  if (o.k === 'sorter') return o.dir === toward || sorterMatchDirs(o).includes(toward);
   return o.dir === toward;
 }
 
@@ -413,9 +413,22 @@ function drawSorter(o, px, py, s) {
   ctx.fillText((PRODUCTS[o.filter] || CARGO[o.filter]).icon, px + s / 2, py + s / 2 + 1);
   const d = DIRS[o.dir];
   drawArrow(px + s / 2 + d.x * s * 0.4, py + s / 2 + d.y * s * 0.4, s * 0.1, o.dir, '#ffffff');
-  const sd = sorterSideDir(o);
-  const e = DIRS[sd];
-  drawArrow(px + s / 2 + e.x * s * 0.4, py + s / 2 + e.y * s * 0.4, s * 0.12, sd, '#f2c94c');
+  // Yellow arrow per exit for the sorted cargo, with its share when split.
+  const split = sorterSplit(o);
+  const dirs = sorterMatchDirs(o);
+  const total = dirs.reduce((n, d) => n + split[d], 0);
+  for (const sd of dirs) {
+    const e = DIRS[sd];
+    drawArrow(px + s / 2 + e.x * s * 0.4, py + s / 2 + e.y * s * 0.4, s * 0.12, sd, '#f2c94c');
+    if (dirs.length > 1) {
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      const lx = px + s / 2 + e.x * s * 0.24, ly = py + s / 2 + e.y * s * 0.24;
+      ctx.fillRect(lx - s * 0.17, ly - s * 0.08, s * 0.34, s * 0.16);
+      ctx.fillStyle = '#f2c94c';
+      ctx.font = `800 ${Math.floor(s * 0.13)}px system-ui`;
+      ctx.fillText(`${Math.round((split[sd] / total) * 100)}%`, lx, ly + 1);
+    }
+  }
 }
 
 function drawAssembler(o, px, py, s, crewed) {
@@ -695,6 +708,15 @@ function drawWorkers(r, s, time) {
     let bubble = null;
     if (w.stuck) bubble = '❗';
     else if (w.mode === 'break' && !w.path.length) bubble = FACILITIES[w.breakKind].icon;
+    // Status badge, bottom-right: heading to a break, unhappy, or break due soon.
+    const badge = workerBadge(r, w);
+    if (badge) {
+      const bx = cx + rad * 0.85, by = cy + bob + rad * 0.75;
+      ctx.fillStyle = 'rgba(20,22,27,0.9)';
+      ctx.beginPath(); ctx.arc(bx, by, s * 0.11, 0, Math.PI * 2); ctx.fill();
+      ctx.font = `${Math.floor(s * 0.15)}px system-ui`;
+      ctx.fillText(badge, bx, by + 1);
+    }
     if (bubble) {
       ctx.font = `${Math.floor(s * 0.26)}px system-ui`;
       ctx.fillText(bubble, cx, cy - rad - s * 0.12 + Math.sin(time * 5) * s * 0.03);

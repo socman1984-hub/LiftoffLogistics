@@ -51,6 +51,7 @@ function newPropState(def) {
     tiles: generateTiles(def),
     upgrades: { trucks: 0, roof: 0, power: 0 },
     staff: Object.fromEntries(STAFF.map((s) => [s.id, 0])), // headcount per role
+    payRate: 0, // index into PAY_RATES
     earned: 0,
     shipped: {}, // cargo type -> count
     broken: 0, // fragile packages smashed
@@ -345,7 +346,8 @@ function supplierCost(p) {
 // Wage for one person in role `s` at a property.
 function staffWage(s, def, prop) {
   const hr = prop && s.id !== 'hr' && prop.staff.hr > 0 ? 0.8 : 1;
-  return s.wage * def.costMult * (hasResearch('lean') ? 0.7 : 1) * hr;
+  const pay = prop ? PAY_RATES[prop.payRate || 0].mult : 1;
+  return s.wage * def.costMult * (hasResearch('lean') ? 0.7 : 1) * hr * pay;
 }
 
 function wagesPerMin(id) {

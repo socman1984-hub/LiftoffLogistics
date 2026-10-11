@@ -13,6 +13,29 @@ function tileAt(prop, def, x, y) {
 // the filtered cargo. (Older saves stored `side`, relative to `dir`.)
 function sorterSideDir(o) { return o.out != null ? o.out : (o.dir + o.side) % 4; }
 
+// Where the sorted cargo goes: { dir: weight }. Older sorters have one exit.
+function sorterSplit(o) { return o.split || { [sorterSideDir(o)]: 1 }; }
+const sorterMatchDirs = (o) => Object.entries(sorterSplit(o)).filter(([, w]) => w > 0).map(([d]) => +d);
+
+// Weighted round-robin over the sorted cargo's exits, preferring ones with room.
+function chooseSortDir(prop, def, r, it, o, openOnly) {
+  const dirs = sorterMatchDirs(o);
+  if (dirs.length === 1) return dirs[0];
+  const open = dirs.filter((d) => canEnter(prop, def, r, it.x + DIRS[d].x, it.y + DIRS[d].y, opposite(d), it));
+  const pool = open.length ? open : openOnly ? [] : dirs;
+  if (!pool.length) return null;
+  const split = sorterSplit(o);
+  const cur = o.wrr || (o.wrr = {});
+  let total = 0, best = null;
+  for (const d of pool) {
+    cur[d] = (cur[d] || 0) + split[d];
+    total += split[d];
+    if (best == null || cur[d] > cur[best]) best = d;
+  }
+  cur[best] -= total;
+  return best;
+}
+
 // Is tile (x,y) built to take packages in through its `side` face?
 function acceptsFrom(prop, def, x, y, side) {
   const t = tileAt(prop, def, x, y);
@@ -23,7 +46,7 @@ function acceptsFrom(prop, def, x, y, side) {
   if (o.k === 'rack') return true; // conveyors can feed racks directly
   if (FACILITIES[o.k]) return false; // solid buildings
   if (o.k === 'splitter') return true;
-  if (o.k === 'sorter') return side !== o.dir && side !== sorterSideDir(o);
+  if (o.k === 'sorter') return side !== o.dir && !sorterMatchDirs(o).includes(side);
   return o.dir !== side; // can't push into a tile's output face
 }
 
@@ -314,7 +337,10 @@ function advanceItem(id, prop, def, r, it, dt) {
       outDir = it.outDir;
     } else if (o.k === 'sorter') {
       speed = SORTER.speed * sm;
-      outDir = sorterMatches(o, it) ? sorterSideDir(o) : o.dir;
+      if (sorterMatches(o, it)) {
+        if (it.sortDir == null) it.sortDir = chooseSortDir(prop, def, r, it, o);
+        outDir = it.sortDir;
+      } else outDir = o.dir;
     } else if (o.k === 'assembler') {
       speed = MACHINE_SPEED * sm; // freshly built product leaving
       outDir = o.dir;
@@ -358,9 +384,11 @@ function tryMove(id, prop, def, r, it) {
   let nx = it.x + DIRS[outDir].x;
   let ny = it.y + DIRS[outDir].y;
   if (!canEnter(prop, def, r, nx, ny, opposite(outDir), it)) {
-    // A splitter whose chosen exit got blocked may try another.
-    if (!(t.obj && t.obj.k === 'splitter')) return false;
-    const d = chooseSplitterDir(prop, def, r, it, t.obj);
+    // A splitter (or a sorter splitting its cargo) whose exit got blocked may try another.
+    const sorterSplitting = t.obj && t.obj.k === 'sorter' && sorterMatches(t.obj, it) && sorterMatchDirs(t.obj).length > 1;
+    if (!(t.obj && t.obj.k === 'splitter') && !sorterSplitting) return false;
+    const d = sorterSplitting ? chooseSortDir(prop, def, r, it, t.obj, true) : chooseSplitterDir(prop, def, r, it, t.obj);
+    if (sorterSplitting && d != null) it.sortDir = d;
     if (d == null) return false;
     it.outDir = outDir = d;
     nx = it.x + DIRS[d].x;
@@ -398,6 +426,7 @@ function tryMove(id, prop, def, r, it) {
   it.p = 0;
   it.fromDir = opposite(outDir);
   it.outDir = null;
+  it.sortDir = null;
   it.proc = 0;
   it.processed = false;
   it.wait = 0;

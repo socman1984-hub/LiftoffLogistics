@@ -502,6 +502,7 @@ function staffHTML(def, prop) {
   html += row('🚑 Accident risk', accHr < 0.05 ? 'very low' : `~${accHr.toFixed(1)} per hour`, accHr >= 1 ? 'neg' : '');
   html += row('💸 Wages', `${fmt(r.unpaid ? 0 : wagesPerMin(id))}/min`);
   html += '</div>';
+  html += payRateHTML(prop);
   html += `<p class="intro">Hiring has a signing fee of ${HIRE_FEE_MINUTES} minutes' wages. Low maintenance coverage also cuts what this building earns while you're away.</p>`;
 
   for (const s of STAFF) {
@@ -622,23 +623,32 @@ function sorterHTML() {
   if (!t || !t.obj || t.obj.k !== 'sorter') return '<p class="intro">That sorter is gone.</p>';
   const o = t.obj;
   const def = curDef(), prop = curProp();
-  const sortDir = sorterSideDir(o);
   const arrows = ['⬆️ Up', '➡️ Right', '⬇️ Down', '⬅️ Left'];
   // Flag exits with nothing there to receive packages.
   const leadsNowhere = (d) => !acceptsFrom(prop, def, at.x + DIRS[d].x, at.y + DIRS[d].y, opposite(d));
   const dirChips = (act, current) => [0, 1, 2, 3].map((d) =>
     `<button class="chip ${current === d ? 'on' : ''}" data-act="${act}" data-id="${d}">${arrows[d]}${leadsNowhere(d) ? ' ⚠️' : ''}</button>`).join('');
 
-  let html = '<p class="intro">The chosen cargo leaves by the <b style="color:var(--accent)">yellow arrow</b>; everything else leaves by the white arrow. Packages can come in from any other side.</p>';
+  let html = '<p class="intro">The chosen cargo leaves by the <b style="color:var(--accent)">yellow arrow(s)</b>; everything else leaves by the white arrow. Packages can come in from any other side.</p>';
   const chip = (k, label) => `<button class="chip ${o.filter === k ? 'on' : ''}" data-act="sorterfilter" data-id="${k}">${label}</button>`;
   html += '<h3 class="sec">Pull out a product</h3><div class="choice">';
   for (const p of PRODUCT_IDS) html += chip(p, `${PRODUCTS[p].icon} ${PRODUCTS[p].name}`);
   html += '</div><h3 class="sec">…or everything that is</h3><div class="choice">';
   for (const k of CARGO_IDS) if (k !== 'standard') html += chip(k, `${CARGO[k].icon} ${CARGO[k].name}`);
   const f = PRODUCTS[o.filter] || CARGO[o.filter];
-  html += `</div><h3 class="sec">Send ${f.icon} ${f.name.toLowerCase()} <span class="gold">(yellow)</span></h3><div class="choice">${dirChips('sorterout', sortDir)}</div>`;
+  // Sorted cargo: a weight per direction (1 + 1 = half each way).
+  const split = sorterSplit(o);
+  const total = Object.values(split).reduce((n, w) => n + w, 0) || 1;
+  html += `</div><h3 class="sec">Send ${f.icon} ${f.name.toLowerCase()} <span class="gold">(yellow)</span></h3>
+    <p class="intro small">Give more than one direction a weight to split it, e.g. Down 1 + Right 1 = half each way.</p>`;
+  for (const d of [0, 1, 2, 3]) {
+    const w = split[d] || 0;
+    html += `<div class="sort-row ${w ? 'on' : ''}"><span>${arrows[d]}${leadsNowhere(d) && w ? ' ⚠️' : ''}</span>
+      <span class="sort-ctl"><button class="step" data-act="sortw" data-id="${d}|-1" ${w ? '' : 'disabled'}>−</button><b>${w}</b>
+      <button class="step" data-act="sortw" data-id="${d}|1">+</button><span class="muted">${w ? Math.round((w / total) * 100) + '%' : 'off'}</span></span></div>`;
+  }
   html += `<h3 class="sec">Send everything else (white)</h3><div class="choice">${dirChips('sorterdir', o.dir)}</div>`;
-  if (leadsNowhere(sortDir) || leadsNowhere(o.dir)) {
+  if (sorterMatchDirs(o).some(leadsNowhere) || leadsNowhere(o.dir)) {
     html += '<p class="warn" style="margin-top:12px">⚠️ = no conveyor or dock there to take packages, so they\'ll back up.</p>';
   }
   html += '<button class="btn" style="width:100%;margin-top:14px" data-act="close">Done</button>';
@@ -718,6 +728,27 @@ function onPanelClick(e) {
   if (act === 'mtab') { ui.marketTab = id; renderPanel(); return; }
   if (act === 'openshop') { openPanel('shop'); return; }
   if (act === 'finwin') { ui.finWin = id; renderPanel(); return; }
+  if (act === 'pay') {
+    const p = curProp();
+    p.payRate = Math.max(0, Math.min(PAY_RATES.length - 1, (p.payRate || 0) + Number(id)));
+    rt(state.current).covT = 0; // refresh morale now
+    toast(`💵 Pay rate: ${PAY_RATES[p.payRate].label}`);
+    save();
+    renderPanel();
+    return;
+  }
+  if (act === 'firew') {
+    const r = rt(state.current), p = curProp();
+    const w = r.workers.find((q) => q.id === ui.workerSel);
+    if (w && confirm(`Let ${w.name} (${STAFF_BY_ID[w.role].name}) go?`)) {
+      p.staff[w.role] = Math.max(0, p.staff[w.role] - 1);
+      r.workers = r.workers.filter((q) => q !== w); // this person leaves, not someone else
+      toast(`🚪 ${w.name} has left`);
+      save();
+      closePanel();
+    }
+    return;
+  }
   if (act === 'tutorial') { restartTutorial(); closePanel(); refreshTutorial(); return; }
   if (act === 'showalert') {
     const [site, x, y] = id.split('|');
@@ -867,15 +898,18 @@ function onPanelClick(e) {
       toast(`🔬 ${r.name} researched!`);
       save();
     }
-  } else if (act === 'sorterfilter' || act === 'sorterout' || act === 'sorterdir') {
+  } else if (act === 'sorterfilter' || act === 'sorterdir' || act === 'sortw') {
     const o = prop.tiles[ui.sorterAt.y][ui.sorterAt.x].obj;
     if (o && o.k === 'sorter') {
-      const out = sorterSideDir(o);
-      const d = Number(id);
-      // The two exits must differ; picking the other one's direction swaps them.
       if (act === 'sorterfilter') o.filter = id;
-      else if (act === 'sorterout') { if (d === o.dir) o.dir = out; o.out = d; }
-      else { if (d === out) o.out = o.dir; else o.out = out; o.dir = d; }
+      else if (act === 'sorterdir') o.dir = Number(id); // the sorted cargo may share this exit
+      else {
+        const [d, delta] = id.split('|').map(Number);
+        const split = { ...sorterSplit(o) };
+        split[d] = Math.max(0, Math.min(9, (split[d] || 0) + delta));
+        if (Object.values(split).some((w) => w > 0)) { o.split = split; o.wrr = {}; } // keep at least one exit
+        else toast('The sorted cargo needs at least one exit');
+      }
       delete o.side;
       clearStuckItem(ui.sorterAt.x, ui.sorterAt.y);
     }
@@ -1055,7 +1089,12 @@ function fixMachine(x, y) {
 function rotateTile(x, y) {
   const t = curProp().tiles[y][x];
   if (!t.obj || t.obj.k === 'splitter' || isBuilding(t.obj.k)) return false;
-  if (t.obj.k === 'sorter') { t.obj.out = (sorterSideDir(t.obj) + 1) % 4; delete t.obj.side; }
+  if (t.obj.k === 'sorter') {
+    const split = sorterSplit(t.obj);
+    t.obj.split = Object.fromEntries(Object.entries(split).map(([d, w]) => [(+d + 1) % 4, w]));
+    t.obj.out = (sorterSideDir(t.obj) + 1) % 4;
+    delete t.obj.side;
+  }
   t.obj.dir = (t.obj.dir + 1) % 4;
   ui.lastDir = t.obj.dir;
   clearStuckItem(x, y);
@@ -1279,7 +1318,7 @@ function dragStep(a, b) {
     const s = drag.start;
     const ts = prop.tiles[s.y][s.x];
     if (ts.obj && ts.obj.k === tool) {
-      if (tool === 'sorter') {
+      if (tool === 'sorter' && !ts.obj.split) {
         const out = sorterSideDir(ts.obj);
         ts.obj.out = out === d ? ts.obj.dir : out;
         delete ts.obj.side;

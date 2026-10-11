@@ -453,3 +453,13 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .fin-site-name { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; }
 
 #rate { white-space: nowrap; }
+
+/* ---- Sorter split weights ---- */
+.sort-row { display: flex; justify-content: space-between; align-items: center; background: var(--panel-2); border-radius: 10px; padding: 6px 10px; margin-bottom: 6px; border: 2px solid transparent; }
+.sort-row.on { border-color: var(--accent); }
+.sort-ctl { display: flex; align-items: center; gap: 8px; }
+.sort-ctl b { min-width: 16px; text-align: center; }
+.sort-ctl .muted { min-width: 34px; text-align: right; }
+
+.pay-pips { display: flex; gap: 4px; }
+.pay-pips .pip { width: 18px; height: 8px; }

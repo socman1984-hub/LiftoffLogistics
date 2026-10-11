@@ -315,6 +315,13 @@ const MORALE = {
   quit: 0.5, // below this, someone quits every quitAfter seconds
   quitAfter: 45,
 };
+// Site pay rate: paying above standard costs more and lifts morale.
+const PAY_RATES = [
+  { label: 'Standard', mult: 1, morale: 0 },
+  { label: '+15%', mult: 1.15, morale: 0.05 },
+  { label: '+30%', mult: 1.3, morale: 0.1 },
+  { label: '+50%', mult: 1.5, morale: 0.15 },
+];
 const MAX_CREW = 3; // operators per assembler; each extra adds CREW_BONUS speed
 const NO_CREW_SPEED = 0.25; // an assembler nobody runs still limps along (no soft-locks)
 const CREW_BONUS = 0.5;

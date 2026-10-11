@@ -323,6 +323,7 @@ function computeMorale(id, prop, r) {
     for (const row of prop.tiles) for (const t of row) if ((t.dirt || 0) >= DIRT.filthy) filthy++;
     if (filthy) parts.push({ label: `🪣 ${filthy} filthy floor tile${filthy > 1 ? 's' : ''}`, v: -Math.min(MORALE.filthyMax, filthy * MORALE.perFilthy) });
     if (prop.staff.hr > 0) parts.push({ label: '🗂️ HR Manager looking after people', v: MORALE.hrBonus });
+    if (prop.payRate) parts.push({ label: `💵 Paying ${PAY_RATES[prop.payRate].label} wages`, v: PAY_RATES[prop.payRate].morale });
   }
   r.moraleParts = parts;
   r.morale = staff ? Math.max(MORALE.min, Math.min(1, 1 + parts.reduce((a, p) => a + p.v, 0))) : 1;
@@ -522,11 +523,35 @@ function workerHTML() {
   html += row('Doing', workerActivity(prop, w), w.stuck ? 'neg' : '');
   html += row('Mood', `${moraleFace(m)} ${Math.round(m * 100)}% site morale`, m < MORALE.warn ? 'neg' : '');
   html += row('Pace', `${Math.round(workPace(id) * 100)}%`);
-  html += row('Next break', w.mode === 'break' ? 'now' : `in ~${Math.max(0, Math.round(w.breakIn))}s`);
+  html += row('Next break', w.mode === 'break' ? (w.path.length ? 'heading there now' : 'on break') : w.breakIn < 20 ? `needs one soon (~${Math.max(0, Math.round(w.breakIn))}s)` : `in ~${Math.round(w.breakIn)}s`);
   html += row('Wage', `${fmt(staffWage(role, def, prop))}/min`);
   html += '</div>';
-  html += '<p class="intro small">Manage staff in 🏗️ Manage → Staff.</p>';
+  html += payRateHTML(prop);
+  html += `<button class="btn danger" style="width:100%;margin-top:8px" data-act="firew">🚪 Let ${w.name || 'them'} go</button>`;
+  html += '<p class="intro small">Manage everyone in 🏗️ Manage → Staff.</p>';
   return html;
+}
+
+// Site-wide pay rate control (used on the worker card and the Staff tab).
+function payRateHTML(prop) {
+  const lvl = prop.payRate || 0;
+  const p = PAY_RATES[lvl];
+  return `<div class="power-box"><div class="power-head"><span>💵 Pay rate (everyone here)</span><b>${p.label}</b></div>
+    <div class="power-note">${lvl ? `Wages ×${p.mult} · morale +${Math.round(p.morale * 100)}%` : 'Standard wages. Pay more to lift morale.'}</div>
+    <div class="dest-ctl"><button class="step" data-act="pay" data-id="-1" ${lvl ? '' : 'disabled'}>−</button>
+      <span class="pay-pips">${PAY_RATES.map((_, i) => `<span class="pip ${i <= lvl ? 'on' : ''}"></span>`).join('')}</span>
+      <button class="step" data-act="pay" data-id="1" ${lvl < PAY_RATES.length - 1 ? '' : 'disabled'}>+</button></div></div>`;
+}
+
+// How a worker is doing, as a small badge on their icon.
+function workerBadge(r, w) {
+  if (w.stuck) return null; // the ❗ bubble covers it
+  if (w.mode === 'break' && w.path.length) return FACILITIES[w.breakKind].icon; // heading to a break
+  const m = r.morale == null ? 1 : r.morale;
+  if (m < MORALE.quit) return '😠';
+  if (m < MORALE.warn) return '😟';
+  if (w.mode !== 'break' && w.breakIn < 20) return '⏳';
+  return null;
 }
 
 // ---- Path check when building ----
