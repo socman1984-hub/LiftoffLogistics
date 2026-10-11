@@ -85,8 +85,8 @@ function frame(now) {
     save();
   }
 
-  render(ui.tool);
-  requestAnimationFrame(frame);
+  requestAnimationFrame(frame); // schedule first so one bad frame can't stop the game
+  try { render(ui.tool); } catch (e) { console.error(e); }
 }
 
 // Offline earnings when the app is backgrounded (phones suspend rAF).

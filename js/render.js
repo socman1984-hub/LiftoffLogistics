@@ -41,6 +41,7 @@ function tileNoise(x, y, k = 0) {
 }
 
 function roundRect(x, y, w, h, r) {
+  r = Math.max(0, r);
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -609,7 +610,8 @@ function placementHint(prop, def, x, y, tool) {
   if (tool === 'facility' && FACILITIES[ui.facilityType] && FACILITIES[ui.facilityType].outside) return null; // walls handled elsewhere
   if (!lineTool && tool !== 'rack' && tool !== 'facility') return null;
   if (!o) return t.base === 'floor' ? 'ok' : t.base === 'broken' ? 'repair' : null;
-  if (lineTool && isLinePiece(o.k) && o.k !== tool) return 'replace';
+  const newKind = tool === 'facility' ? ui.facilityType : tool;
+  if (newKind && o.k !== newKind && t.base === 'floor') return 'replace'; // asks before building over it
   return null;
 }
 
@@ -834,6 +836,7 @@ function drawItem(it, prop) {
 
 function render(tool) {
   const def = curDef();
+  if (def && view.ts < 4) return; // no room to draw yet (hidden or zero-size canvas)
   ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
   ctx.fillStyle = '#1e2229';
   ctx.fillRect(0, 0, view.w, view.h);

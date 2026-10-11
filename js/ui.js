@@ -277,6 +277,7 @@ const PANELS = {
   rackdetail: { title: '🗄️ Rack', html: () => rackDetailHTML() },
   worker: { title: '👷 Worker', html: () => workerHTML() },
   confirmremove: { title: '🗑️ Remove?', html: () => confirmRemoveHTML() },
+  confirmreplace: { title: '🔁 Replace?', html: () => confirmReplaceHTML() },
   finance: { title: '💵 Finances', html: () => financeHTML() },
 };
 const LIVE_PANELS = ['map', 'logistics', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker', 'finance'];
@@ -759,6 +760,12 @@ function onPanelClick(e) {
     renderPanel();
     return;
   }
+  if (act === 'doreplace') {
+    closePanel();
+    doReplace();
+    refreshToolbar();
+    return;
+  }
   if (act === 'doremove') {
     if (ui.removeAt) removeTile(ui.removeAt.x, ui.removeAt.y);
     ui.removeAt = null;
@@ -1125,6 +1132,11 @@ function handleTap(x, y) {
     return;
   }
   if (t.obj && t.obj.jammed && tool !== 'remove') { fixMachine(x, y); return; }
+  // Building something different on top of an existing piece always asks first.
+  const newKind = tool === 'facility' ? ui.facilityType : tool;
+  const buildTool = tool && (isPlaceable(tool) || tool === 'rack' || (tool === 'facility' && newKind));
+  const outsideOnly = FACILITIES[newKind] && FACILITIES[newKind].outside && t.base === 'floor';
+  if (buildTool && t.obj && t.obj.k !== newKind && !outsideOnly) { askReplace(x, y, newKind); return; }
   if (t.obj && FACILITIES[t.obj.k] && tool !== 'remove') {
     ui.facSel = { x, y };
     openPanel('facdetail');
@@ -1362,6 +1374,61 @@ function objLabel(o) {
   if (FACILITIES[o.k]) return `${FACILITIES[o.k].icon} ${FACILITIES[o.k].name}`;
   if (MACHINES[o.k]) return `${MACHINES[o.k].icon} ${MACHINES[o.k].name}`;
   return 'this';
+}
+
+function askReplace(x, y, kind) {
+  ui.replaceAt = { x, y, kind };
+  openPanel('confirmreplace');
+}
+
+function kindLabel(kind) {
+  return objLabel(kind === 'belt' ? { k: 'belt', tier: 0 } : { k: kind });
+}
+
+function confirmReplaceHTML() {
+  const at = ui.replaceAt;
+  const o = at && curProp().tiles[at.y][at.x].obj;
+  if (!o) return '<p class="intro">Nothing there anymore.</p>';
+  const def = curDef();
+  const back = refund(o, def);
+  const cost = buildCost(at.kind, def);
+  const net = cost - back;
+  const f = FACILITIES[at.kind];
+  const capped = f && f.max && facCount(state.current, at.kind) >= f.max;
+  return `<p class="intro">Replace the <b>${objLabel(o)}</b> with ${at.kind === 'belt' ? 'a <b>conveyor</b>' : `a <b>${kindLabel(at.kind)}</b>`}?</p>
+    <div class="stats risk">
+      <div class="stat-row"><span>↩️ ${objLabel(o)} refund (${Math.round(refundFraction(o) * 100)}%)</span><b class="pos">+${fmt(back)}</b></div>
+      <div class="stat-row"><span>🏗️ New ${at.kind === 'belt' ? 'conveyor' : kindLabel(at.kind)}</span><b class="neg">−${fmt(cost)}</b></div>
+      <div class="stat-row"><span>Net</span><b class="${net > 0 ? 'neg' : 'pos'}">${net > 0 ? '−' : '+'}${fmt(Math.abs(net))}</b></div>
+    </div>
+    ${capped ? `<p class="warn">Only ${f.max} ${f.name} per site.</p>` : ''}
+    <div class="confirm-row">
+      <button class="btn secondary" data-act="close">Cancel</button>
+      <button class="btn" data-act="doreplace" ${capped || state.money < net ? 'disabled' : ''}>🔁 Replace</button>
+    </div>`;
+}
+
+// Swap whatever is on the tile for `kind` (refund the old, pay for the new).
+function doReplace() {
+  const at = ui.replaceAt;
+  ui.replaceAt = null;
+  if (!at) return;
+  const prop = curProp(), def = curDef();
+  const t = prop.tiles[at.y][at.x];
+  const o = t.obj;
+  if (!o) return;
+  if (isLinePiece(o.k) && isLinePiece(at.kind)) {
+    if (!replaceObj(at.x, at.y, at.kind)) return;
+  } else {
+    const net = buildCost(at.kind, def) - refund(o, def);
+    if (state.money < net) { toast(`Need ${fmt(net)} more`); return; }
+    const dir = o.dir == null ? ui.lastDir : o.dir;
+    removeTile(at.x, at.y);
+    if (!placeObj(at.x, at.y, at.kind, isBuilding(at.kind) ? 0 : dir)) return;
+    toast(`🔁 Replaced with ${at.kind === 'belt' ? 'a conveyor' : kindLabel(at.kind)}`);
+  }
+  if (at.kind === 'assembler') { ui.assemblerAt = { x: at.x, y: at.y }; openPanel('assembler'); }
+  else if (at.kind === 'sorter') toast('🚦 Tap the sorter again (with the Sorter tool) to choose what it sorts');
 }
 
 function confirmRemoveHTML() {

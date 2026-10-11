@@ -30,8 +30,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   it from ❓ Help. The card can be minimized.
 - **Building**: valid spots are outlined whenever a tool is selected (green = build, orange = repair first,
   yellow = replaces what's there). Tap to place one piece; drag a conveyor line to preview it, then
-  **✅ Place** or **✖ Cancel**. Placing a line piece (scanner, assembler, splitter, sorter…) on another one
-  swaps it, keeping its direction.
+  **✅ Place** or **✖ Cancel**. Building something different on top of an existing piece asks to
+  confirm first (showing the refund, the new cost and the net), then swaps it (line pieces keep their
+  direction).
 - **Refunds**: 100% if removed within 2 minutes of building, sliding to 25% over the next 10 minutes.
   **Double-tap** anything you built to remove it (asks first, shows the refund).
 - **💵 Finances**: tap your money (top-left) to see income and costs by category (last minute, 10 min,
