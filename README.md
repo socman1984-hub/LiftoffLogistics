@@ -110,7 +110,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   product drops as you sell it and recovers over time, with random booms and gluts.
 - **⚡ Power**: machines and assemblers draw power; overloading a site slows them. Electrical adds capacity.
 - **Research gates** advanced recipes: Propulsion (🌀 🔥), Guidance (📡 💻 🛰️), Thermal (🌡️), Habitat (🫁), Photovoltaics (☀️).
-- **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–45 min in the lab, one project at a time (💎 can finish it early).
+- **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).
 - Progress autosaves to localStorage. Sites earn **30%** of their live rate while you're away (more with Night Shift / Night Managers research, scaled by maintenance coverage); a 🌙 **Night Crew** from the 💎 Gem Store keeps them at 100% for 4/8/24 banked hours.

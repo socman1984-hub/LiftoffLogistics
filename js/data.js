@@ -146,9 +146,11 @@ const RESEARCH_BRANCHES = [
   { id: 'aero', name: 'Aerospace', icon: '🚀', desc: 'Rocket technology' },
 ];
 // Default cost by tier: [⭐, $, seconds in the lab].
-const RESEARCH_TIER_COST = [null, [2, 1500, 60], [4, 6000, 180], [7, 20000, 480], [11, 60000, 1200], [18, 180000, 2700]];
+// Tuned by bot playthroughs: tier 1 lands in the first half hour, the whole
+// tree takes ~24 hours of lab time (it keeps running while you're away).
+const RESEARCH_TIER_COST = [null, [2, 1500, 60], [5, 8000, 300], [12, 35000, 1200], [22, 120000, 2700], [35, 400000, 7200]];
 const LAUNCH_STARS = 15; // ⭐ reputation per rocket launch
-const RUSH_SECS_PER_GEM = 120; // 💎 to finish research now: 1 per 2 minutes left
+const RUSH_SECS_PER_GEM = 180; // 💎 to finish research now: 1 per 3 minutes left
 
 const R = (b, t, c, id, icon, name, desc, req = [], fx = {}, cost) => ({ b, t, c, id, icon, name, desc, req, fx, ...(cost || {}) });
 const RESEARCH = [
