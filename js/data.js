@@ -185,7 +185,8 @@ const RESEARCH_BRANCHES = [
 // Default cost by tier: [⭐, $, seconds in the lab].
 // Tuned by bot playthroughs: tier 1 lands in the first half hour, the whole
 // tree takes ~24 hours of lab time (it keeps running while you're away).
-const RESEARCH_TIER_COST = [null, [2, 1500, 60], [5, 8000, 300], [12, 35000, 1200], [22, 120000, 2700], [35, 400000, 7200]];
+// ⭐ rises steeply at tiers 3–5: a playthrough ended with 333⭐ unspent, so reputation is the late-game gate.
+const RESEARCH_TIER_COST = [null, [2, 1500, 60], [5, 8000, 300], [18, 35000, 1200], [36, 120000, 2700], [60, 400000, 7200]];
 const LAUNCH_STARS = 15; // ⭐ reputation per rocket launch
 const RUSH_SECS_PER_GEM = 180; // 💎 to finish research now: 1 per 3 minutes left
 
@@ -241,10 +242,10 @@ const RESEARCH = [
   R('biz', 2, 1, 'bulk2', '🧾', 'Volume Deals', 'Building and upgrades another 10% cheaper', ['bulk'], { discount: 0.1 }),
   R('biz', 2, 2, 'premium', '💎', 'Premium Clients', '+10% value on every package', ['marketing'], { value: 0.1 }),
   R('biz', 3, 0, 'slots2', '🏢', 'Sales Department', '+1 active contract slot', ['negotiation'], { slots: 1 }),
-  R('biz', 3, 1, 'nightshift', '🌙', 'Night Shift', 'Offline earnings +15% and last 4 hours longer', ['bulk2'], { offline: 0.15, offlineHours: 4 }),
+  R('biz', 3, 1, 'nightshift', '🌙', 'Night Shift', 'Offline earnings +7.5% and last 2 hours longer', ['bulk2'], { offline: 0.075, offlineHours: 2 }),
   R('biz', 3, 2, 'brand', '🏆', 'Brand Recognition', '+10% value on every package', ['premium'], { value: 0.1 }),
   R('biz', 4, 0, 'prestige', '🎩', 'Prestige Clients', '+1 ⭐ from every contract', ['slots2'], { stars: 1 }),
-  R('biz', 4, 1, 'nightshift2', '🌃', 'Night Managers', 'Offline earnings another +15% and 4 more hours', ['nightshift'], { offline: 0.15, offlineHours: 4 }),
+  R('biz', 4, 1, 'nightshift2', '🌃', 'Night Managers', 'Offline earnings another +7.5% and 2 more hours', ['nightshift'], { offline: 0.075, offlineHours: 2 }),
   R('biz', 4, 2, 'export', '🌍', 'Export Markets', 'Selling lowers market prices 40% less', ['brand'], { marketDrop: 0.4 }),
   R('biz', 5, 1, 'enterprise', '📊', 'Enterprise Sales', '+1 contract slot and offers pay another 25% more', ['prestige', 'export'], { slots: 1, contractReward: 0.25 }),
   // 🚀 Aerospace (opens once Production can assemble at speed)
@@ -497,18 +498,22 @@ const GEMS = {
 };
 // Boosts only save time; nothing here is unobtainable without paying.
 // kind: 'play' = runs on the in-game clock, 'instant' = one-shot,
-//       'away' = banks hours of full-speed earnings for time spent offline.
+//       'away' = banks hours of Night Crew earnings (60% speed) for time spent offline.
 const BOOSTS = [
   { id: 'double', kind: 'play', name: 'Double Earnings', icon: '💰', cost: 15, dur: 1800, desc: 'Every sale pays 2× for 30 minutes of play' },
   { id: 'freight', kind: 'play', name: 'Express Freight', icon: '🚛', cost: 10, dur: 1800, desc: 'Trucks between your sites drive 3× faster for 30 minutes of play' },
   { id: 'warp', kind: 'instant', name: 'Time Warp', icon: '⏱️', cost: 20, desc: 'Instantly collect 1 hour of your current net income' },
   { id: 'crew', kind: 'instant', name: 'Emergency Crew', icon: '🧰', cost: 5, desc: 'Instantly fix every breakdown and service all equipment' },
-  { id: 'night4', kind: 'away', hours: 4, name: 'Night Crew · 4 hours', icon: '🌙', cost: 10, desc: 'Your sites earn at full speed for your next 4 hours away' },
-  { id: 'night8', kind: 'away', hours: 8, name: 'Night Crew · 8 hours', icon: '🌙', cost: 18, desc: 'Full-speed earnings for your next 8 hours away (a good night\'s sleep)' },
-  { id: 'night24', kind: 'away', hours: 24, name: 'Night Crew · 24 hours', icon: '🌙', cost: 45, desc: 'Full-speed earnings for your next 24 hours away' },
+  { id: 'night4', kind: 'away', hours: 4, name: 'Night Crew · 4 hours', icon: '🌙', cost: 10, desc: 'Your sites earn at 60% speed for your next 4 hours away' },
+  { id: 'night8', kind: 'away', hours: 8, name: 'Night Crew · 8 hours', icon: '🌙', cost: 18, desc: '60% earnings for your next 8 hours away (a good night\'s sleep)' },
 ];
-// Offline earnings without a Night Crew: a fraction of your live rate.
-const OFFLINE_BASE_RATE = 0.3;
+// Offline earnings: a fraction of your average rate over the last few minutes.
+// The full fraction for the first OFFLINE_FULL_HOURS away, then half of it, up to the cap.
+const OFFLINE_BASE_RATE = 0.15;
+const OFFLINE_BASE_HOURS = 6;
+const OFFLINE_FULL_HOURS = 2;
+const NIGHT_CREW_RATE = 0.6; // a Night Crew keeps sites at 60% while you're away
+const RATE_AVG_SECS = 300; // offline pay uses a ~5 minute rolling average, not a momentary spike
 // Coming-soon catalog entries (cosmetics never affect gameplay).
 const COSMETICS = [
   { icon: '✨', name: 'Belt skins', desc: 'Chrome, neon and wood conveyor styles' },

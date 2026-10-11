@@ -180,9 +180,9 @@ function rt(id) {
 function save() {
   if (!state) return;
   state.savedAt = Date.now();
-  state.lastRate = netRate();
   state.lastRates = {};
-  for (const def of PROPERTIES) if (state.props[def.id].owned) state.lastRates[def.id] = propNet(def.id);
+  for (const def of PROPERTIES) if (state.props[def.id].owned) state.lastRates[def.id] = avgNet(def.id);
+  state.lastRate = Object.values(state.lastRates).reduce((a, b) => a + b, 0);
   state.snap = snapshotRuntime();
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
@@ -200,6 +200,7 @@ function snapshotRuntime() {
     const r = runtime[def.id];
     if (!r || !state.props[def.id].owned) continue;
     sites[def.id] = {
+      netAvg: r.netAvg,
       sales: r.sales.filter((s) => s.t >= r.time - 30).map((s) => [r1(r.time - s.t), r1(s.v)]),
       costs: r.costs.filter((c) => c.t >= r.time - 30).map((c) => [r1(r.time - c.t), r1(c.v)]),
       workers: r.workers.map((w) => [w.role, w.name, Math.round(w.x), Math.round(w.y), Math.round(w.breakIn || 60)]),
@@ -220,6 +221,7 @@ function restoreRuntime(snap) {
     const r = rt(id);
     r.sales = (s.sales || []).map(([age, v]) => ({ t: r.time - age, v }));
     r.costs = (s.costs || []).map(([age, v]) => ({ t: r.time - age, v }));
+    if (s.netAvg != null) r.netAvg = s.netAvg;
     for (const [p, n] of s.carried || []) if (PRODUCTS[p]) prop.held[p] = (prop.held[p] || 0) + n; // loads on forklifts go back on the racks
     for (const [role, name, x, y, breakIn] of s.workers || []) {
       if (!STAFF_BY_ID[role] || !prop.tiles[y] || !prop.tiles[y][x]) continue;
@@ -472,7 +474,18 @@ function contractSlots() {
 }
 
 function offlineRate() { return OFFLINE_BASE_RATE + rfx('offline'); }
-function offlineCapSec() { return (8 + rfx('offlineHours')) * 3600; }
+function offlineCapSec() { return (OFFLINE_BASE_HOURS + rfx('offlineHours')) * 3600; }
+
+// Rolling ~5 minute average of each site's net rate (sampled once a second).
+function sampleRates() {
+  for (const def of PROPERTIES) {
+    if (!state.props[def.id].owned) continue;
+    const r = rt(def.id);
+    const now = propNet(def.id);
+    r.netAvg = r.netAvg == null ? now : r.netAvg + (now - r.netAvg) / RATE_AVG_SECS;
+  }
+}
+const avgNet = (id) => (runtime[id] && runtime[id].netAvg != null ? runtime[id].netAvg : propNet(id));
 
 // ---- Ledger: every money change is booked by category ----
 const LEDGER_CATS = {

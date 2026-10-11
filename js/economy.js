@@ -66,8 +66,8 @@ function shopHTML() {
 
   html += '<h3 class="sec">🌙 While you\'re away</h3>';
   html += `<p class="intro small">Normally your sites earn at <b>${pct}%</b> speed while you're offline (up to ${fmtDur(offlineCapSec())}).
-    A Night Crew keeps them at <b>100%</b>. Hours are banked and only used while you're actually away.</p>`;
-  if (state.awayBoost > 0) html += `<p class="boom">🌙 Banked: ${fmtDur(state.awayBoost)} of full-speed away time</p>`;
+    for the first ${OFFLINE_FULL_HOURS} hours, then half that. A Night Crew keeps them at <b>${Math.round(NIGHT_CREW_RATE * 100)}%</b>. Hours are banked and only used while you're actually away.</p>`;
+  if (state.awayBoost > 0) html += `<p class="boom">🌙 Banked: ${fmtDur(state.awayBoost)} of Night Crew time</p>`;
   for (const b of BOOSTS.filter((x) => x.kind === 'away')) html += boostCard(b);
   html += card('💰', 'Double offline payout', `Shown on the welcome-back screen: doubles what you earned while away`, '',
     `<button class="btn secondary" disabled>${OFFLINE_DOUBLE_COST} 💎</button>`);
@@ -93,7 +93,9 @@ function buyBoost(id) {
   if (!b || state.gems < b.cost) return;
   if (id === 'warp') {
     // Use the un-boosted rate so Double Earnings doesn't stack into the warp.
-    const gain = Math.max(0, netRate() - (boostActive('double') ? totalRate() / 2 : 0)) * 60;
+    let avg = 0;
+    for (const def of PROPERTIES) if (state.props[def.id].owned) avg += avgNet(def.id);
+    const gain = Math.max(0, avg - (boostActive('double') ? totalRate() / 2 : 0)) * 60; // your steady rate, not a spike
     if (gain <= 0) { toast('Nothing to warp. Get some income flowing first'); return; }
     state.gems -= b.cost;
     earn(gain, 'boost', 'Time Warp');
@@ -114,7 +116,7 @@ function buyBoost(id) {
   } else if (b.kind === 'away') {
     state.gems -= b.cost;
     state.awayBoost = (state.awayBoost || 0) + b.hours * 3600; // banks up
-    toast(`🌙 Night Crew booked: ${fmtDur(state.awayBoost)} of full-speed away time banked`);
+    toast(`🌙 Night Crew booked: ${fmtDur(state.awayBoost)} banked`);
   } else {
     state.gems -= b.cost;
     state.boosts[id] = Math.max(state.boosts[id] || 0, state.clock) + b.dur; // stacks extend time

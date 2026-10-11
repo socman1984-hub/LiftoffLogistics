@@ -25,7 +25,8 @@ const fmtDur = (secs) => {
 };
 
 // While you're away, sites earn a fraction of their live rate, except for
-// time covered by banked Night Crew hours, which earns at full speed.
+// time covered by banked Night Crew hours, which earns at NIGHT_CREW_RATE. Without
+// one, the first OFFLINE_FULL_HOURS pay the full offline rate, the rest half of it.
 function awardOffline(fromMs, rates) {
   const awaySecs = (Date.now() - fromMs) / 1000;
   if (awaySecs > 0) stepLab(awaySecs); // the lab keeps working while you're away
@@ -34,13 +35,14 @@ function awardOffline(fromMs, rates) {
   const full = Math.min(awaySecs, state.awayBoost || 0);
   const slow = Math.min(awaySecs - full, offlineCapSec());
   state.awayBoost = Math.max(0, (state.awayBoost || 0) - full);
-  const earned = (rate / 60) * (full + slow * offlineRate());
+  const fresh = Math.min(slow, OFFLINE_FULL_HOURS * 3600), tired = slow - fresh;
+  const earned = (rate / 60) * (full * NIGHT_CREW_RATE + (fresh + tired * 0.5) * offlineRate());
   earn(earned, 'offline', fmtDur(awaySecs));
   ui.lastOffline = earned;
   const pct = Math.round(offlineRate() * 100);
   let breakdown = full
-    ? `🌙 ${fmtDur(full)} at full speed (Night Crew)${slow ? ` + ${fmtDur(slow)} at ${pct}%` : ''}`
-    : `${fmtDur(slow)} at ${pct}% speed (no one on shift)`;
+    ? `🌙 ${fmtDur(full)} at ${Math.round(NIGHT_CREW_RATE * 100)}% (Night Crew)${slow ? ` + ${fmtDur(slow)} on the skeleton crew` : ''}`
+    : `${fmtDur(fresh)} at ${pct}% speed${tired ? `, then ${fmtDur(tired)} at ${Math.round(pct / 2)}%` : ''} (no one on shift)`;
   if (awaySecs - full > offlineCapSec()) breakdown += `<br><span class="muted">Offline earnings stop after ${fmtDur(offlineCapSec())}.</span>`;
   showMessage('Welcome back! 👋', `<p class="intro">You were away <b>${fmtDur(awaySecs)}</b> and your sites earned
     <b style="color:var(--accent)">${fmt(earned)}</b>.</p>

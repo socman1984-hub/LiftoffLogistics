@@ -720,7 +720,7 @@ function helpHTML() {
       <li><b>⚡ Power</b>: machines and assemblers draw power; overload a site and everything slows. Electrical upgrades add capacity.</li>
       <li>Advanced rocket recipes need research. The rocket has three stages: Booster, Upper Stage, Crew Capsule.</li>
       <li><b>💎 Gems</b> buy time-saving boosts (tap 💎 at the top for the Gem Store). Earn them from goals, contracts, daily play and launches.</li>
-      <li>While you're away your sites earn at ${Math.round(offlineRate() * 100)}% speed. A <b>🌙 Night Crew</b> (Gem Store) keeps them at full speed for a set number of hours.</li>
+      <li>While you're away your sites earn at ${Math.round(offlineRate() * 100)}% of their recent average for ${OFFLINE_FULL_HOURS} hours, then half that, up to ${Math.round(offlineCapSec() / 3600)} hours. A <b>🌙 Night Crew</b> (Gem Store) keeps them at ${Math.round(NIGHT_CREW_RATE * 100)}% for a set number of hours.</li>
     </ul>
     <h3>Handling</h3>
     <ul>
