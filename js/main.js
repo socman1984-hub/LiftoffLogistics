@@ -73,6 +73,7 @@ function frame(now) {
     refreshObjective();
     refreshAlerts();
     refreshHeatUI();
+    refreshTutorial();
     // The map's buttons rebuild less often; its trucks animate every tick.
     mapTick = (mapTick + 1) % 6;
     if (LIVE_PANELS.includes(openPanelName) && (!SLOW_PANELS.includes(openPanelName) || mapTick === 0)) renderPanel();
@@ -112,6 +113,7 @@ function boot() {
   new ResizeObserver(resizeCanvas).observe(canvas);
   resizeCanvas();
   initDev();
+  initTutorial();
   dailyBonus();
   refreshTopbar();
   refreshObjective();

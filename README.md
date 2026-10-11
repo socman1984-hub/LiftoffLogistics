@@ -24,8 +24,16 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 
 ## Controls
 
-- **Toolbar**: one row of groups: 🔍 Inspect · ➡️ Conveyors · 🏭 Machines · 🧱 Building · ✋ Edit. Tap a
+- **Toolbar**: one row of groups: 🔍 Inspect · ➡️ Conveyors · 🏭 Machines · 🧱 Structures · ✋ Edit. Tap a
   group to open its tools; tap a selected tool again to put it away.
+- **🎓 Tutorial**: new games start with a guided walkthrough (+3 💎 per step, +10 💎 to finish); restart
+  it from ❓ Help. The card can be minimized.
+- **Building**: valid spots are outlined whenever a tool is selected (green = build, orange = repair first,
+  yellow = replaces what's there). Tap to place one piece; drag a conveyor line to preview it, then
+  **✅ Place** or **✖ Cancel**. Placing a line piece (scanner, assembler, splitter, sorter…) on another one
+  swaps it, keeping its direction.
+- **Refunds**: 100% if removed within 2 minutes of building, sliding to 25% over the next 10 minutes.
+- **People**: tap a worker (🔍 Inspect) to see who they are, what they're doing, mood, pace and wage.
 - **🔍 Inspect** (no tool selected): tapping shows what's there (wear, contents, costs) and opens
   assembler, sorter, rack and facility details without building anything.
 - **🌡️ Overlays** (top-right of the warehouse): heatmaps for wear & breakdowns, floor condition, worker
@@ -110,6 +118,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 | `js/sim.js` | Simulation: spawning, assemblers, cargo rules, breakdowns, routing, trucking, selling |
 | `js/workers.js` | Walking workers: path-finding, roles, breaks, alerts |
 | `js/heat.js` | Heatmap overlays |
+| `js/tutorial.js` | Guided tutorial for new players |
 | `js/contracts.js` | Contract offers, deadlines, rewards |
 | `js/enterprise.js` | Map view, logistics (distribution plans + fleet), launch site, assembler recipes |
 | `js/economy.js` | Market prices panel, 💎 boost shop, daily bonus |

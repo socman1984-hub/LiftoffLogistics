@@ -594,6 +594,67 @@ function drawFacilityRanges(prop, def, s) {
   }
 }
 
+// Where the selected tool can be used: green = build, orange = repair first,
+// yellow = replaces what's there, blue = act on it (upgrade/rotate/remove).
+function placementHint(prop, def, x, y, tool) {
+  const t = prop.tiles[y][x];
+  const o = t.obj;
+  const inside = x > 0 && y > 0 && x < def.cols - 1 && y < def.rows - 1;
+  if (!inside) return null;
+  if (tool === 'repair') return t.base === 'broken' || (t.base === 'floor' && (t.dirt || 0) >= DIRT.dirty) ? 'act' : null;
+  if (tool === 'upgrade') return o && o.k === 'belt' && o.tier < BELT_TIERS.length - 1 ? 'act' : null;
+  if (tool === 'rotate') return o && !isBuilding(o.k) && o.k !== 'splitter' ? 'act' : null;
+  if (tool === 'remove') return o ? 'remove' : null;
+  const lineTool = isPlaceable(tool);
+  if (tool === 'facility' && FACILITIES[ui.facilityType] && FACILITIES[ui.facilityType].outside) return null; // walls handled elsewhere
+  if (!lineTool && tool !== 'rack' && tool !== 'facility') return null;
+  if (!o) return t.base === 'floor' ? 'ok' : t.base === 'broken' ? 'repair' : null;
+  if (lineTool && isLinePiece(o.k) && o.k !== tool) return 'replace';
+  return null;
+}
+
+const HINT_STYLE = {
+  ok: ['rgba(111,207,151,0.13)', 'rgba(111,207,151,0.75)'],
+  repair: ['rgba(242,153,74,0.12)', 'rgba(242,153,74,0.7)'],
+  replace: ['rgba(242,201,76,0.12)', 'rgba(242,201,76,0.85)'],
+  act: ['rgba(86,204,242,0.12)', 'rgba(86,204,242,0.8)'],
+  remove: ['rgba(235,87,87,0.12)', 'rgba(235,87,87,0.8)'],
+};
+
+function drawPlacementHints(prop, def, s, time) {
+  const tool = ui.tool;
+  if (!tool || ui.heat) return;
+  ctx.save();
+  ctx.setLineDash([s * 0.14, s * 0.1]);
+  ctx.lineDashOffset = -time * s * 0.3;
+  ctx.lineWidth = Math.max(1, s * 0.04);
+  for (let y = 0; y < def.rows; y++) {
+    for (let x = 0; x < def.cols; x++) {
+      const h = placementHint(prop, def, x, y, tool);
+      if (!h) continue;
+      const [fill, line] = HINT_STYLE[h];
+      ctx.fillStyle = fill;
+      ctx.fillRect(view.ox + x * s + 1, view.oy + y * s + 1, s - 2, s - 2);
+      ctx.strokeStyle = line;
+      ctx.strokeRect(view.ox + x * s + 3, view.oy + y * s + 3, s - 6, s - 6);
+    }
+  }
+  ctx.restore();
+}
+
+// Ghost of a conveyor line being drawn (or waiting for ✅ Place).
+function drawLinePreview(prop, def, s) {
+  const plan = ui.pending || (drag.active && ui.tool === 'belt' && drag.moved && drag.plan.length > 1 ? buildPlan(drag.plan) : null);
+  if (!plan) return;
+  for (const p of plan.tiles) {
+    if (p.action === 'skip') continue;
+    const px = view.ox + p.x * s, py = view.oy + p.y * s;
+    ctx.fillStyle = p.action === 'aim' ? 'rgba(86,204,242,0.35)' : 'rgba(242,201,76,0.4)';
+    ctx.fillRect(px + 2, py + 2, s - 4, s - 4);
+    drawArrow(px + s / 2, py + s / 2, s * 0.2, p.dir, 'rgba(255,255,255,0.9)');
+  }
+}
+
 function drawWorkers(r, s, time) {
   for (const w of r.workers) {
     if (w.role === 'operator' && w.mode === 'work' && !w.path.length) continue; // shown as the assembler's crew badge
@@ -857,6 +918,8 @@ function render(tool) {
   }
 
   drawHeat(prop, def, r, s, time);
+  drawPlacementHints(prop, def, s, time);
+  drawLinePreview(prop, def, s);
   drawFacilityRanges(prop, def, s);
   drawWorkers(r, s, time);
 

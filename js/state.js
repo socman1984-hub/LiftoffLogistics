@@ -89,6 +89,7 @@ function newState() {
     objective: 0,
     v4: true,
     v6: true,
+    tutorial: { active: true, step: 0 }, // guided intro for new players
     lastRate: 0,
     savedAt: Date.now(),
   };
@@ -98,6 +99,7 @@ function newState() {
 function migrate(s) {
   const wasV4 = !!s.v4; // read before defaults are filled in below
   const wasV6 = !!s.v6;
+  if (!s.tutorial) s.tutorial = { active: false, step: 0 }; // existing players: off (restart from Help)
   const fresh = newState();
   for (const k of Object.keys(fresh)) if (s[k] === undefined) s[k] = fresh[k];
   for (const def of PROPERTIES) {

@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css?v=38">
+  <link rel="stylesheet" href="style.css?v=42">
 </head>
 <body>
   <div id="app">
@@ -37,12 +37,16 @@
       <button id="alertPill" class="hidden">⚠️ problems</button>
       <button id="heatBtn" title="Overlays">🌡️</button>
       <div id="heatLegend" class="hidden"></div>
+      <div id="confirmBar" class="hidden"><span id="confirmText"></span>
+        <button id="confirmNo" class="btn secondary small">✖ Cancel</button>
+        <button id="confirmYes" class="btn small">✅ Place</button></div>
+      <div id="tutCard" class="hidden"></div>
     </main>
 
     <nav id="toolbar"></nav>
 
     <footer id="actions">
-      <button data-panel="building"><span class="ico">🏗️</span>Building</button>
+      <button data-panel="building"><span class="ico">🏗️</span>Manage</button>
       <button data-panel="contracts"><span class="ico">💹</span>Market<span class="badge hidden"></span></button>
       <button data-panel="research"><span class="ico">🔬</span>Research<span class="badge hidden"></span></button>
       <button data-panel="map"><span class="ico">🗺️</span>Map<span class="badge hidden"></span></button>
@@ -60,17 +64,18 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=38"></script>
-  <script src="js/state.js?v=38"></script>
-  <script src="js/sim.js?v=38"></script>
-  <script src="js/workers.js?v=38"></script>
-  <script src="js/heat.js?v=38"></script>
-  <script src="js/contracts.js?v=38"></script>
-  <script src="js/render.js?v=38"></script>
-  <script src="js/ui.js?v=38"></script>
-  <script src="js/enterprise.js?v=38"></script>
-  <script src="js/economy.js?v=38"></script>
-  <script src="js/dev.js?v=38"></script>
-  <script src="js/main.js?v=38"></script>
+  <script src="js/data.js?v=42"></script>
+  <script src="js/state.js?v=42"></script>
+  <script src="js/sim.js?v=42"></script>
+  <script src="js/workers.js?v=42"></script>
+  <script src="js/heat.js?v=42"></script>
+  <script src="js/contracts.js?v=42"></script>
+  <script src="js/render.js?v=42"></script>
+  <script src="js/ui.js?v=42"></script>
+  <script src="js/enterprise.js?v=42"></script>
+  <script src="js/economy.js?v=42"></script>
+  <script src="js/dev.js?v=42"></script>
+  <script src="js/tutorial.js?v=42"></script>
+  <script src="js/main.js?v=42"></script>
 </body>
 </html>

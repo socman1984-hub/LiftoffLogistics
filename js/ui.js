@@ -81,6 +81,7 @@ function buildToolbar() {
 
 function selectTool(id) {
   const t = TOOL_BY_ID[id];
+  if (ui.pending) cancelPlan();
   if (toolLocked(id)) {
     toast(`🔬 Research "${RESEARCH_BY_ID[t.research].name}" to unlock`);
     return;
@@ -150,11 +151,11 @@ const OBJECTIVES = [
     done: () => state.props.shed.earned > 0,
   },
   { text: () => 'Place a <b>🏭 Assembler</b> on the line and set it to build <b>🔲 Hull Panels</b> (2 🔩 each)', done: () => hasRecipe('panel') },
-  { text: () => 'Assemblers need a crew. Hire a <b>👷 Assembler Operator</b> in 🏗️ Building → Staff (they walk over on repaired floor)', done: () => anyStaff('operator') },
+  { text: () => 'Assemblers need a crew. Hire a <b>👷 Assembler Operator</b> in 🏗️ Manage → Staff (they walk over on repaired floor)', done: () => anyStaff('operator') },
   { text: () => 'Sell your first 🔲 Hull Panel', done: () => (state.props.shed.shipped.panel || 0) > 0 },
   { text: () => 'Add a <b>🔍 Scanner</b> after the assembler. Processed goods sell for more', done: () => hasObj('scanner') },
   {
-    text: () => 'Machines draw ⚡ power. Buy <b>⚡ Electrical</b> in 🏗️ Building before you overload the Shed',
+    text: () => 'Machines draw ⚡ power. Buy <b>⚡ Electrical</b> in 🏗️ Manage before you overload the Shed',
     done: () => state.props.shed.upgrades.power > 0,
   },
   { text: () => 'Check the <b>💹 Market</b>. Selling too much of one product drives its price down', done: () => ui.marketSeen || state.contracts.done > 0 },
@@ -163,14 +164,14 @@ const OBJECTIVES = [
   { text: () => 'Spend ⭐ in <b>🔬 Research</b>. Try <b>Sorting Systems</b>', done: () => Object.keys(state.research).length > 0 },
   { text: () => 'Tap the <b>🔒 door</b> to open the copper 🪙 dock, and build 🧵 Wiring', done: () => hasRecipe('wiring') },
   {
-    text: () => 'Equipment wears out. Tap a breakdown ⚠️ to fix it, or hire a <b>🔧 Maintenance Tech</b> in 🏗️ Building → Staff',
+    text: () => 'Equipment wears out. Tap a breakdown ⚠️ to fix it, or hire a <b>🔧 Maintenance Tech</b> in 🏗️ Manage → Staff',
     done: () => (state.fixes || 0) > 0 || anyStaff('tech'),
   },
   { text: () => `Save up <b>${fmt(PROP_BY_ID.mill.price)}</b> and buy the Old Textile Mill on the 🗺️ Map`, done: () => state.props.mill.owned },
   { text: () => 'Open <b>🚚 Logistics → Distribution</b> and add the Mill as a destination for the Shed\'s <b>🧵 Wiring</b>', done: () => anyRoute() },
   { text: () => 'Your new site came with a free truck. Assign it to the Shed → Mill route in <b>🚚 Logistics → Fleet</b>', done: () => anyAssigned() },
   { text: () => 'Build <b>🗄️ Racks</b> on the floor (drag to place several). Products waiting on trucks need somewhere to sit', done: () => hasObj('rack') },
-  { text: () => 'Racks need hands. Hire a <b>🚜 Forklift Operator</b> (Building → Staff) to move products in and out faster', done: () => anyStaff('forklift') },
+  { text: () => 'Racks need hands. Hire a <b>🚜 Forklift Operator</b> (Manage → Staff) to move products in and out faster', done: () => anyStaff('forklift') },
   { text: () => 'Staff need facilities. Build a <b>🚻 Restroom</b> with the 🏢 Facility tool', done: () => hasObj('restroom') },
   { text: () => 'Floors and buildings get dirty, and filthy ones can\'t be used. Hire a <b>🧹 Janitor</b>', done: () => anyStaff('janitor') },
   { text: () => 'At the Mill, build <b>📟 Circuit Boards</b> from 💿 silicon + 🧵 wiring (it arrives at the 📥 dock)', done: () => totalMade('circuit') > 0 },
@@ -196,6 +197,7 @@ function hasObj(kind) {
 }
 
 function refreshObjective() {
+  if (typeof tutorialActive === 'function' && tutorialActive()) { $('objective').classList.add('hidden'); return; }
   while (state.objective < OBJECTIVES.length && OBJECTIVES[state.objective].done()) {
     state.objective++;
     state.gems += GEMS.perObjective;
@@ -259,7 +261,7 @@ const PANELS = {
   map: { title: '🗺️ Your Enterprise', html: () => mapHTML() },
   logistics: { title: '🚚 Logistics', html: () => logisticsHTML() },
   assembler: { title: '🏭 Assembler Recipe', html: () => assemblerHTML() },
-  building: { title: '🏗️ Building', html: () => buildingHTML() },
+  building: { title: '🏗️ Manage Site', html: () => buildingHTML() },
   contracts: { title: '💹 Market', html: () => marketHTML() },
   shop: { title: '💎 Gem Store', html: () => shopHTML() },
   research: { title: '🔬 Research', html: () => researchHTML() },
@@ -270,8 +272,9 @@ const PANELS = {
   facdetail: { title: '🏢 Facility', html: () => facDetailHTML() },
   heat: { title: '🌡️ Overlays', html: () => heatMenuHTML() },
   rackdetail: { title: '🗄️ Rack', html: () => rackDetailHTML() },
+  worker: { title: '👷 Worker', html: () => workerHTML() },
 };
-const LIVE_PANELS = ['map', 'logistics', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail'];
+const LIVE_PANELS = ['map', 'logistics', 'building', 'contracts', 'research', 'assembler', 'shop', 'alerts', 'facdetail', 'rackdetail', 'worker'];
 const SLOW_PANELS = ['map', 'logistics']; // lots of buttons; refresh less often
 
 function renderPanel() {
@@ -694,7 +697,8 @@ function helpHTML() {
       <li>Bigger sites suffer more <b>theft</b>, and every person you hire raises the <b>accident</b> risk. An accident stops the building for ${ACCIDENT_SHUTDOWN}s.</li>
       <li>Tap <b>🔒 doors</b> to open more docks. Buy more sites on the 🗺️ Map. Every site keeps earning, even while you're away.</li>
     </ul>
-    <button class="btn danger" style="width:100%;margin-top:14px" data-act="reset">Reset game</button>
+    <button class="btn" style="width:100%;margin-top:14px" data-act="tutorial">🎓 Restart the tutorial</button>
+    <button class="btn danger" style="width:100%;margin-top:10px" data-act="reset">Reset game</button>
   </div>`;
 }
 
@@ -707,6 +711,7 @@ function onPanelClick(e) {
   if (act === 'close') { closePanel(); return; }
   if (act === 'mtab') { ui.marketTab = id; renderPanel(); return; }
   if (act === 'openshop') { openPanel('shop'); return; }
+  if (act === 'tutorial') { restartTutorial(); closePanel(); refreshTutorial(); return; }
   if (act === 'showalert') {
     const [site, x, y] = id.split('|');
     if (site !== state.current) switchProperty(site);
@@ -877,11 +882,60 @@ function switchProperty(id) {
 }
 
 // ---------------- Grid actions ----------------
-function refund(o, def) {
+// What something is worth: its build price plus any upgrades.
+function totalCost(o, def) {
   let v = 0;
   if (o.k === 'belt') for (let i = 0; i <= o.tier; i++) v += buildCost('belt', def, i);
   else v = buildCost(o.k, def) + (o.spent || 0);
-  return Math.floor(v * 0.5);
+  return v;
+}
+
+// Full refund for the first 2 minutes, then sliding down to 25% over 10 more.
+const REFUND = { fullFor: 120, fadeOver: 600, floor: 0.25 };
+function refundFraction(o) {
+  if (o.placedAt == null) return REFUND.floor;
+  const age = state.clock - o.placedAt;
+  if (age <= REFUND.fullFor) return 1;
+  return Math.max(REFUND.floor, 1 - (1 - REFUND.floor) * ((age - REFUND.fullFor) / REFUND.fadeOver));
+}
+
+function refund(o, def) {
+  return Math.floor(totalCost(o, def) * refundFraction(o));
+}
+
+// Pieces that sit in a conveyor line; placing one on another swaps it.
+const isLinePiece = (k) => ['belt', 'splitter', 'sorter', 'assembler'].includes(k) || !!MACHINES[k];
+
+function makeObj(kind, dir, def) {
+  let o;
+  if (kind === 'belt') o = { k: 'belt', dir, tier: 0 };
+  else if (kind === 'splitter') o = { k: 'splitter', dir, rr: 0 };
+  else if (kind === 'sorter') o = { k: 'sorter', dir, filter: defaultSorterFilter(def), out: (dir + 1) % 4 };
+  else if (kind === 'assembler') o = { k: 'assembler', dir, recipe: null, buf: {}, craftT: 0 };
+  else o = { k: kind, dir };
+  if (!isBuilding(kind)) {
+    o.wear = 0;
+    o.life = equipLife(o);
+  }
+  o.placedAt = state.clock;
+  return o;
+}
+
+// Swap a line piece for another, crediting the old one's refund.
+function replaceObj(x, y, kind) {
+  const def = curDef(), prop = curProp();
+  const t = prop.tiles[y][x];
+  const old = t.obj;
+  const credit = refund(old, def);
+  const net = buildCost(kind, def) - credit;
+  if (net > 0 && !spend(net)) { toast(`Need ${fmt(net)} more`); return false; }
+  if (net < 0) state.money -= net;
+  clearItemAt(state.current, x, y);
+  const name = (k) => (k === 'belt' ? 'Conveyor' : k === 'assembler' ? 'Assembler' : k === 'splitter' ? 'Splitter' : k === 'sorter' ? 'Sorter' : MACHINES[k].name);
+  t.obj = makeObj(kind, old.dir == null ? ui.lastDir : old.dir, def);
+  markLayoutDirty(state.current);
+  toast(`🔁 ${name(old.k)} → ${name(kind)} (${net >= 0 ? fmt(net) : '+' + fmt(-net) + ' back'})`);
+  return true;
 }
 
 // Make the tile buildable, repairing it if needed. Returns extra cost or -1 if impossible.
@@ -910,15 +964,7 @@ function placeObj(x, y, kind, dir) {
   const cost = prep + buildCost(kind, def);
   if (!spend(cost)) { toast(`Need ${fmt(cost)}`); return false; }
   t.base = 'floor';
-  if (kind === 'belt') t.obj = { k: 'belt', dir, tier: 0 };
-  else if (kind === 'splitter') t.obj = { k: 'splitter', dir, rr: 0 };
-  else if (kind === 'sorter') t.obj = { k: 'sorter', dir, filter: defaultSorterFilter(def), out: (dir + 1) % 4 };
-  else if (kind === 'assembler') t.obj = { k: 'assembler', dir, recipe: null, buf: {}, craftT: 0 };
-  else t.obj = { k: kind, dir };
-  if (!isBuilding(kind)) {
-    t.obj.wear = 0;
-    t.obj.life = equipLife(t.obj);
-  }
+  t.obj = makeObj(kind, dir, def);
   markLayoutDirty(state.current);
   return true;
 }
@@ -936,7 +982,10 @@ function removeTile(x, y) {
   const def = curDef(), prop = curProp();
   const t = prop.tiles[y][x];
   if (!t.obj) return false;
-  state.money += refund(t.obj, def);
+  const back = refund(t.obj, def);
+  const pct = Math.round(refundFraction(t.obj) * 100);
+  state.money += back;
+  toast(`🗑️ Removed: ${fmt(back)} back (${pct}%)`);
   clearItemAt(state.current, x, y);
   t.obj = null;
   markLayoutDirty(state.current);
@@ -1017,7 +1066,7 @@ function inspectTile(x, y) {
   const def = curDef(), prop = curProp();
   const t = prop.tiles[y][x];
   const o = t.obj;
-  const worn = (q) => (q.life ? ` · ${Math.round(((q.wear || 0) / q.life) * 100)}% worn` : '');
+  const worn = (q) => (q.life ? ` · ${Math.round(((q.wear || 0) / q.life) * 100)}% worn` : '') + ` · refund ${Math.round(refundFraction(q) * 100)}%`;
   if (o && o.k === 'assembler') { ui.assemblerAt = { x, y }; openPanel('assembler'); return; }
   if (o && o.k === 'sorter') { ui.sorterAt = { x, y }; openPanel('sorter'); return; }
   if (o && o.k === 'rack') { ui.rackSel = { x, y }; openPanel('rackdetail'); return; }
@@ -1075,7 +1124,7 @@ function handleTap(x, y) {
       if (!isOutsideSpot(curDef(), prop, x, y)) { toast(`${f.icon} ${f.name}s go outside: tap a highlighted spot on the outer wall`); return; }
       const cost = buildCost(type, curDef());
       if (!spend(cost)) { toast(`Need ${fmt(cost)}`); return; }
-      t.obj = { k: type, dir: 0 };
+      t.obj = { k: type, dir: 0, placedAt: state.clock };
       markLayoutDirty(state.current);
       toast(`${f.icon} ${f.name} built outside`);
       return;
@@ -1084,6 +1133,8 @@ function handleTap(x, y) {
   } else if (tool === 'belt') {
     if (t.obj && t.obj.k === 'belt') rotateTile(x, y);
     else if (!t.obj) placeObj(x, y, 'belt', ui.lastDir);
+    else if (isLinePiece(t.obj.k)) replaceObj(x, y, 'belt');
+    else toast('Remove what is here first');
   } else if (tool === 'sorter' && t.obj && t.obj.k === 'sorter') {
     ui.sorterAt = { x, y };
     openPanel('sorter');
@@ -1092,8 +1143,8 @@ function handleTap(x, y) {
     openPanel('assembler');
   } else if (isPlaceable(tool)) {
     if (t.obj && t.obj.k === tool) rotateTile(x, y);
-    else if (!t.obj) {
-      if (placeObj(x, y, tool, ui.lastDir)) {
+    else if (!t.obj || isLinePiece(t.obj.k)) {
+      if (t.obj ? replaceObj(x, y, tool) : placeObj(x, y, tool, ui.lastDir)) {
         if (tool === 'sorter') toast(`Sorting ${PRODUCTS[t.obj.filter].icon} out the yellow arrow · tap it again to change`);
         if (tool === 'assembler') { ui.assemblerAt = { x, y }; openPanel('assembler'); }
       }
@@ -1104,7 +1155,57 @@ function handleTap(x, y) {
 }
 
 // ---------------- Pointer input ----------------
-const drag = { active: false, last: null, start: null, moved: false, placed: new Set(), aimed: false };
+const drag = { active: false, last: null, start: null, moved: false, placed: new Set(), aimed: false, plan: [] };
+
+// A dragged conveyor line becomes a plan: what each tile will get, and the cost.
+function buildPlan(path) {
+  const def = curDef(), prop = curProp();
+  const tiles = [];
+  let cost = 0, count = 0;
+  path.forEach((p, i) => {
+    const dir = i < path.length - 1 ? dirBetween(p, path[i + 1]) : dirBetween(path[i - 1], p);
+    const t = prop.tiles[p.y][p.x];
+    let action = 'skip';
+    if (t.obj && t.obj.k === 'belt') action = i === 0 ? 'aim' : 'skip'; // joins an existing line
+    else if (!t.obj && prepCost(t, def) >= 0) {
+      action = 'place';
+      cost += buildCost('belt', def) + prepCost(t, def);
+      count++;
+    }
+    tiles.push({ x: p.x, y: p.y, dir, action });
+  });
+  return { tiles, cost, count };
+}
+
+function showConfirm() {
+  const bar = $('confirmBar');
+  const p = ui.pending;
+  if (!p) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  $('confirmText').innerHTML = p.count
+    ? `Place <b>${p.count}</b> conveyor${p.count > 1 ? 's' : ''} for <b class="${state.money < p.cost ? 'neg' : 'gold'}">${fmt(p.cost)}</b>?`
+    : 'Re-aim this conveyor?';
+}
+
+function confirmPlan() {
+  const p = ui.pending;
+  ui.pending = null;
+  showConfirm();
+  if (!p) return;
+  if (state.money < p.cost) { toast(`Need ${fmt(p.cost)}`); return; }
+  for (const s of p.tiles) {
+    const t = curProp().tiles[s.y][s.x];
+    if (s.action === 'place' && !t.obj) placeObj(s.x, s.y, 'belt', s.dir);
+    else if (s.action === 'aim' && t.obj && t.obj.k === 'belt') { t.obj.dir = s.dir; clearStuckItem(s.x, s.y); }
+  }
+  ui.lastDir = p.tiles[p.tiles.length - 1].dir;
+  refreshToolbar();
+}
+
+function cancelPlan() {
+  ui.pending = null;
+  showConfirm();
+}
 
 function pointerPos(e) {
   const rect = canvas.getBoundingClientRect();
@@ -1128,19 +1229,10 @@ function dragStep(a, b) {
   const tool = ui.tool;
 
   if (tool === 'belt') {
-    ui.lastDir = d;
-    // Aim the tile we're leaving (the start tile, or one we placed this drag).
-    const aKey = keyOf(a.x, a.y);
-    const aOurs = drag.placed.has(aKey) || (a.x === drag.start.x && a.y === drag.start.y);
-    if (aOurs) {
-      if (ta.obj && ta.obj.k === 'belt') { ta.obj.dir = d; clearStuckItem(a.x, a.y); }
-      else if (!ta.obj && prepCost(ta, curDef()) >= 0) {
-        if (placeObj(a.x, a.y, 'belt', d)) drag.placed.add(aKey);
-      }
-    }
-    if (!tb.obj && prepCost(tb, curDef()) >= 0) {
-      if (placeObj(b.x, b.y, 'belt', d)) drag.placed.add(keyOf(b.x, b.y));
-    }
+    // Just sketch the line; nothing is built until the player confirms.
+    const back = drag.plan.findIndex((p) => p.x === b.x && p.y === b.y);
+    if (back >= 0) drag.plan.length = back + 1; // dragged back over the line: trim it
+    else drag.plan.push(b);
   } else if (isPlaceable(tool)) {
     if (drag.aimed) return;
     drag.aimed = true;
@@ -1181,6 +1273,9 @@ function onPointerDown(e) {
   drag.moved = false;
   drag.aimed = false;
   drag.placed.clear();
+  drag.plan = [tile];
+  drag.px = p;
+  if (ui.pending) cancelPlan(); // tapping the floor dismisses an unconfirmed line
 }
 
 function onPointerMove(e) {
@@ -1203,7 +1298,12 @@ function onPointerMove(e) {
 function onPointerUp() {
   if (!drag.active) return;
   drag.active = false;
-  if (!drag.moved) handleTap(drag.start.x, drag.start.y);
+  const person = !drag.moved && (!ui.tool || ui.tool === 'rotate') ? workerAt(drag.px.x, drag.px.y) : null;
+  if (person) { ui.workerSel = person.id; openPanel('worker'); } else if (!drag.moved) handleTap(drag.start.x, drag.start.y);
+  else if (ui.tool === 'belt' && drag.plan.length > 1) {
+    ui.pending = buildPlan(drag.plan);
+    showConfirm();
+  }
   refreshToolbar();
 }
 
@@ -1222,6 +1322,8 @@ function initInput() {
   $('gems').addEventListener('click', () => openPanel('shop'));
   $('alertPill').addEventListener('click', () => openPanel('alerts'));
   $('heatBtn').addEventListener('click', () => openPanel('heat'));
+  $('confirmYes').addEventListener('click', confirmPlan);
+  $('confirmNo').addEventListener('click', cancelPlan);
   $('modalClose').addEventListener('click', closePanel);
   $('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closePanel(); });
   $('modalBody').addEventListener('click', onPanelClick);

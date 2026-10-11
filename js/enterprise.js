@@ -155,13 +155,22 @@ function distributionHTML(owned) {
   html += '</div>';
   html += storageBoxHTML(id);
   html += `<p class="intro small">For each product leaving ${PROP_BY_ID[id].name}'s SHIP doors, choose where it goes.
-    <b>Weights</b> split the flow (3 + 1 = 75% / 25%). A <b>cap</b> stops sending once that much is stocked or on the way there.</p>`;
+    <b>Weights</b> split the flow (3 + 1 = 75% / 25%). A <b>cap</b> stops sending once that much is stocked or on the way there. Tap a product to open its plan.</p>`;
   const products = relevantProducts(id);
   if (!products.length) html += '<p class="intro">Nothing ships from here yet. Open a supplier dock or set an assembler recipe.</p>';
   for (const p of products) {
     const plan = planOf(prop, p);
     const total = plan.dests.reduce((n, d) => n + d.w, 0) || 1;
-    html += `<div class="plan"><div class="plan-head">${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b><span class="muted"> · sells ${fmt(marketPrice(p))}</span></div>`;
+    // Cards start collapsed to a one-line summary; tap the header to expand.
+    const key = `${id}|${p}`;
+    const open = (ui.planOpen || (ui.planOpen = new Set())).has(key);
+    html += `<div class="plan ${open ? 'open' : 'closed'}"><button class="plan-head plan-toggle" data-act="ptoggle" data-id="${key}">
+      <span>${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b><span class="muted"> · sells ${fmt(marketPrice(p))}</span></span>
+      <span class="plan-caret">${open ? '▾' : '▸'}</span></button>`;
+    if (!open) {
+      html += `<div class="plan-sum-line">${planSummary(id, p)}${prop.held[p] ? ` · 🗄️ ${prop.held[p]} stored` : ''}</div></div>`;
+      continue;
+    }
     plan.dests.forEach((d, i) => {
       const k = `${id}|${p}|${i}`;
       const valid = destValid(id, d.to, p);
@@ -365,6 +374,11 @@ function handleEnterpriseAct(act, id) {
   if (act === 'openlog') { ui.logSite = id; ui.logTab = 'dist'; openPanel('logistics'); return 'stop'; }
   if (act === 'logtab') { ui.logTab = id; return true; }
   if (act === 'logsite') { ui.logSite = id; return true; }
+  if (act === 'ptoggle') {
+    const open = ui.planOpen || (ui.planOpen = new Set());
+    if (open.has(id)) open.delete(id); else open.add(id);
+    return true;
+  }
   if (['pw', 'pcap', 'pdel', 'padd', 'pover'].includes(act)) {
     const [site, p, a, b] = id.split('|');
     const prop = state.props[site];

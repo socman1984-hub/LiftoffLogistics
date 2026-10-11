@@ -91,7 +91,7 @@ const TOOLS = [
 const TOOL_GROUPS = [
   { id: 'convey', name: 'Conveyors', icon: '➡️', tools: ['belt', 'splitter', 'sorter', 'upgrade'] },
   { id: 'machines', name: 'Machines', icon: '🏭', tools: ['assembler', 'scanner', 'labeler', 'chiller', 'wrapper'] },
-  { id: 'build', name: 'Building', icon: '🧱', tools: ['repair', 'rack', 'facility'] },
+  { id: 'build', name: 'Structures', icon: '🧱', tools: ['repair', 'rack', 'facility'] },
   { id: 'edit', name: 'Edit', icon: '✋', tools: ['rotate', 'remove'] },
 ];
 
