@@ -64,7 +64,7 @@ function victoryTrackerHTML() {
   const steps = [
     ['🚀', 'First rocket', state.launch.count >= 1],
     ['🏠', 'Colony founded', pop > 0 || stage > 0],
-    ['👩‍🚀', '25 colonists', pop >= 25 || stage >= 1],
+    ['👩‍🚀', `${TERRAFORM[0].pop} colonists`, pop >= TERRAFORM[0].pop || stage >= 1],
     ...TERRAFORM.map((st, i) => [st.icon, st.name, stage > i]),
   ];
   const next = steps.findIndex(([, , ok]) => !ok);

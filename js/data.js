@@ -260,17 +260,17 @@ const RESEARCH = [
   R('aero', 4, 1, 'flighttest', '🧪', 'Flight Testing', '+50% ⭐ reputation from rocket launches', ['thermal', 'habitat'], { launchStars: 0.5 }),
   R('aero', 5, 1, 'reusable', '♻️', 'Reusable Boosters', 'Each rocket needs 20% fewer parts', ['flighttest', 'photovoltaics'], { launchParts: 0.2 }),
   // 🔴 Colony: the late-game sink for reputation and cash (open after the first launch)
-  R('colony', 1, 0, 'hydroponics', '🥬', 'Hydroponics', 'Colonists need 15% less food', [], { marsFood: 0.15 }, { cost: 20, money: 500000, time: 600 }),
-  R('colony', 1, 1, 'robotics', '🤖', 'Repair Drones', 'Modules need 25% fewer spares', [], { marsSpares: 0.25 }, { cost: 20, money: 500000, time: 600 }),
-  R('colony', 1, 2, 'recyclers', '♻️', 'Water Recyclers', 'Colonists need 15% less water and oxygen', [], { marsWater: 0.15 }, { cost: 20, money: 500000, time: 600 }),
-  R('colony', 2, 0, 'domes2', '🏘️', 'Expanded Habitats', 'Each Habitat Dome holds 1 more colonist', ['hydroponics'], { marsCap: 1 }, { cost: 40, money: 1500000, time: 1200 }),
-  R('colony', 2, 1, 'heavylift', '🏋️', 'Heavy-Lift Rockets', '+8 cargo slots on every Mars rocket', ['robotics'], { marsSlots: 8 }, { cost: 40, money: 1500000, time: 1200 }),
-  R('colony', 2, 2, 'transit', '🛸', 'Ion Transit', 'Rockets reach Mars 30% faster', ['recyclers'], { marsTransit: 0.3 }, { cost: 40, money: 1500000, time: 1200 }),
-  R('colony', 3, 0, 'refining', '🔥', 'Rare Metal Refining', 'Colonists dig 50% more Rare Metals', ['domes2'], { marsMetals: 0.5 }, { cost: 70, money: 4000000, time: 2400 }),
-  R('colony', 3, 1, 'rapidpad', '⏱️', 'Rapid Pad Turnaround', 'The launch pad resets 30 seconds faster', ['heavylift'], { marsTurn: 30 }, { cost: 70, money: 4000000, time: 2400 }),
-  R('colony', 3, 2, 'medbay', '🩺', 'Colony Medicine', 'Rationing and sickness cost a quarter less output', ['transit'], { marsRation: 0.25 }, { cost: 70, money: 4000000, time: 2400 }),
-  R('colony', 4, 1, 'fusion', '⚛️', 'Fusion Power', 'Unlocks the Fusion Core recipe and the Fusion Reactor module', ['refining'], {}, { cost: 110, money: 10000000, time: 3600 }),
-  R('colony', 5, 1, 'terraform', '🌍', 'Terraforming Studies', 'Colonists make 25% more reputation and Rare Metals', ['fusion', 'rapidpad'], { marsOutput: 0.25 }, { cost: 180, money: 25000000, time: 7200 }),
+  R('colony', 1, 0, 'hydroponics', '🥬', 'Hydroponics', 'Colonists need 15% less food', [], { marsFood: 0.15 }, { cost: 20, money: 300000, time: 600 }),
+  R('colony', 1, 1, 'robotics', '🤖', 'Repair Drones', 'Modules need 25% fewer spares', [], { marsSpares: 0.25 }, { cost: 20, money: 300000, time: 600 }),
+  R('colony', 1, 2, 'recyclers', '♻️', 'Water Recyclers', 'Colonists need 15% less water and oxygen', [], { marsWater: 0.15 }, { cost: 20, money: 300000, time: 600 }),
+  R('colony', 2, 0, 'domes2', '🏘️', 'Expanded Habitats', 'Each Habitat Dome holds 1 more colonist', ['hydroponics'], { marsCap: 1 }, { cost: 40, money: 800000, time: 1200 }),
+  R('colony', 2, 1, 'heavylift', '🏋️', 'Heavy-Lift Rockets', '+8 cargo slots on every Mars rocket', ['robotics'], { marsSlots: 8 }, { cost: 40, money: 800000, time: 1200 }),
+  R('colony', 2, 2, 'transit', '🛸', 'Ion Transit', 'Rockets reach Mars 30% faster', ['recyclers'], { marsTransit: 0.3 }, { cost: 40, money: 800000, time: 1200 }),
+  R('colony', 3, 0, 'refining', '🔥', 'Rare Metal Refining', 'Colonists dig 50% more Rare Metals', ['domes2'], { marsMetals: 0.5 }, { cost: 70, money: 2000000, time: 2400 }),
+  R('colony', 3, 1, 'rapidpad', '⏱️', 'Rapid Pad Turnaround', 'The launch pad resets 30 seconds faster', ['heavylift'], { marsTurn: 30 }, { cost: 70, money: 2000000, time: 2400 }),
+  R('colony', 3, 2, 'medbay', '🩺', 'Colony Medicine', 'Rationing and sickness cost a quarter less output', ['transit'], { marsRation: 0.25 }, { cost: 70, money: 2000000, time: 2400 }),
+  R('colony', 4, 1, 'fusion', '⚛️', 'Fusion Power', 'Unlocks the Fusion Core recipe and the Fusion Reactor module', ['refining'], {}, { cost: 110, money: 4000000, time: 3600 }),
+  R('colony', 5, 1, 'terraform', '🌍', 'Terraforming Studies', 'Colonists make 25% more reputation and Rare Metals', ['fusion', 'rapidpad'], { marsOutput: 0.25 }, { cost: 180, money: 8000000, time: 7200 }),
 ];
 for (const r of RESEARCH) {
   // Nodes that open up a job say so.
@@ -507,8 +507,8 @@ const LAUNCH = {
 // ---- Mars colony (after the first launch; see mars.js) ----
 const MARS = {
   windowEvery: 1500, windowOpen: 300, transit: 360, firstWindow: 240, // seconds of play
-  slots: 30, slotModule: 12, slotColonist: 2, perHabitat: 4,
-  solarPower: 3, foodPerColonist: 0.5, waterPerColonist: 0.5, sparesPerModule: 0.25,
+  slots: 30, slotModule: 12, slotColonist: 2, perHabitat: 5, padRockets: 2, // the pad stocks parts for this many rockets
+  solarPower: 3, foodPerColonist: 0.4, waterPerColonist: 0.4, sparesPerModule: 0.25,
   starsPerColonist: 1, metalsPerColonist: 2, metalValue: 4000,
   rationsBeforeLeaving: 3, minColonists: 2,
   dustChance: 0.15, requestChance: 0.5,
@@ -517,7 +517,7 @@ const MARS = {
   milestones: [[10, 25], [25, 50], [50, 100], [100, 200]],
 };
 // Every flight to Mars needs this launch vehicle; the payload is what changes.
-const VEHICLE = { fuselage: 6, tank: 4, engine: 3, fuel: 8, avionics: 1 };
+const VEHICLE = { fuselage: 4, tank: 3, engine: 2, fuel: 6, avionics: 1 };
 const SUPPLY_PRODUCT = { food: 'foodcrate', water: 'canister', spares: 'spares', med: 'medkit', power: 'powercell' };
 const SUPPLY_KINDS = Object.keys(SUPPLY_PRODUCT);
 const MARS_EVENTS = {
@@ -527,14 +527,14 @@ const MARS_EVENTS = {
 };
 // 🌍 Project Terraform: the win. Three stages delivered to Mars in rocket cargo (1 slot per part).
 const TERRAFORM = [
-  { id: 'atmo', icon: '🏭', name: 'Atmosphere Processors', pop: 25, research: 'fusion', needs: { fusioncore: 6, turbopump: 20, solar: 30 }, effect: 'Water/O₂ needs halved' },
-  { id: 'shield', icon: '🧲', name: 'Magnetic Shield', pop: 50, needs: { fusioncore: 12, superconductor: 40, avionics: 10 }, effect: 'No more dust storms or meteor strikes' },
-  { id: 'ocean', icon: '🌊', name: 'Ocean Seeding', pop: 100, research: 'terraform', needs: { fusioncore: 20, canister: 150, superconductor: 40, lifesupport: 20 }, effect: 'Mars is alive: you win' },
+  { id: 'atmo', icon: '🏭', name: 'Atmosphere Processors', pop: 20, research: 'fusion', needs: { fusioncore: 6, turbopump: 20, solar: 30 }, effect: 'Water/O₂ needs halved' },
+  { id: 'shield', icon: '🧲', name: 'Magnetic Shield', pop: 40, needs: { fusioncore: 12, superconductor: 40, avionics: 10 }, effect: 'No more dust storms or meteor strikes' },
+  { id: 'ocean', icon: '🌊', name: 'Ocean Seeding', pop: 80, research: 'terraform', needs: { fusioncore: 20, canister: 150, superconductor: 40, lifesupport: 20 }, effect: 'Mars is alive: you win' },
 ];
 const LEGACY_BONUS = 0.1; // New Game+: +10% package value per completed game (up to 5)
 const PAD_LEVELS = [{ cost: 1000000, cut: 20 }, { cost: 3000000, cut: 20 }, { cost: 8000000, cut: 20 }]; // launch pad upgrades: seconds off the turnaround
 const MARS_MODULES = {
-  habitat: { name: 'Habitat Dome', icon: '🏠', payload: { fuselage: 4, lifesupport: 2, heatshield: 2 }, desc: 'Room for 4 colonists' },
+  habitat: { name: 'Habitat Dome', icon: '🏠', payload: { fuselage: 4, lifesupport: 2, heatshield: 2 }, desc: 'Room for 5 colonists' },
   solar: { name: 'Solar Farm', icon: '⚡', payload: { solar: 6, wiring: 4 }, desc: `+${3} power for the other modules` },
   greenhouse: { name: 'Greenhouse', icon: '🌱', payload: { lifesupport: 2, solar: 4, panel: 10 }, max: 3, desc: 'Grows food: −25% food needed per level' },
   icemine: { name: 'Ice Mine', icon: '🧊', payload: { turbopump: 2, alloy: 4, sensor: 2 }, max: 3, desc: 'Makes water and oxygen: −25% Water/O₂ needed per level' },

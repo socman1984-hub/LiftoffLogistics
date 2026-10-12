@@ -92,13 +92,14 @@ function marsPadWants() {
   const m = M();
   const out = {};
   const cut = 1 - rfx('launchParts');
-  for (const [p, n] of Object.entries(VEHICLE)) out[p] = Math.max(1, Math.round(n * cut));
+  const k = MARS.padRockets; // stock for more than one launch, so a window can see several
+  for (const [p, n] of Object.entries(VEHICLE)) out[p] = Math.max(1, Math.round(n * cut)) * k;
   if (m.manifest.module && MARS_MODULES[m.manifest.module]) {
     for (const [p, n] of Object.entries(MARS_MODULES[m.manifest.module].payload)) out[p] = (out[p] || 0) + n;
   }
-  for (const [kind, prod] of Object.entries(SUPPLY_PRODUCT)) if (m.manifest[kind]) out[prod] = (out[prod] || 0) + m.manifest[kind];
+  for (const [kind, prod] of Object.entries(SUPPLY_PRODUCT)) if (m.manifest[kind]) out[prod] = (out[prod] || 0) + m.manifest[kind] * k;
   if (m.manifest.terra && terraUnlocked()) {
-    for (const [p, n] of Object.entries(terraRemaining())) if (n > 0) out[p] = (out[p] || 0) + Math.min(n, m.manifest.terra);
+    for (const [p, n] of Object.entries(terraRemaining())) if (n > 0) out[p] = (out[p] || 0) + Math.min(n, m.manifest.terra * k);
   }
   return out;
 }

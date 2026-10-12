@@ -137,7 +137,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   arrive (Launch Site → Auto-launch), with no animation. The Map button shows 🚀 when one is waiting.
 - **🔴 Mars colony** (after the first rocket): every launch flies to Mars during a **launch window** (every 25 min of
   play, open 5 min; 6-minute trip; the pad needs 90 s between launches). Each rocket needs a fixed launch vehicle
-  (6 🛡️ 4 🛢️ 3 🔥 8 🧪 1 🛰️) plus a 30-slot cargo manifest: one base module (12 slots: 🏠 Habitat, ⚡ Solar Farm,
+  (4 🛡️ 3 🛢️ 2 🔥 6 🧪 1 🛰️; the pad stocks parts for two rockets) plus a 30-slot cargo manifest: one base module (12 slots: 🏠 Habitat, ⚡ Solar Farm,
   🌱 Greenhouse, 🧊 Ice Mine, 🛬 Landing Pad, 🔬 Research Station), colonists (2 slots) and supply crates (1 slot):
   🍞 Food Crate (3 🌾 Provisions + 🔲), 💧 Water/O₂ Canister (2 🧊 + 🟦), 🔧 Spares Kit (🚰 + 📟 + 🧵). Provisions come
   from a new supplier door on the Regional Depot. Colonists use supplies each window and make ⭐, 💎 and Rare Metals
@@ -150,9 +150,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   Cells); Rare Metals sold on arrival or delivered to a site for ⚛️ Fusion Cores (2 🪨 + 💻 + 2 🟦), which build the
   ⚛️ Fusion Reactor module; 🚧 launch pad upgrades; the 📦 Spaceport Cargo Center at the Mega Hub (+10 slots, faster
   pad); and a 💎 Cargo Boost.
-- **🌍 Winning: Project Terraform** — three Mars stages delivered in rocket cargo: 🏭 Atmosphere Processors (25
-  colonists + Fusion Power; halves water needs), 🧲 Magnetic Shield (50 colonists; ends dust storms and meteors) and
-  🌊 Ocean Seeding (100 colonists + Terraforming Studies). Finishing plays an ending cinematic and a victory screen with
+- **🌍 Winning: Project Terraform** — three Mars stages delivered in rocket cargo: 🏭 Atmosphere Processors (20
+  colonists + Fusion Power; halves water needs), 🧲 Magnetic Shield (40 colonists; ends dust storms and meteors) and
+  🌊 Ocean Seeding (80 colonists + Terraforming Studies). Finishing plays an ending cinematic and a victory screen with
   your stats; then keep playing or start 🔁 New Game+ (+10% value per win, up to +50%). The 🏆 Road to victory tracker
   on the Map shows progress. New: 🧲 Superconductor (Rare Metals + Wiring).
 - **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
