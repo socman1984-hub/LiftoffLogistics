@@ -83,7 +83,7 @@ function marsNeeds() {
   const m = M(), pw = marsPower().frac;
   const food = m.colonists * MARS.foodPerColonist * (1 - rfx('marsFood')) * Math.max(0, 1 - 0.25 * Math.min(3, effMod('greenhouse')) * pw);
   const water = m.colonists * MARS.waterPerColonist * (1 - rfx('marsWater')) * (m.terra && m.terra.stage >= 1 ? 0.5 : 1) * Math.max(0, 1 - 0.25 * Math.min(3, effMod('icemine')) * pw);
-  const spares = MARS.sparesPerModule * totalModules() * (1 - rfx('marsSpares'));
+  const spares = MARS.sparesPerModule * (totalModules() - modCount('habitat') / 2) * (1 - rfx('marsSpares')); // domes need half the upkeep
   return { food: Math.ceil(food), water: Math.ceil(water), spares: Math.ceil(spares), med: m.events.sick ? 2 : 0, power: 0 };
 }
 
@@ -153,6 +153,7 @@ function planCargo(slots, allowModule) {
   }
   // Supplies load one crate at a time, most urgent first, up to the manifest's numbers.
   const need = marsNeeds();
+  if (m.events.meteor) need.spares += MARS.repairSpares - (m.events.fixed || 0); // a repair is waiting
   const order = [...SUPPLY_KINDS].sort((a, b) => (m.stock[a] + c[a]) / (need[a] || 0.5) - (m.stock[b] + c[b]) / (need[b] || 0.5));
   let moved = true;
   while (left > 0 && moved) {
@@ -185,6 +186,7 @@ function planCargo(slots, allowModule) {
 function emergencyCargo() {
   const m = M(), pad = state.launch.parts, need = marsNeeds();
   const c = emptyCargo();
+  if (m.events.meteor) need.spares += MARS.repairSpares - (m.events.fixed || 0);
   let left = MARS.emergencySlots;
   const order = [...SUPPLY_KINDS].sort((a, b) => (m.stock[a] / (need[a] || 1)) - (m.stock[b] / (need[b] || 1)));
   while (left > 0) {
@@ -343,18 +345,24 @@ function marsCycle() {
   // Power Cells burn during a storm.
   const pw = marsPower();
   if (pw.cells) m.stock.power -= pw.cells;
+  // Meteor damage is repaired first, before the colony's upkeep takes its share of the spares.
+  // Spares go toward the repair as they arrive, so a trickle still gets there.
+  if (ev.meteor && m.stock.spares > 0) {
+    const use = Math.min(m.stock.spares, MARS.repairSpares - (ev.fixed || 0));
+    m.stock.spares -= use;
+    ev.fixed = (ev.fixed || 0) + use;
+    if (ev.fixed >= MARS.repairSpares) {
+      m.damaged[ev.meteor] = Math.max(0, (m.damaged[ev.meteor] || 0) - 1);
+      toast(`🔧 Mars: the ${MARS_MODULES[ev.meteor].name} is repaired`);
+      ev.meteor = null;
+      ev.fixed = 0;
+    }
+  }
   const need = marsNeeds();
   let short = false;
   for (const kind of ['food', 'water', 'spares']) {
     if (m.stock[kind] < need[kind]) short = true;
     m.stock[kind] = Math.max(0, m.stock[kind] - need[kind]);
-  }
-  // Event fixes: spares repair meteor damage, medical kits cure sickness.
-  if (ev.meteor && m.stock.spares >= 4) {
-    m.stock.spares -= 4;
-    m.damaged[ev.meteor] = Math.max(0, (m.damaged[ev.meteor] || 0) - 1);
-    toast(`🔧 Mars: the ${MARS_MODULES[ev.meteor].name} is repaired`);
-    ev.meteor = null;
   }
   if (ev.sick && m.stock.med >= 2) { m.stock.med -= 2; ev.sick = false; toast('💊 Mars: the sickness is treated'); }
   m.rations = short ? m.rations + 1 : 0;
@@ -380,7 +388,7 @@ function marsCycle() {
     if (hit.length) {
       ev.meteor = hit[Math.floor(Math.random() * hit.length)];
       m.damaged[ev.meteor] = (m.damaged[ev.meteor] || 0) + 1;
-      toast(`☄️ Meteor strike! The ${MARS_MODULES[ev.meteor].name} is offline until the colony has 4 spare 🔧 Spares Kits`);
+      toast(`☄️ Meteor strike! The ${MARS_MODULES[ev.meteor].name} is offline until ${MARS.repairSpares} 🔧 Spares Kits reach the colony`);
     }
   }
   if (!ev.sick && m.colonists >= 8 && Math.random() < MARS_EVENTS.sick.chance) {
@@ -427,6 +435,10 @@ function marsLaunchHTML() {
     return `<span class="${have >= need ? 'ok' : ''}">${PRODUCTS[p].icon} ${have}/${need}</span>`;
   }).join('') + '</div>';
   const plural = (p) => PRODUCTS[p].name + (PRODUCTS[p].name.endsWith('s') ? '' : 's');
+  if (m.events.meteor) {
+    const mm = MARS_MODULES[m.events.meteor];
+    html += `<div class="mars-warn">☄️ <b>${mm.icon} ${mm.name} offline</b> after a meteor strike. Repair: ${m.events.fixed || 0}/${MARS.repairSpares} 🔧 Spares Kits (they go to the repair first, as they land)${m.events.meteor === 'pad' && m.metalsWaiting ? `; ${m.metalsWaiting} 🪨 Rare Metals are waiting to come home` : ''}.</div>`;
+  }
   for (const w of terraConflicts()) {
     const maker = PROPERTIES.find((d) => state.props[d.id].owned && state.props[d.id].tiles.some((row) => row.some((t) => t.obj && t.obj.k === 'assembler' && t.obj.recipe === w.part)));
     html += `<div class="mars-warn">⚠️ <b>Short on ${PRODUCTS[w.part].icon} ${plural(w.part)}</b> (${w.have}/${w.need} for the next two rockets). They're built from ${PRODUCTS[w.via].icon} ${plural(w.via)}, which are also going up as terraform parts (${pad[w.via] || 0} on the pad). Send more ${plural(w.via)} to ${maker ? `the ${maker.name}` : `an assembler making ${plural(w.part)}`}, or carry fewer terraform parts.</div>`;
@@ -507,7 +519,7 @@ function marsBaseHTML() {
   for (const [k, on] of [['dust', ev.dust], ['meteor', ev.meteor], ['sick', ev.sick]]) {
     if (!on) continue;
     const e = MARS_EVENTS[k];
-    html += `<div class="power-box over"><div class="power-head"><span>${e.icon} ${e.name}${k === 'meteor' ? `: ${MARS_MODULES[ev.meteor].name}` : ''}</span></div><div class="power-note">${e.desc}</div></div>`;
+    html += `<div class="power-box over"><div class="power-head"><span>${e.icon} ${e.name}${k === 'meteor' ? `: ${MARS_MODULES[ev.meteor].name} · repair ${ev.fixed || 0}/${MARS.repairSpares} 🔧` : ''}</span></div><div class="power-note">${e.desc}</div></div>`;
   }
   const meter = (kind, label) => {
     const per = need[kind];
@@ -523,7 +535,7 @@ function marsBaseHTML() {
     <div class="stat-row"><span>⚡ Power</span><b class="${pw.frac < 1 ? 'neg' : ''}">${pw.supply} / ${pw.demand}${pw.cells ? ` (🔋 ${pw.cells} cells)` : ''}${pw.frac < 1 ? ` · ${Math.round(pw.frac * 100)}% running` : ''}</b></div>
     <div class="stat-row"><span>Next window</span><b>${marsWindowOpen() ? 'open now' : `in ${fmtSecs(marsWindowIn())}`}</b></div>
     ${m.last ? `<div class="stat-row"><span>Last window made</span><b>+${m.last.stars} ⭐ · ${m.last.metals} 🪨${m.last.gems ? ` · +${m.last.gems} 💎` : ''}</b></div>` : ''}
-    <div class="stat-row"><span>🪨 Rare Metals shipped home</span><b>${m.metalsTotal}${m.metalsWaiting ? ` (+${m.metalsWaiting} waiting for a Landing Pad)` : ''}</b></div></div>`;
+    <div class="stat-row"><span>🪨 Rare Metals shipped home</span><b>${m.metalsTotal}${m.metalsWaiting ? ` (+${m.metalsWaiting} waiting: ${modCount('pad') ? `the Landing Pad is damaged, repair ${m.events.fixed || 0}/${MARS.repairSpares} 🔧 Spares` : 'build a 🛬 Landing Pad'})` : ''}</b></div></div>`;
   // Where Rare Metals go
   const sites = PROPERTIES.filter((d) => state.props[d.id].owned && hasReceiveDock(d));
   html += `<h3 class="sec">Rare Metals go to</h3><div class="choice">

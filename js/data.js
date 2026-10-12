@@ -514,7 +514,7 @@ const MARS = {
   starsPerColonist: 1, metalsPerColonist: 2, metalValue: 4000,
   rationsBeforeLeaving: 3, minColonists: 2,
   dustChance: 0.15, requestChance: 0.5,
-  emergencyGems: 25, emergencySlots: 8, cargoBoostSlots: 15, powerCellBoost: 2, fusionPower: 12,
+  emergencyGems: 25, repairSpares: 4, emergencySlots: 8, cargoBoostSlots: 15, powerCellBoost: 2, fusionPower: 12,
   padTurnaround: 90, // seconds the pad needs between launches (≈3 per window)
   milestones: [[10, 25], [25, 50], [50, 100], [100, 200]],
 };
@@ -524,7 +524,7 @@ const SUPPLY_PRODUCT = { food: 'foodcrate', water: 'canister', spares: 'spares',
 const SUPPLY_KINDS = Object.keys(SUPPLY_PRODUCT);
 const MARS_EVENTS = {
   dust: { icon: '🌪️', name: 'Dust storm', chance: 0.12, windows: 2, desc: 'Solar output halved. 🔋 Power Cells in stock add 2 power each window (one used per window).' },
-  meteor: { icon: '☄️', name: 'Meteor strike', chance: 0.08, desc: 'A module is knocked offline until the colony has 4 spare 🔧 Spares Kits to repair it.' },
+  meteor: { icon: '☄️', name: 'Meteor strike', chance: 0.08, desc: 'A module is knocked offline until 4 🔧 Spares Kits arrive to repair it (they go to the repair first, a few at a time is fine).' },
   sick: { icon: '🦠', name: 'Sickness', chance: 0.08, desc: 'Output down 30% until 2 💊 Medical Kits are in stock to treat it.' },
 };
 // 🌍 Project Terraform: the win. Three stages delivered to Mars in rocket cargo (1 slot per part).
