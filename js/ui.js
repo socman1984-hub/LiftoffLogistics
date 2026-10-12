@@ -721,7 +721,7 @@ function helpHTML() {
       'Tap an assembler to pick a recipe. Feed each ingredient from a different side so one cannot block another.',
       '<b>Modes</b>: ▶ Run, ⏸ Pause, or 🚀 Until the rocket has enough, so shared ingredients reach assemblers further down the line.',
       '<b>Restock from storage</b>: when an assembler runs out of something on this site’s racks, a 🚜 Forklift Operator brings up to 10 at a time.',
-      '🔍 Scanner, 🏷️ Labeler, 🎁 Wrapper and ❄️ Chiller raise the <b>sale</b> price (flat bonuses before multipliers pay more).',
+      '🔍 Scanner, 🏷️ Labeler, 🎁 Wrapper and ❄️ Chiller raise the <b>sale</b> price (flat bonuses before multipliers pay more). Each package stops inside for a moment, so a slow machine can cap a busy line: <b>⏫ Upgrade</b> it to Mk II (1.75× as fast) or Mk III (3×, after 🔬 Quality Control).',
       '⚙️ <b>Precision Fab Cells</b> (late game, 🔬 Full Automation) make every assembler within 2 tiles work 50% faster. One assembler starving the whole chain? Put a cell beside it, or build a second one.',
       'Everything wears out and <b>breaks down ⚠️</b>. Tap to fix, or hire 🔧 Maintenance Techs to fix and service it.',
     ])}
@@ -1163,9 +1163,32 @@ function removeTile(x, y) {
   return true;
 }
 
+// Next upgrade for a belt or value machine: { name, cost, locked } or null when maxed.
+function upgradeInfo(o, def) {
+  if (!o) return null;
+  if (o.k === 'belt') {
+    const next = BELT_TIERS[o.tier + 1];
+    return next ? { name: next.name, cost: buildCost('belt', def, o.tier + 1), locked: next.research && !hasResearch(next.research) ? next.research : null } : null;
+  }
+  if (MACHINES[o.k]) {
+    const next = MACHINE_LEVELS[(o.mk || 0) + 1];
+    return next ? { name: next.name, cost: Math.round(buildCost(o.k, def) * next.costMult), locked: next.research && !hasResearch(next.research) ? next.research : null } : null;
+  }
+  return null;
+}
+
 function upgradeTile(x, y) {
   const def = curDef(), prop = curProp();
   const t = prop.tiles[y][x];
+  if (t.obj && MACHINES[t.obj.k]) {
+    const m = MACHINES[t.obj.k], up = upgradeInfo(t.obj, def);
+    if (!up) { toast(`${m.icon} ${m.name} is already ${MACHINE_LEVELS[MACHINE_LEVELS.length - 1].name}`); return false; }
+    if (up.locked) { toast(`🔬 Research "${RESEARCH_BY_ID[up.locked].name}" first`); return false; }
+    if (!spend(up.cost, 'upgrades', `${m.name} ${up.name}`)) { toast(`Need ${fmt(up.cost)}`); return false; }
+    t.obj.mk = (t.obj.mk || 0) + 1;
+    toast(`⏫ ${m.icon} ${m.name} ${up.name}: works ${MACHINE_LEVELS[t.obj.mk].speed}× as fast (−${fmt(up.cost)})`);
+    return true;
+  }
   if (!t.obj || t.obj.k !== 'belt') return false;
   const next = BELT_TIERS[t.obj.tier + 1];
   if (!next) { toast('Already Express'); return false; }
@@ -1259,7 +1282,10 @@ function inspectTile(x, y) {
   }
   else if (o && o.k === 'splitter') msg = `🔀 Splitter${worn(o)}`;
   else if (o && o.k === 'rack') msg = `🗄️ Rack · holds ${rackCapOf(o)} products`;
-  else if (o && MACHINES[o.k]) msg = `${MACHINES[o.k].icon} ${MACHINES[o.k].name}${worn(o)} · ${MACHINES[o.k].desc()}`;
+  else if (o && MACHINES[o.k]) {
+    const up = upgradeInfo(o, def);
+    msg = `${MACHINES[o.k].icon} ${MACHINES[o.k].name} ${MACHINE_LEVELS[o.mk || 0].name}${worn(o)} · ${MACHINES[o.k].desc()} · ${up ? `⏫ ${up.name} (${MACHINE_LEVELS[(o.mk || 0) + 1].speed}× speed): ${up.locked ? `🔬 ${RESEARCH_BY_ID[up.locked].name}` : fmt(up.cost)}` : 'max speed'}`;
+  }
   else if (t.base === 'broken') msg = `🧱 Damaged floor: nothing can walk or be built here. Select 🔨 Repair to fix it (${fmt(def.repairCost)})`;
   else if (t.base === 'floor') msg = (t.dirt || 0) >= DIRT.filthy ? '🪣 Filthy floor: nobody can walk here. A 🧹 Janitor or 🔨 Repair cleans it'
     : (t.dirt || 0) >= DIRT.dirty ? `Dirty floor (${Math.round(t.dirt)}%)` : 'Empty floor';

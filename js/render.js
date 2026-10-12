@@ -457,6 +457,14 @@ function drawMachine(o, px, py, s) {
   ctx.fillText(m.icon, px + s / 2, py + s / 2 + 1);
   const d = DIRS[o.dir];
   drawArrow(px + s / 2 + d.x * s * 0.4, py + s / 2 + d.y * s * 0.4, s * 0.1, o.dir, '#ffffff');
+  if (o.mk) { // upgrade badge: II / III
+    const r = s * 0.15, bx = px + s * 0.8, by = py + s * 0.2;
+    ctx.fillStyle = o.mk >= 2 ? '#56ccf2' : '#f2994a';
+    ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#10131a';
+    ctx.font = `900 ${Math.floor(s * 0.15)}px system-ui`;
+    ctx.fillText(o.mk >= 2 ? 'III' : 'II', bx, by + 1);
+  }
 }
 
 function drawSorter(o, px, py, s) {
@@ -684,7 +692,7 @@ function placementHint(prop, def, x, y, tool) {
   const inside = x > 0 && y > 0 && x < def.cols - 1 && y < def.rows - 1;
   if (!inside) return null;
   if (tool === 'repair') return t.base === 'broken' || (t.base === 'floor' && (t.dirt || 0) >= DIRT.dirty) ? 'act' : null;
-  if (tool === 'upgrade') return o && o.k === 'belt' && o.tier < BELT_TIERS.length - 1 ? 'act' : null;
+  if (tool === 'upgrade') return upgradeInfo(o, def) ? 'act' : null;
   if (tool === 'rotate') return o && !isBuilding(o.k) && o.k !== 'splitter' ? 'act' : null;
   if (tool === 'remove') return o ? 'remove' : null;
   const lineTool = isPlaceable(tool);
@@ -721,10 +729,9 @@ function drawPlacementHints(prop, def, s, time) {
       ctx.strokeStyle = line;
       ctx.strokeRect(view.ox + x * s + 3, view.oy + y * s + 3, s - 6, s - 6);
       if (tool === 'upgrade') {
-        const o = prop.tiles[y][x].obj;
-        const next = BELT_TIERS[o.tier + 1];
-        const cost = beltUpgradeCost(o, def);
-        const locked = next.research && !hasResearch(next.research);
+        const up = upgradeInfo(prop.tiles[y][x].obj, def);
+        const cost = up.cost;
+        const locked = !!up.locked;
         const label = locked ? '🔒' : fmt(cost);
         ctx.setLineDash([]);
         ctx.fillStyle = 'rgba(0,0,0,0.75)';

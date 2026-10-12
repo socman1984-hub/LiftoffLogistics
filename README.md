@@ -117,6 +117,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **🚚 Logistics → Fleet**: each route lists its trucks live (loading n/cap with a departure countdown, idle time,
   arrival time, stuck unloading and why), with advice, Send now and Assign idle trucks. Buy trucks into your garage and assign them to routes; set each route's
   departure rule (ASAP / 10s / 30s / when full). Routes with no trucks pile up. New sites come with a truck; each truck you own makes the next 25% dearer.
+- **⏫ Machine upgrades**: the Upgrade tool also works on value machines (Scanner, Labeler, Wrapper, Chiller):
+  Mk II works 1.75× as fast (3× its build price), Mk III 3× as fast (8×, after 🔬 Quality Control), so they stop
+  capping a busy line. Upgraded machines show a II / III badge.
 - **Sell vs. supply**: Scanners, Labelers and Wrappers raise only the *sale* price.
 - **🚀 Launch Site**: three stages (Booster, Upper Stage, Crew Capsule): 12 🛡️, 8 🛢️, 6 🔥, 16 🧪, 4 🛰️,
   4 🌡️, 2 🫁, 4 ☀️. Later rockets need 2× the parts.

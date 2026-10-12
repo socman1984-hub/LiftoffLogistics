@@ -435,7 +435,7 @@ function advanceItem(id, prop, def, r, it, dt) {
     } else {
       // Machine: pause at the centre while processing.
       const m = MACHINES[o.k];
-      speed = MACHINE_SPEED * sm;
+      speed = MACHINE_SPEED * sm * MACHINE_LEVELS[o.mk || 0].speed; // upgrades speed up the handling too
       outDir = o.dir;
       if (it.p >= 0.5 && !it.processed) {
         it.p = 0.5;
@@ -443,7 +443,7 @@ function advanceItem(id, prop, def, r, it, dt) {
         if (skip) {
           it.processed = true; // nothing to do — pass straight through
         } else {
-          const time = m.time * (it.type === 'bulky' ? 2 : 1);
+          const time = m.time * (it.type === 'bulky' ? 2 : 1) / MACHINE_LEVELS[o.mk || 0].speed;
           it.proc += dt * speedMult(id, prop) * r.power;
           if (it.proc < time) return;
           if (m.add) it.value += it.base * m.add * it.fresh;

@@ -55,6 +55,12 @@ const MACHINES = {
     desc: () => 'Stops cold cargo spoiling, +30%',
   },
 };
+// Value machines can be upgraded with the ⏫ Upgrade tool: faster processing, so they stop capping a busy line.
+const MACHINE_LEVELS = [
+  { name: 'Mk I', speed: 1 },
+  { name: 'Mk II', speed: 1.75, costMult: 3 },
+  { name: 'Mk III', speed: 3, costMult: 8, research: 'qc' },
+];
 // Tapping broken equipment fixes it for a share of its price.
 const FIX_FRACTION = { belt: 0.5, other: 0.15 };
 const TECH_REPAIR_TIME = 5; // seconds for a tech to fix a breakdown
@@ -120,7 +126,7 @@ const TOOLS = [
   { id: 'labeler', name: 'Labeler', icon: '🏷️', tip: 'Tap to place · drag from it to aim its output' },
   { id: 'chiller', name: 'Chiller', icon: '❄️', research: 'chiller', tip: 'Only affects cold cargo · others pass straight through' },
   { id: 'wrapper', name: 'Wrapper', icon: '🎁', research: 'wrapper', tip: 'Slow but doubles value · wrapped fragile cargo is safe' },
-  { id: 'upgrade', name: 'Upgrade', icon: '⏫', tip: 'Tap conveyors to upgrade their speed' },
+  { id: 'upgrade', name: 'Upgrade', icon: '⏫', tip: 'Tap conveyors and value machines (scanner, labeler…) to make them faster' },
   { id: 'rotate', name: 'Rotate', icon: '🔄', tip: 'Tap a conveyor or machine to turn it' },
   { id: 'remove', name: 'Remove', icon: '🗑️', tip: 'Tap or drag to remove (50% refund)' },
 ];
