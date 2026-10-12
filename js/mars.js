@@ -50,8 +50,9 @@ function marsFresh() {
 
 // ---------- Windows, pad and rockets ----------
 const cargoCenter = () => state.props.hub && state.props.hub.owned && facCount('hub', 'cargocenter') > 0;
-const padTurnaround = () => Math.max(20, MARS.padTurnaround - rfx('marsTurn') - PAD_LEVELS.slice(0, M().padLevel).reduce((a, l) => a + l.cut, 0) - (cargoCenter() ? 30 : 0));
-const rocketSlots = () => MARS.slots + rfx('marsSlots') + (cargoCenter() ? 10 : 0) + (M().cargoBoost || 0);
+const padTurnaround = () => Math.max(20, MARS.padTurnaround - rfx('marsTurn') - PAD_LEVELS.slice(0, M().padLevel).reduce((a, l) => a + l.cut, 0) - (cargoCenter() ? 30 : 0) - (mega('spaceport') ? 30 : 0));
+const rocketSlots = () => MARS.slots + rfx('marsSlots') + (cargoCenter() ? 10 : 0) + (mega('orbital') ? 20 : 0) + (M().cargoBoost || 0);
+const padRockets = () => MARS.padRockets + (mega('spaceport') ? 1 : 0);
 const transitTime = () => Math.round(MARS.transit * (1 - rfx('marsTransit')));
 const padBusy = () => Math.max(0, (M().padFreeAt || 0) - state.clock);
 function marsWindowOpen() { const m = M(); return state.clock >= m.windowAt && state.clock < m.windowAt + MARS.windowOpen; }
@@ -92,7 +93,7 @@ function marsPadWants() {
   const m = M();
   const out = {};
   const cut = 1 - rfx('launchParts');
-  const k = MARS.padRockets; // stock for more than one launch, so a window can see several
+  const k = padRockets(); // stock for more than one launch, so a window can see several
   for (const [p, n] of Object.entries(VEHICLE)) out[p] = Math.max(1, Math.round(n * cut)) * k;
   if (m.manifest.module && MARS_MODULES[m.manifest.module]) {
     for (const [p, n] of Object.entries(MARS_MODULES[m.manifest.module].payload)) out[p] = (out[p] || 0) + n;
@@ -217,9 +218,9 @@ function terraConflicts() {
   if (!m.manifest.terra || !terraStage() || !terraUnlocked()) return [];
   const rem = terraRemaining(), out = [];
   for (const [p, n] of Object.entries(VEHICLE)) {
-    const need = Math.max(1, Math.round(n * cut)) * MARS.padRockets;
+    const need = Math.max(1, Math.round(n * cut)) * padRockets();
     if ((pad[p] || 0) >= need || !RECIPES[p]) continue;
-    for (const q of Object.keys(RECIPES[p].in)) if (rem[q] > 0) out.push({ part: p, have: pad[p] || 0, need, via: q });
+    for (const q of Object.keys(RECIPES[p].in)) if (rem[q] > 0 && (pad[q] || 0) > 0) out.push({ part: p, have: pad[p] || 0, need, via: q });
   }
   return out;
 }
@@ -332,7 +333,7 @@ function shipMetals(n) {
     inbox.raremetal = (inbox.raremetal || 0) + take;
     n -= take;
   }
-  if (n > 0) earn(n * PRODUCTS.raremetal.value * demandOf('raremetal'), 'mars', `${n} Rare Metals`);
+  if (n > 0) earn(n * PRODUCTS.raremetal.value * demandOf('raremetal') * (mega('exchange') ? 1.5 : 1), 'mars', `${n} Rare Metals`);
 }
 
 function marsCycle() {
@@ -439,9 +440,14 @@ function marsLaunchHTML() {
     const mm = MARS_MODULES[m.events.meteor];
     html += `<div class="mars-warn">☄️ <b>${mm.icon} ${mm.name} offline</b> after a meteor strike. Repair: ${m.events.fixed || 0}/${MARS.repairSpares} 🔧 Spares Kits (they go to the repair first, as they land)${m.events.meteor === 'pad' && m.metalsWaiting ? `; ${m.metalsWaiting} 🪨 Rare Metals are waiting to come home` : ''}.</div>`;
   }
+  if (m.manifest.module && m.manifest.terra && terraUnlocked()) {
+    const mm = MARS_MODULES[m.manifest.module], rem = terraRemaining();
+    const clash = Object.entries(mm.payload).filter(([p]) => rem[p] > 0);
+    if (clash.length) html += `<div class="mars-warn">⚠️ <b>${mm.icon} ${mm.name}</b> uses ${clash.map(([p, n]) => `${n} ${PRODUCTS[p].icon} ${n > 1 ? plural(p) : PRODUCTS[p].name}`).join(' and ')} that Terraform also needs (${clash.map(([p]) => `${rem[p]} ${PRODUCTS[p].icon}`).join(', ')} still to go). Pick another module, or No module, to send them to Terraform first.</div>`;
+  }
   for (const w of terraConflicts()) {
     const maker = PROPERTIES.find((d) => state.props[d.id].owned && state.props[d.id].tiles.some((row) => row.some((t) => t.obj && t.obj.k === 'assembler' && t.obj.recipe === w.part)));
-    html += `<div class="mars-warn">⚠️ <b>Short on ${PRODUCTS[w.part].icon} ${plural(w.part)}</b> (${w.have}/${w.need} for the next two rockets). They're built from ${PRODUCTS[w.via].icon} ${plural(w.via)}, which are also going up as terraform parts (${pad[w.via] || 0} on the pad). Send more ${plural(w.via)} to ${maker ? `the ${maker.name}` : `an assembler making ${plural(w.part)}`}, or carry fewer terraform parts.</div>`;
+    html += `<div class="mars-warn">⚠️ <b>Short on ${PRODUCTS[w.part].icon} ${plural(w.part)}</b> (${w.have}/${w.need} for the next ${padRockets()} rockets). They're built from ${PRODUCTS[w.via].icon} ${plural(w.via)}, which are also going up as terraform parts (${pad[w.via] || 0} on the pad). Send more ${plural(w.via)} to ${maker ? `the ${maker.name}` : `an assembler making ${plural(w.part)}`}, or carry fewer terraform parts.</div>`;
   }
   const slots = rocketSlots();
   const c = planCargo(slots, true);

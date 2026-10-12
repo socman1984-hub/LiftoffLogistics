@@ -158,6 +158,12 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   your stats; then keep playing or start 🔁 New Game+ (+10% value per win, up to +50%). The 🏆 Road to victory tracker
   on the Map shows progress. New: 🧲 Superconductor (Rare Metals + Wiring).
 - **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
+- **🏅 Mastery** (after the first launch, a Research tab): four repeatable upgrades bought with ⭐ + cash (no lab
+  time): Market +3% value, Assembly +4% speed, Logistics +3% speed, Colony +5% Mars output per level; each level
+  costs 25% more ⭐ and 40% more cash. **🌌 Megaprojects** (cash + 💎, one-off): 🛰️ Orbital Cargo Depot (+20 cargo
+  slots, $20M + 150 💎), 🏗️ Spaceport Expansion (pad stocks 3 rockets, resets 30 s faster, $40M + 250 💎),
+  🌐 Interplanetary Exchange (Rare Metals sell +50%, $75M + 400 💎). Mission Control also warns when the chosen
+  module (e.g. a Fusion Reactor) eats parts Terraform still needs.
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).
 - Test mode (`?dev=1`) can **🎬 jump to a stage**: new game, Shed, Mill, Foundry, Depot, Refinery, Lab, rocket ready to

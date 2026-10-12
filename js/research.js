@@ -71,8 +71,10 @@ function researchHTML() {
   // Contracts earn the ⭐ that research spends, so they're one tap away.
   const c = state.contracts;
   const tabs = `<div class="tabs"><button class="tab ${ui.resView !== 'contracts' ? 'on' : ''}" data-act="resview" data-id="tree">🔬 Research</button>
-    <button class="tab ${ui.resView === 'contracts' ? 'on' : ''}" data-act="resview" data-id="contracts">📋 Contracts${c.offers.length ? ` (${c.offers.length} new)` : c.active.length ? ` (${c.active.length})` : ''}</button></div>`;
+    <button class="tab ${ui.resView === 'contracts' ? 'on' : ''}" data-act="resview" data-id="contracts">📋 Contracts${c.offers.length ? ` (${c.offers.length} new)` : c.active.length ? ` (${c.active.length})` : ''}</button>${masteryOpen() ? `
+    <button class="tab ${ui.resView === 'mastery' ? 'on' : ''}" data-act="resview" data-id="mastery">🏅 Mastery</button>` : ''}</div>`;
   if (ui.resView === 'contracts') return tabs + contractsHTML();
+  if (ui.resView === 'mastery' && masteryOpen()) return tabs + masteryHTML();
   return tabs + researchTreeHTML();
 }
 
@@ -164,7 +166,55 @@ function treeHTML(branch) {
   return html + '</div>';
 }
 
+// ---- Mastery (⭐ sink) and Megaprojects (cash + 💎), after the first launch ----
+const masteryOpen = () => state.launch.count >= 1;
+const masteryCost = (id) => {
+  const l = masteryLevel(id);
+  return { stars: Math.round(MASTERY_COST.stars * Math.pow(MASTERY_COST.starGrowth, l)), money: Math.round(MASTERY_COST.money * Math.pow(MASTERY_COST.moneyGrowth, l) * costDiscount()) };
+};
+
+function masteryHTML() {
+  let html = `<p class="intro small">Repeatable upgrades for spare ⭐ and cash. No lab time: they apply at once, and each level costs a bit more.</p>`;
+  for (const t of MASTERY) {
+    const l = masteryLevel(t.id), c = masteryCost(t.id);
+    const ok = state.rep >= c.stars && state.money >= c.money;
+    html += card(t.icon, `${t.name} · level ${l}`, `+${Math.round(t.per * 100)}% ${t.desc} per level`,
+      l ? `Now +${Math.round(l * t.per * 100)}%` : 'Not started',
+      `<button class="btn" data-act="mastery" data-id="${t.id}" ${ok ? '' : 'disabled'}>${c.stars} ⭐ · ${fmt(c.money)}</button>`);
+  }
+  html += `<h3 class="sec">🌌 Megaprojects</h3><p class="intro small">Huge one-off builds that speed up the push to terraform Mars.</p>`;
+  for (const p of MEGAPROJECTS) {
+    const done = mega(p.id), ok = state.money >= p.money && state.gems >= p.gems;
+    html += card(p.icon, p.name, p.desc, done ? '✅ Built' : `${fmt(p.money)} and ${p.gems} 💎`,
+      done ? '<button class="btn secondary" disabled>Built</button>' : `<button class="btn" data-act="megabuild" data-id="${p.id}" ${ok ? '' : 'disabled'}>Build</button>`, done ? 'done' : '');
+  }
+  return html;
+}
+
 function handleResearchAct(act, id) {
+  if (act === 'mastery') {
+    const t = MASTERY.find((q) => q.id === id), c = masteryCost(id);
+    if (!t || state.rep < c.stars) { toast(`Needs ${c.stars} ⭐`); return true; }
+    if (!spend(c.money, 'research', t.name)) { toast(`Needs ${fmt(c.money)}`); return true; }
+    state.rep -= c.stars;
+    state.mastery = state.mastery || {};
+    state.mastery[id] = masteryLevel(id) + 1;
+    toast(`${t.icon} ${t.name} level ${state.mastery[id]}: +${Math.round(state.mastery[id] * t.per * 100)}% ${t.desc}`);
+    refreshTopbar(); save();
+    return true;
+  }
+  if (act === 'megabuild') {
+    const p = MEGAPROJECTS.find((q) => q.id === id);
+    if (!p || mega(id)) return true;
+    if (state.gems < p.gems) { toast(`Needs ${p.gems} 💎`); return true; }
+    if (!spend(p.money, 'upgrades', p.name)) { toast(`Needs ${fmt(p.money)}`); return true; }
+    state.gems -= p.gems;
+    state.mega = state.mega || {};
+    state.mega[id] = true;
+    toast(`${p.icon} ${p.name} complete: ${p.desc}`);
+    refreshTopbar(); save();
+    return true;
+  }
   if (act === 'resview') { ui.resView = id; return true; }
   if (act === 'openresearchnode') {
     const r = researchById(id);

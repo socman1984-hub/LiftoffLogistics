@@ -276,18 +276,24 @@ function curProp() { return state.current ? state.props[state.current] : null; }
 function hasResearch(id) { return !!state.research[id]; }
 
 // Sum of a research effect over everything researched (cached until research changes).
-let fxCache = null, fxFor = null, fxCount = -1;
+// Mastery levels add to the same effects.
+let fxCache = null, fxFor = null, fxCount = -1, fxMastery = -1;
+const masteryLevel = (id) => (state.mastery && state.mastery[id]) || 0;
+const masteryTotal = () => MASTERY.reduce((a, t) => a + masteryLevel(t.id), 0);
 function rfx(key) {
-  const n = Object.keys(state.research).length;
-  if (fxFor !== state.research || fxCount !== n) {
+  const n = Object.keys(state.research).length, ms = masteryTotal();
+  if (fxFor !== state.research || fxCount !== n || fxMastery !== ms) {
     fxCache = {};
     for (const r of RESEARCH) if (state.research[r.id]) for (const [k, v] of Object.entries(r.fx)) fxCache[k] = (fxCache[k] || 0) + v;
+    for (const t of MASTERY) if (masteryLevel(t.id)) fxCache[t.fx] = (fxCache[t.fx] || 0) + masteryLevel(t.id) * t.per;
     fxFor = state.research;
     fxCount = n;
+    fxMastery = ms;
   }
   return fxCache[key] || 0;
 }
 const researchMet = (r) => r.req.every(hasResearch);
+const mega = (id) => !!(state.mega && state.mega[id]);
 
 function costDiscount() { return 1 - rfx('discount'); }
 

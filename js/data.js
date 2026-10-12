@@ -528,6 +528,20 @@ const MARS_EVENTS = {
   sick: { icon: '🦠', name: 'Sickness', chance: 0.08, desc: 'Output down 30% until 2 💊 Medical Kits are in stock to treat it.' },
 };
 // 🌍 Project Terraform: the win. Three stages delivered to Mars in rocket cargo (1 slot per part).
+// ⭐ sink for the late game: repeatable upgrades, bought outright (no lab time), after the first launch.
+const MASTERY = [
+  { id: 'value', icon: '💰', name: 'Market Mastery', fx: 'value', per: 0.03, desc: 'packages worth more' },
+  { id: 'assembly', icon: '⚙️', name: 'Assembly Mastery', fx: 'assembly', per: 0.04, desc: 'assemblers faster' },
+  { id: 'speed', icon: '💨', name: 'Logistics Mastery', fx: 'speed', per: 0.03, desc: 'belts and machines faster' },
+  { id: 'mars', icon: '🔴', name: 'Colony Mastery', fx: 'marsOutput', per: 0.05, desc: 'more ⭐ and Rare Metals from Mars' },
+];
+const MASTERY_COST = { stars: 40, starGrowth: 1.25, money: 500000, moneyGrowth: 1.4 };
+// Cash + 💎 sink: one-time megaprojects for the Mars push.
+const MEGAPROJECTS = [
+  { id: 'orbital', icon: '🛰️', name: 'Orbital Cargo Depot', money: 20e6, gems: 150, desc: '+20 cargo slots on every Mars rocket' },
+  { id: 'spaceport', icon: '🏗️', name: 'Spaceport Expansion', money: 40e6, gems: 250, desc: 'The Launch Site stocks parts for 3 rockets (not 2) and the pad resets 30 s faster' },
+  { id: 'exchange', icon: '🌐', name: 'Interplanetary Exchange', money: 75e6, gems: 400, desc: 'Rare Metals sell for 50% more' },
+];
 const TERRAFORM = [
   { id: 'atmo', icon: '🏭', name: 'Atmosphere Processors', pop: 20, research: 'fusion', needs: { fusioncore: 4, turbopump: 12, solar: 18 }, effect: 'Water/O₂ needs halved' },
   { id: 'shield', icon: '🧲', name: 'Magnetic Shield', pop: 40, needs: { fusioncore: 8, superconductor: 24, avionics: 6 }, effect: 'No more dust storms or meteor strikes' },
