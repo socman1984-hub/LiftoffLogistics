@@ -378,7 +378,8 @@ function handlingRate(id) {
 function valueMult(id, prop) {
   return 1 + 0.25 * prop.upgrades.roof
     + 0.1 * staffCount(id, prop, 'sales')
-    + rfx('value');
+    + rfx('value')
+    + LEGACY_BONUS * Math.min(5, state.legacy || 0); // New Game+
 }
 
 function speedMult(id, prop) {
@@ -525,6 +526,7 @@ const ledger = { buckets: new Map(), session: {}, recent: [] };
 
 function book(cat, amt, note, site) {
   if (!amt || !state) return;
+  if (amt > 0 && cat !== 'dev' && cat !== 'refunds') state.lifetime = (state.lifetime || 0) + amt; // for the victory screen
   const sec = Math.floor(state.clock);
   let b = ledger.buckets.get(sec);
   if (!b) {

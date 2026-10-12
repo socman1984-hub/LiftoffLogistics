@@ -634,3 +634,17 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .cargo-cap .bar div { background: var(--accent); }
 .cargo-cap.over .bar div { background: #eb5757; }
 .cargo-cap .cc-note { font-size: 12px; opacity: 0.85; margin-top: 3px; }
+
+/* ---- Victory ---- */
+.terra-box { border: 2px solid rgba(86,204,242,0.35); }
+.terra-box.open { border-color: #6fcf97; }
+.terra-part { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 12px; margin-top: 6px; }
+.terra-part .bar { grid-column: 1 / -1; height: 5px; }
+.terra-part .bar div { background: #56ccf2; }
+.victory-track { background: var(--panel-2); border-radius: 12px; padding: 8px 12px; margin-bottom: 8px; }
+.vt-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.vt-steps { display: flex; align-items: center; margin-top: 6px; }
+.vt-steps i { flex: 1; height: 2px; background: rgba(255,255,255,0.15); }
+.vt-step { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,0.06); font-size: 14px; opacity: 0.45; }
+.vt-step.done { opacity: 1; background: rgba(111,207,151,0.25); }
+.vt-step.next { opacity: 1; box-shadow: 0 0 0 2px var(--accent); }

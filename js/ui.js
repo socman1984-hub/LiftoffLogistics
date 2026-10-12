@@ -301,11 +301,11 @@ function renderPanel() {
   if (openPanelName === 'map') updateMapDynamic();
 }
 
-function showMessage(titleText, html) {
+function showMessage(titleText, html, opts = {}) {
   openPanelName = 'message';
   $('modalTitle').textContent = titleText;
   delete $('modalBody').dataset.html;
-  $('modalBody').innerHTML = html + '<button class="btn" style="width:100%;margin-top:8px" data-act="close">Nice!</button>';
+  $('modalBody').innerHTML = html + (opts.noClose ? '' : '<button class="btn" style="width:100%;margin-top:8px" data-act="close">Nice!</button>');
   $('modal').classList.remove('hidden');
 }
 
@@ -701,7 +701,7 @@ function helpHTML() {
   const sec = (icon, title, items, open) => `<details class="help-sec" ${open ? 'open' : ''}><summary>${icon} ${title}</summary><ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul></details>`;
   const recipes = RECIPE_IDS.map((p) => `${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b> = ${recipeText(p)}${LAUNCH.needs[p] ? ' 🚀' : ''}${RECIPES[p].research ? ` <span class="muted">(🔬 ${RESEARCH_BY_ID[RECIPES[p].research].name})</span>` : ''}`);
   return `<div class="help">
-    <p><b>Goal:</b> grow from a rusty shed into a supply chain that builds a rocket 🚀, then supply a colony on Mars 🔴.</p>
+    <p><b>Goal:</b> grow from a rusty shed into a supply chain that builds a rocket 🚀, found a colony on Mars 🔴, and finish <b>🌍 Project Terraform</b> to win. The 🏆 Road to victory on the Map shows where you are.</p>
     <h3>Quick start</h3>
     <ol class="help-steps">
       <li>Suppliers drop raw materials at the green <b>🚚 IN doors</b>. Drag <b>➡️ Conveyors</b> from a door to a blue <b>📦 SHIP door</b> to sell.</li>
@@ -770,6 +770,12 @@ function helpHTML() {
       'Events: 🌪️ dust storms (🔋 Power Cells), ☄️ meteor strikes (repaired with Spares), 🦠 sickness (💊 Medical Kits).',
       'Colonists make ⭐, 💎 and 🪨 <b>Rare Metals</b>: sell them, or deliver them to a site for ⚛️ Fusion Cores.',
       'The 🔴 <b>Colony</b> research branch, 🚧 pad upgrades and the 📦 Spaceport Cargo Center (at the Mega Hub) grow the colony faster.',
+    ])}
+    ${sec('🌍', 'Winning: Project Terraform', [
+      'Three stages, each unlocked by colony size and delivered in rocket cargo (set aside 🌍 Terraform slots in the cargo plan):',
+      ...TERRAFORM.map((st) => `${st.icon} <b>${st.name}</b>: ${st.pop} colonists${st.research ? ` + ${RESEARCH_BY_ID[st.research].name}` : ''} · needs ${Object.entries(st.needs).map(([p, n]) => `${n} ${PRODUCTS[p].icon}`).join(' ')} · ${st.effect}.`),
+      '🧲 Superconductors are 1 🪨 Rare Metal + 2 🧵 Wiring (after Rare Metal Refining); ⚛️ Fusion Cores need Fusion Power.',
+      'Finish all three to win. Then keep playing, or start <b>🔁 New Game+</b>: +10% package value per win (up to +50%), double starting cash, Sorting Systems researched, gems kept.',
     ])}
     ${sec('💎', 'Gems', [
       'Gems save time and never unlock anything you cannot earn: boosts, finishing research, refreshing contracts, emergency Mars drops, cargo boosts.',
@@ -937,6 +943,7 @@ function onPanelClick(e) {
   const res = handleResearchAct(act, id);
   if (res === 'stop') { refreshTopbar(); return; }
   if (res) { renderPanel(); refreshTopbar(); return; }
+  if (act === 'keepplaying' || act === 'newgameplus' || act === 'showvictory') { handleMarsAct(act, id); return; }
   const sup = handleSupplierAct(act, id);
   if (sup === 'stop') { refreshTopbar(); return; }
   if (sup) { renderPanel(); refreshTopbar(); return; }

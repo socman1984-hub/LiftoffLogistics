@@ -57,15 +57,33 @@ function routeStats(key) {
 const countList = (obj) => Object.entries(obj || {}).filter(([, n]) => n > 0)
   .map(([p, n]) => `${PRODUCTS[p].icon} ${n}`).join(' · ');
 
+// 🏆 The road to victory, shown on the map.
+function victoryTrackerHTML() {
+  const pop = state.mars ? state.mars.colonists : 0;
+  const stage = state.mars && state.mars.terra ? state.mars.terra.stage : 0;
+  const steps = [
+    ['🚀', 'First rocket', state.launch.count >= 1],
+    ['🏠', 'Colony founded', pop > 0 || stage > 0],
+    ['👩‍🚀', '25 colonists', pop >= 25 || stage >= 1],
+    ...TERRAFORM.map((st, i) => [st.icon, st.name, stage > i]),
+  ];
+  const next = steps.findIndex(([, , ok]) => !ok);
+  return `<div class="victory-track"><div class="vt-head"><span>🏆 Road to victory${state.legacy ? ` · 🔁 Game ${state.legacy + 1}` : ''}</span>
+    ${state.won ? '<button class="link-btn" data-act="showvictory">You won! See stats</button>' : `<span class="muted small">${next < 0 ? '' : `Next: ${steps[next][1]}`}</span>`}</div>
+    <div class="vt-steps">${steps.map(([ic, name, ok], i) => `<span class="vt-step ${ok ? 'done' : i === next ? 'next' : ''}" title="${name}">${ic}</span>`).join('<i></i>')}</div></div>`;
+}
+
 // ---------------- Map panel ----------------
 function mapHTML() {
   if (!ui.mapSel) ui.mapSel = state.current || 'shed';
   let html = '';
   if (!state.current) {
     html += `<h2 class="game-title">🚀 Liftoff Logistics</h2>`;
-    html += `<p class="intro">You've got <b>${fmt(state.money)}</b> and a dream: <b>build a rocket 🚀</b>.
-      Start with a cheap warehouse, turn raw materials into parts, and grow a supply chain across the region.</p>`;
+    html += `<p class="intro">You've got <b>${fmt(state.money)}</b> and a dream: <b>build a rocket 🚀</b>, found a colony on Mars, and bring it to life 🌍.
+      Start with a cheap warehouse, turn raw materials into parts, and grow a supply chain across the region.</p>
+      ${state.legacy ? `<p class="intro small">🔁 New Game+ (game ${state.legacy + 1}): every package is worth +${Math.round(state.legacy * LEGACY_BONUS * 100)}%.</p>` : ''}`;
   }
+  if (state.current) html += victoryTrackerHTML();
   if (state.current) {
     const idle = idleTrucks();
     html += `<button class="btn log-btn" data-act="openlog" data-id="${ui.mapSel === 'launch' ? state.current : ui.mapSel}">🚚 Logistics: distribution &amp; trucks${idle > 0 ? ` · ${idle} idle truck${idle > 1 ? 's' : ''}` : ''}</button>`;
@@ -587,7 +605,8 @@ function doLaunch(opts = {}) {
 
 function launchMessage(n, stars) {
   const mins = Math.round(state.clock / 60);
-  showMessage(n === 1 ? '🚀 LIFTOFF! You win!' : `🚀 Rocket #${n} launched!`, `
+  if (n === 1 && !state.firstLaunchAt) state.firstLaunchAt = state.clock;
+  showMessage(n === 1 ? '🚀 LIFTOFF! Next stop: Mars' : `🚀 Rocket #${n} launched!`, `
     <div class="victory">🚀</div>
     <p class="intro">${n === 1
     ? `From a rusty shed to a rocket in <b>${Math.floor(mins / 60)}h ${mins % 60}m</b> of play. Your supply chain did it!`

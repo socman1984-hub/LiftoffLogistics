@@ -338,6 +338,7 @@ const PRODUCTS = {
   // From Mars
   raremetal: { name: 'Rare Metals', icon: '🪨', cls: 'bulky', value: 4000, raw: true, mars: true },
   fusioncore: { name: 'Fusion Core', icon: '⚛️', cls: 'fragile', value: 15000 },
+  superconductor: { name: 'Superconductor', icon: '🧲', cls: 'fragile', value: 6000 },
 };
 const PRODUCT_IDS = Object.keys(PRODUCTS);
 
@@ -365,6 +366,7 @@ const RECIPES = {
   medkit: { in: { sensor: 1, provisions: 2 }, time: 3 },
   powercell: { in: { solar: 2, circuit: 1 }, time: 4 },
   fusioncore: { in: { raremetal: 2, computer: 1, alloy: 2 }, time: 8, research: 'fusion' },
+  superconductor: { in: { raremetal: 1, wiring: 2 }, time: 5, research: 'refining' },
 };
 const RECIPE_IDS = Object.keys(RECIPES);
 const ASSEMBLER = { name: 'Assembler', cost: 400, life: 500, bufferRecipes: 2 };
@@ -523,6 +525,13 @@ const MARS_EVENTS = {
   meteor: { icon: '☄️', name: 'Meteor strike', chance: 0.08, desc: 'A module is knocked offline until the colony has 4 spare 🔧 Spares Kits to repair it.' },
   sick: { icon: '🦠', name: 'Sickness', chance: 0.08, desc: 'Output down 30% until 2 💊 Medical Kits are in stock to treat it.' },
 };
+// 🌍 Project Terraform: the win. Three stages delivered to Mars in rocket cargo (1 slot per part).
+const TERRAFORM = [
+  { id: 'atmo', icon: '🏭', name: 'Atmosphere Processors', pop: 25, research: 'fusion', needs: { fusioncore: 6, turbopump: 20, solar: 30 }, effect: 'Water/O₂ needs halved' },
+  { id: 'shield', icon: '🧲', name: 'Magnetic Shield', pop: 50, needs: { fusioncore: 12, superconductor: 40, avionics: 10 }, effect: 'No more dust storms or meteor strikes' },
+  { id: 'ocean', icon: '🌊', name: 'Ocean Seeding', pop: 100, research: 'terraform', needs: { fusioncore: 20, canister: 150, superconductor: 40, lifesupport: 20 }, effect: 'Mars is alive: you win' },
+];
+const LEGACY_BONUS = 0.1; // New Game+: +10% package value per completed game (up to 5)
 const PAD_LEVELS = [{ cost: 1000000, cut: 20 }, { cost: 3000000, cut: 20 }, { cost: 8000000, cut: 20 }]; // launch pad upgrades: seconds off the turnaround
 const MARS_MODULES = {
   habitat: { name: 'Habitat Dome', icon: '🏠', payload: { fuselage: 4, lifesupport: 2, heatshield: 2 }, desc: 'Room for 4 colonists' },

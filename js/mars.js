@@ -14,8 +14,29 @@ const M = () => {
   if (!m.damaged) m.damaged = {};
   if (m.metalsTo == null) m.metalsTo = 'sell';
   if (m.padLevel == null) m.padLevel = 0;
+  if (!m.terra) m.terra = { stage: 0, delivered: {} };
+  if (typeof m.manifest.terra !== 'number') m.manifest.terra = m.manifest.terra ? 10 : 0; // slots for Terraform parts
   return m;
 };
+
+// ---------- Project Terraform ----------
+const terraStage = () => TERRAFORM[M().terra.stage] || null;
+function terraUnlocked() {
+  const st = terraStage();
+  return !!st && M().colonists >= st.pop && (!st.research || hasResearch(st.research));
+}
+// Parts still needed for the current stage, after what's delivered and in flight.
+function terraRemaining() {
+  const st = terraStage(), m = M();
+  if (!st) return {};
+  const out = {};
+  for (const [p, n] of Object.entries(st.needs)) {
+    const flying = m.flights.reduce((a, f) => a + ((f.terra || {})[p] || 0), 0);
+    out[p] = Math.max(0, n - (m.terra.delivered[p] || 0) - flying);
+  }
+  return out;
+}
+const terraParts = () => [...new Set(TERRAFORM.flatMap((st) => Object.keys(st.needs)))];
 
 function marsFresh() {
   return {
@@ -61,7 +82,7 @@ function marsPower() {
 function marsNeeds() {
   const m = M(), pw = marsPower().frac;
   const food = m.colonists * MARS.foodPerColonist * (1 - rfx('marsFood')) * Math.max(0, 1 - 0.25 * Math.min(3, effMod('greenhouse')) * pw);
-  const water = m.colonists * MARS.waterPerColonist * (1 - rfx('marsWater')) * Math.max(0, 1 - 0.25 * Math.min(3, effMod('icemine')) * pw);
+  const water = m.colonists * MARS.waterPerColonist * (1 - rfx('marsWater')) * (m.terra && m.terra.stage >= 1 ? 0.5 : 1) * Math.max(0, 1 - 0.25 * Math.min(3, effMod('icemine')) * pw);
   const spares = MARS.sparesPerModule * totalModules() * (1 - rfx('marsSpares'));
   return { food: Math.ceil(food), water: Math.ceil(water), spares: Math.ceil(spares), med: m.events.sick ? 2 : 0, power: 0 };
 }
@@ -76,9 +97,12 @@ function marsPadWants() {
     for (const [p, n] of Object.entries(MARS_MODULES[m.manifest.module].payload)) out[p] = (out[p] || 0) + n;
   }
   for (const [kind, prod] of Object.entries(SUPPLY_PRODUCT)) if (m.manifest[kind]) out[prod] = (out[prod] || 0) + m.manifest[kind];
+  if (m.manifest.terra && terraUnlocked()) {
+    for (const [p, n] of Object.entries(terraRemaining())) if (n > 0) out[p] = (out[p] || 0) + Math.min(n, m.manifest.terra);
+  }
   return out;
 }
-const marsAccepts = (p) => !!VEHICLE[p] || Object.values(MARS_MODULES).some((mm) => mm.payload[p]) || Object.values(SUPPLY_PRODUCT).includes(p);
+const marsAccepts = (p) => !!VEHICLE[p] || Object.values(MARS_MODULES).some((mm) => mm.payload[p]) || Object.values(SUPPLY_PRODUCT).includes(p) || terraParts().includes(p);
 
 const vehicleReady = () => {
   const cut = 1 - rfx('launchParts');
@@ -107,7 +131,8 @@ function plannedSlots() {
   const mod = m.manifest.module && moduleAllowed(m.manifest.module) ? MARS.slotModule : 0;
   const col = Math.min(m.manifest.colonists || 0, colonistRoom()) * MARS.slotColonist;
   const sup = SUPPLY_KINDS.reduce((a, k) => a + (m.manifest[k] || 0), 0);
-  return { mod, col, sup, total: mod + col + sup };
+  const terra = terraStage() ? m.manifest.terra || 0 : 0;
+  return { mod, col, sup, terra, total: mod + col + sup + terra };
 }
 
 // What the next rocket would carry right now, from the pad's stock.
@@ -135,6 +160,22 @@ function planCargo(slots, allowModule) {
       if (left > 0 && c[kind] < (m.manifest[kind] || 0) && c[kind] < (pad[SUPPLY_PRODUCT[kind]] || 0)) { c[kind]++; left--; moved = true; }
     }
   }
+  // Project Terraform parts: up to the slots set aside for them, round-robin.
+  if (allowModule && m.manifest.terra && terraUnlocked()) {
+    let budget = Math.min(left, m.manifest.terra);
+    const cap0 = left;
+    const rem = terraRemaining(), padLeft = {};
+    c.terra = {};
+    for (const p of Object.keys(rem)) padLeft[p] = Math.max(0, (pad[p] || 0) - (c.module ? MARS_MODULES[c.module].payload[p] || 0 : 0) - (Object.entries(SUPPLY_PRODUCT).find(([, q]) => q === p) ? c[Object.entries(SUPPLY_PRODUCT).find(([, q]) => q === p)[0]] : 0));
+    let more = true;
+    while (budget > 0 && more) {
+      more = false;
+      for (const p of Object.keys(rem)) {
+        if (budget > 0 && (c.terra[p] || 0) < rem[p] && (c.terra[p] || 0) < padLeft[p]) { c.terra[p] = (c.terra[p] || 0) + 1; budget--; left--; more = true; }
+      }
+    }
+    void cap0;
+  }
   c.used = slots - left;
   return c;
 }
@@ -160,6 +201,7 @@ function takeFromPad(c) {
   const pad = state.launch.parts;
   if (c.module) for (const [p, n] of Object.entries(MARS_MODULES[c.module].payload)) pad[p] -= n;
   for (const kind of SUPPLY_KINDS) if (c[kind]) pad[SUPPLY_PRODUCT[kind]] -= c[kind];
+  for (const [p, n] of Object.entries(c.terra || {})) pad[p] -= n;
   for (const p of Object.keys(pad)) if (pad[p] <= 0) delete pad[p];
 }
 
@@ -196,7 +238,8 @@ function marsLaunch(opts = {}) {
 
 const SUPPLY_ICON = { food: '🍞', water: '💧', spares: '🔧', med: '💊', power: '🔋' };
 const cargoText = (c) => [c.module && `${MARS_MODULES[c.module].icon} ${MARS_MODULES[c.module].name}`, c.colonists && `👩‍🚀 ${c.colonists}`,
-  ...SUPPLY_KINDS.map((k) => c[k] && `${SUPPLY_ICON[k]} ${c[k]}`)].filter(Boolean).join(' · ');
+  ...SUPPLY_KINDS.map((k) => c[k] && `${SUPPLY_ICON[k]} ${c[k]}`),
+  c.terra && Object.values(c.terra).some((n) => n) && `🌍 ${Object.entries(c.terra).filter(([, n]) => n).map(([p, n]) => `${PRODUCTS[p].icon}${n}`).join(' ')}`].filter(Boolean).join(' · ');
 
 // ---------- Simulation (once a second) ----------
 function stepMars() {
@@ -229,6 +272,18 @@ function marsArrive(f) {
     if (n) bits.push(`👩‍🚀 ${n} colonist${n > 1 ? 's' : ''} landed`);
   }
   for (const kind of SUPPLY_KINDS) if (f[kind]) m.stock[kind] += f[kind];
+  if (f.terra && terraStage()) {
+    for (const [p, n] of Object.entries(f.terra)) m.terra.delivered[p] = (m.terra.delivered[p] || 0) + n;
+    bits.push(`🌍 Terraform parts: ${Object.entries(f.terra).filter(([, n]) => n).map(([p, n]) => `${PRODUCTS[p].icon} ${n}`).join(' ')}`);
+    const st = terraStage();
+    if (Object.entries(st.needs).every(([p, n]) => (m.terra.delivered[p] || 0) >= n)) {
+      m.terra.stage++;
+      m.terra.delivered = {};
+      if (m.terra.stage >= TERRAFORM.length) { setTimeout(winGame, 600); }
+      else toast(`🌍 ${st.icon} ${st.name} complete! ${st.effect}. Next: ${TERRAFORM[m.terra.stage].icon} ${TERRAFORM[m.terra.stage].name}`);
+      if (st.id === 'shield') { m.events.dust = 0; if (m.events.meteor) { m.damaged[m.events.meteor] = Math.max(0, (m.damaged[m.events.meteor] || 0) - 1); m.events.meteor = null; } }
+    }
+  }
   const sup = {};
   for (const k of SUPPLY_KINDS) sup[k] = f[k];
   if (SUPPLY_KINDS.some((k) => f[k])) bits.push(`supplies: ${cargoText(sup)}`);
@@ -296,11 +351,12 @@ function marsCycle() {
   if (m.rations >= MARS.rationsBeforeLeaving && m.colonists > MARS.minColonists) { m.colonists--; left = 1; }
   m.last = { need, short, stars, metals, gems, left };
   // Something happens now and then.
-  if (!ev.dust && effMod('solar') && Math.random() < MARS_EVENTS.dust.chance) {
+  const shielded = m.terra.stage >= 2;
+  if (!shielded && !ev.dust && effMod('solar') && Math.random() < MARS_EVENTS.dust.chance) {
     ev.dust = MARS_EVENTS.dust.windows;
     toast('🌪️ A dust storm is rolling over the colony: solar power halved for 2 windows (🔋 Power Cells help)');
   }
-  if (!ev.meteor && totalModules() >= 3 && Math.random() < MARS_EVENTS.meteor.chance) {
+  if (!shielded && !ev.meteor && totalModules() >= 3 && Math.random() < MARS_EVENTS.meteor.chance) {
     const hit = Object.keys(m.modules).filter((k) => k !== 'habitat' && effMod(k) > 0);
     if (hit.length) {
       ev.meteor = hit[Math.floor(Math.random() * hit.length)];
@@ -358,7 +414,7 @@ function marsLaunchHTML() {
   html += `<h3 class="sec">Cargo</h3><div class="cargo-cap ${over ? 'over' : ''}">
     <div class="cc-top"><span>📦 Cargo plan</span><b class="num">${plan.total} / ${slots} slots</b></div>
     <div class="bar"><div style="width:${Math.min(100, (plan.total / slots) * 100)}%"></div></div>
-    <div class="cc-note">${plan.mod ? `🏠 module ${plan.mod}` : 'no module'} · 👩‍🚀 colonists ${plan.col} · 📦 supplies ${plan.sup}${over ? ` · <b class="neg">${plan.total - slots} over: lower something, or it won't fit</b>` : ` · ${slots - plan.total} free`}</div>
+    <div class="cc-note">${plan.mod ? `🏠 module ${plan.mod}` : 'no module'} · 👩‍🚀 colonists ${plan.col} · 📦 supplies ${plan.sup}${plan.terra ? ` · 🌍 terraform ${plan.terra}` : ''}${over ? ` · <b class="neg">${plan.total - slots} over: lower something, or it won't fit</b>` : ` · ${slots - plan.total} free`}</div>
     <div class="cc-note">Ready on the pad now: <b>${c.used}/${slots}</b>. Each rocket holds ${slots} slots (module ${MARS.slotModule}, colonist ${MARS.slotColonist}, crate 1)${m.cargoBoost ? `, including 📦 +${m.cargoBoost} boost` : ''}. Heavy-Lift research, the Cargo Center and Cargo Boost add more.</div></div>`;
   html += '<div class="choice mars-mods">' + `<button class="chip ${!m.manifest.module ? 'on' : ''}" data-act="marsmod" data-id="">No module</button>`
     + Object.entries(MARS_MODULES).map(([k, mm]) => {
@@ -386,6 +442,12 @@ function marsLaunchHTML() {
   html += step('spares', '🔧 Spares Kits', `${pad.spares || 0} on pad`);
   html += step('med', '💊 Medical Kits <span class="muted small">(sickness)</span>', `${pad.medkit || 0} on pad`);
   html += step('power', '🔋 Power Cells <span class="muted small">(dust storms)</span>', `${pad.powercell || 0} on pad`);
+  if (terraStage()) {
+    const st = terraStage();
+    const onPad = Object.keys(st.needs).reduce((a, p) => a + Math.min(pad[p] || 0, terraRemaining()[p] || 0), 0);
+    html += step('terra', `🌍 Terraform parts <span class="muted small">(${st.icon} ${st.name})</span>`, terraUnlocked() ? `${onPad} on pad` : '🔒 locked');
+    if (!terraUnlocked()) html += `<p class="intro small">🌍 ${st.name} unlocks at ${st.pop} colonists${st.research ? ` and ${RESEARCH_BY_ID[st.research].name} research` : ''}.</p>`;
+  }
   html += `<p class="intro small">This launch would carry: <b>${cargoText(c) || 'nothing yet'}</b>.</p>`;
   const busy = padBusy();
   html += `<button class="btn launch" data-act="marslaunch" ${open && vehicleReady() && !busy ? '' : 'disabled'}>${!vehicleReady() ? '🚀 Rocket needs parts' : !open ? `🪐 Window opens in ${fmtSecs(marsWindowIn())}` : busy ? `🚧 Pad resetting · ${fmtSecs(busy)}` : '🚀 Launch to Mars'}</button>`;
@@ -415,6 +477,7 @@ function marsBaseHTML() {
   let html = `<div class="mars-scene"><div class="mars-sky"><span class="mars-earth">🌍</span></div>
     <div class="mars-plots">${plots}</div>
     <div class="mars-pop">👩‍🚀 <b>${m.colonists}</b> / ${marsCap()} colonists${badges ? ` · ${badges}` : ''}</div></div>`;
+  html += terraHTML();
   // Active events and what fixes them
   for (const [k, on] of [['dust', ev.dust], ['meteor', ev.meteor], ['sick', ev.sick]]) {
     if (!on) continue;
@@ -456,8 +519,72 @@ function marsBaseHTML() {
   return html;
 }
 
+function terraHTML() {
+  const m = M(), st = terraStage();
+  if (!st) return `<div class="power-box unlock-box"><div class="power-head"><span>🌍 Project Terraform</span><b>✅ Complete</b></div><div class="power-note">Mars is alive. You won! Keep growing, or start 🔁 New Game+ from the Map.</div></div>`;
+  const reqs = [`👩‍🚀 ${Math.min(m.colonists, st.pop)}/${st.pop} colonists`, st.research ? `🔬 ${RESEARCH_BY_ID[st.research].name}${hasResearch(st.research) ? ' ✓' : ''}` : ''].filter(Boolean).join(' · ');
+  const bars = Object.entries(st.needs).map(([p, n]) => {
+    const have = Math.min(n, m.terra.delivered[p] || 0);
+    return `<div class="terra-part"><span>${PRODUCTS[p].icon} ${PRODUCTS[p].name}</span><span class="num">${have}/${n}</span><div class="bar"><div style="width:${(have / n) * 100}%"></div></div></div>`;
+  }).join('');
+  return `<div class="power-box terra-box ${terraUnlocked() ? 'open' : ''}"><div class="power-head"><span>🌍 Project Terraform · stage ${m.terra.stage + 1}/3</span><b>${st.icon} ${st.name}</b></div>
+    <div class="power-note">${terraUnlocked() ? 'Unlocked: set aside 🌍 Terraform slots in the cargo plan (Next launch tab) and truck these parts to the Launch Site.' : `Unlocks at ${reqs}.`}<br>When done: <b>${st.effect}</b>.</div>${bars}</div>`;
+}
+
+// ---------- Winning ----------
+function winGame() {
+  if (state.won) return;
+  const m = M();
+  state.won = { at: state.clock, rockets: state.launch.count, colonists: m.colonists, earned: state.lifetime || 0, research: Object.keys(state.research).length, firstLaunch: state.firstLaunchAt || null };
+  state.gems += 100;
+  save();
+  closePanel();
+  playEndingAnimation(() => showVictory());
+}
+
+function showVictory() {
+  const w = state.won;
+  const hm = (s) => `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+  const legacy = state.legacy || 0;
+  showMessage('🌍 Mars is alive. You win!', `<div class="victory">🏆</div>
+    <p class="intro">From a rusty shed to a living world in <b>${hm(w.at)}</b> of play.</p>
+    <div class="stats risk">
+      <div class="stat-row"><span>🚀 Rockets launched</span><b>${w.rockets}</b></div>
+      ${w.firstLaunch ? `<div class="stat-row"><span>First liftoff</span><b>${hm(w.firstLaunch)}</b></div>` : ''}
+      <div class="stat-row"><span>👩‍🚀 Colonists on Mars</span><b>${w.colonists}</b></div>
+      <div class="stat-row"><span>💰 Money earned</span><b>${fmt(w.earned)}</b></div>
+      <div class="stat-row"><span>🔬 Research completed</span><b>${w.research}/${RESEARCH.length}</b></div>
+      ${legacy ? `<div class="stat-row"><span>🔁 Legacy</span><b>Game ${legacy + 1}</b></div>` : ''}
+    </div>
+    <p class="intro small">+100 💎. Keep playing this world, or start <b>New Game+</b>: a fresh start with a permanent +${Math.round(LEGACY_BONUS * 100)}% package value per win (up to +${Math.round(LEGACY_BONUS * 500)}%), double starting cash, Sorting Systems researched, and your gems kept.</p>
+    <button class="btn" style="width:100%;margin-bottom:8px" data-act="keepplaying">Keep playing</button>
+    <button class="btn secondary" style="width:100%" data-act="newgameplus">🔁 Start New Game+</button>`, { noClose: true });
+}
+
+function newGamePlus() {
+  const legacy = Math.min(5, (state.legacy || 0) + 1);
+  const gems = state.gems;
+  for (const k of Object.keys(runtime)) delete runtime[k];
+  shipLog.length = 0;
+  ledger.buckets.clear(); ledger.recent = []; ledger.session = {};
+  state = newState();
+  state.legacy = legacy;
+  state.gems = gems;
+  state.money = START_MONEY * 2;
+  state.research = { sorter: true };
+  state.tutorial = { active: false, step: 0, done: true };
+  save();
+  closePanel();
+  refreshTopbar();
+  openPanel('map');
+  toast(`🔁 New Game+ (game ${legacy + 1}): packages worth +${Math.round(legacy * LEGACY_BONUS * 100)}%`);
+}
+
 function handleMarsAct(act, id) {
   const m = M();
+  if (act === 'keepplaying') { closePanel(); return 'stop'; }
+  if (act === 'newgameplus') { if (confirm('Start New Game+? This world is replaced by a fresh one with your legacy bonus.')) newGamePlus(); return 'stop'; }
+  if (act === 'showvictory') { showVictory(); return 'stop'; }
   if (act === 'marstab') { ui.marsTab = id; return true; }
   if (act === 'marsmod') { m.manifest.module = id || null; save(); return true; }
   if (act === 'marsqty') {
