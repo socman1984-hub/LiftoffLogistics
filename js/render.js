@@ -974,11 +974,15 @@ function render(tool) {
         case 'out': {
           drawDock(t, px, py, s, time, dockDefs[x + ',' + y], waiting);
           const dd = dockDefs[x + ',' + y];
-          if (t.base === 'in' && dd && !dd.receive && !t.locked && activeDeal(supplyOf(prop, dd))) {
-            ctx.font = `${Math.floor(s * 0.22)}px system-ui`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('🤝', px + s * 0.82, py + s * 0.82);
+          if (t.base === 'in' && dd && !dd.receive && !t.locked) {
+            const sp = supplyOf(prop, dd);
+            const mark = sp.paused ? '⏸' : activeDeal(sp) ? '🤝' : '';
+            if (mark) {
+              ctx.font = `${Math.floor(s * 0.22)}px system-ui`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(mark, px + s * 0.82, py + s * 0.82);
+            }
           }
           break;
         }

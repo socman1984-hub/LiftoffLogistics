@@ -68,6 +68,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **🚚 Suppliers**: tap a raw-material door to pick its supplier (Budget: cheap and slow · Standard · Express: fast
   and pricey) and **🤝 negotiate** a contract: make offers, read their mood, and don't run out their patience. Longer
   contracts get lower prices. A 🧾 **Purchasing Agent** renews deals automatically, but settles for less.
+  You can also **⏸ pause** a door's deliveries when a line has more raw material than it can use.
 - **🏭 Assemblers** turn ingredients into products (pick a recipe; wrong items back up, so sort first).
   Each has a mode: ▶ Run, ⏸ Pause, or 🚀 *Until the rocket has enough* (stops while the launch pad has enough
   of its part, letting shared ingredients flow on to the next assembler):

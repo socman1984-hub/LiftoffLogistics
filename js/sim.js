@@ -590,6 +590,7 @@ function stepProperty(id, dt) {
     const key = d.x + ',' + d.y;
     r.timers[key] = (r.timers[key] || 0) + dt;
     if (r.timers[key] < interval) continue;
+    if (!d.receive && supplyOf(prop, d).paused) { r.timers[key] = interval; continue; } // deliveries paused by the player
     const product = d.receive ? (movesReady(id) ? nextInboxProduct(prop, r) : null) : pickCargo(d.cargo);
     const cost = d.receive ? 0 : dockCost(id, d, product);
     if (!product || r.occ[d.y][d.x] || state.money < cost) {

@@ -153,6 +153,10 @@ function supplierHTML() {
     <b>${deal ? `${Math.ceil((deal.until - state.clock) / 60)} min left` : ''}</b></div>
     <div class="power-note">${deal ? `${deal.by === 'agent' ? '🧾 Signed by your Purchasing Agent.' : '✍️ You negotiated this.'} It ends after ${deal.minutes} minutes of play.` : 'Negotiate a contract to pay less for every package.'}
     ${prop.staff.buyer ? '<br>🧾 Your Purchasing Agent renews deals here automatically.' : '<br>Or hire a 🧾 Purchasing Agent (Manage → Staff) to renew deals for you. You\'ll usually do better yourself.'}</div></div>`;
+  html += `<div class="choice"><span class="ctl-lbl">Deliveries</span>
+    <button class="chip ${!s.paused ? 'on' : ''}" data-act="suppause" data-id="off">▶ Running</button>
+    <button class="chip ${s.paused ? 'on' : ''}" data-act="suppause" data-id="on">⏸ Paused</button></div>
+    ${s.paused ? '<p class="intro small">⏸ Paused: no trucks come and you pay nothing. Handy when a line is flooded with more than it can use.</p>' : ''}`;
   const cooling = s.cool > state.clock;
   html += `<button class="btn" style="width:100%;margin:6px 0 10px" data-act="negstart" ${cooling ? 'disabled' : ''}>${cooling ? `📵 They won't talk for ${Math.ceil((s.cool - state.clock) / 60)} min` : deal ? '🤝 Renegotiate' : '🤝 Negotiate a deal'}</button>`;
   html += '<h3 class="sec">Supplier</h3>';
@@ -179,6 +183,15 @@ function handleSupplierAct(act, id) {
     if (activeDeal(s) && !confirm('Switching supplier ends your current deal. Switch anyway?')) return true;
     s.tier = id; s.deal = null; s.cool = 0;
     toast(`🚚 Now buying from ${supplierName(d, id)}`);
+    save();
+    return true;
+  }
+  if (act === 'suppause') {
+    const at = ui.supplyAt;
+    const d = PROP_BY_ID[at.site].inDocks.find((q) => q.x === at.x && q.y === at.y);
+    const s = supplyOf(state.props[at.site], d);
+    if (id === 'on') s.paused = true; else delete s.paused;
+    toast(s.paused ? `⏸ ${supplierName(d, s.tier)} deliveries paused` : `▶ ${supplierName(d, s.tier)} deliveries resumed`);
     save();
     return true;
   }
