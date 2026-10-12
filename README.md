@@ -153,6 +153,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).
+- Test mode (`?dev=1`) can **🎬 jump to a stage**: new game, Shed, Mill, Foundry, Depot, Refinery, Lab, rocket ready to
+  launch, Mars begins, growing colony and late colony, each with typical money, ⭐, gems, research, sites and upgrades.
+  Use it with `?slot=test&dev=1` so your main save is safe.
 - Add `?slot=name` to the URL (for example `?slot=test`) to play a separate save without touching your main one.
 - Progress autosaves to localStorage, including a snapshot of the live floor (workers, packages on belts, recent
   sales and the finance ledger) so a reload picks up where you left off. While you're away, sites earn **15%** of their ~5-minute average rate for the first 2 hours, then half that, up to 6 hours (Night Shift / Night Managers research add +7.5% and +2 h each; scaled by maintenance coverage). A 🌙 **Night Crew** from the 💎 Gem Store keeps them at 40% for 4/8 banked hours.
