@@ -92,6 +92,7 @@ const SUPPLIER_NAMES = {
   lox: ['Chilly Gas Co.', 'Polar Oxygen', 'Cryo Rush'],
   composite: ['Fiber Works', 'Carbon Craft', 'Weave Express'],
   rareearth: ['Deep Dig Minerals', 'Rare Elements Ltd.', 'Prime Earth Couriers'],
+  provisions: ['Farmhand Co-op', 'Harvest Wholesale', 'Fresh Freight'],
   default: ['Bargain Freight', 'Reliable Supply', 'Express Freight'],
 };
 // Longer contracts lower their floor. Tuned so careful haggling lands ~83% of list, an agent ~89%,
@@ -313,6 +314,11 @@ const PRODUCTS = {
   heatshield: { name: 'Heat Shield', icon: '🌡️', cls: 'bulky', value: 260 },
   lifesupport: { name: 'Life Support Unit', icon: '🫁', cls: 'fragile', value: 520 },
   solar: { name: 'Solar Array', icon: '☀️', cls: 'fragile', value: 300 },
+  // Mars supplies (after the first launch)
+  provisions: { name: 'Provisions', icon: '🌾', cls: 'cold', value: 8, cost: 4, raw: true },
+  foodcrate: { name: 'Food Crate', icon: '🍞', cls: 'standard', value: 70 },
+  canister: { name: 'Water/O₂ Canister', icon: '💧', cls: 'cold', value: 140 },
+  spares: { name: 'Spares Kit', icon: '🔧', cls: 'standard', value: 170 },
 };
 const PRODUCT_IDS = Object.keys(PRODUCTS);
 
@@ -334,6 +340,9 @@ const RECIPES = {
   heatshield: { in: { composite: 2, alloy: 1 }, time: 5, research: 'thermal' },
   lifesupport: { in: { lox: 1, computer: 1, wiring: 1 }, time: 5, research: 'habitat' },
   solar: { in: { silicon: 2, wiring: 1, alloy: 1 }, time: 5, research: 'photovoltaics' },
+  foodcrate: { in: { provisions: 3, panel: 1 }, time: 3 },
+  canister: { in: { lox: 2, alloy: 1 }, time: 3 },
+  spares: { in: { valve: 1, circuit: 1, wiring: 1 }, time: 4 },
 };
 const RECIPE_IDS = Object.keys(RECIPES);
 const ASSEMBLER = { name: 'Assembler', cost: 400, life: 500, bufferRecipes: 2 };
@@ -470,6 +479,30 @@ const LAUNCH = {
   ],
   growth: 2, // each later rocket needs this many times more parts
 };
+// ---- Mars colony (after the first launch; see mars.js) ----
+const MARS = {
+  windowEvery: 1500, windowOpen: 300, transit: 360, firstWindow: 240, // seconds of play
+  slots: 30, slotModule: 12, slotColonist: 2, perHabitat: 4,
+  solarPower: 3, foodPerColonist: 0.5, waterPerColonist: 0.5, sparesPerModule: 0.25,
+  starsPerColonist: 1, metalsPerColonist: 2, metalValue: 4000,
+  rationsBeforeLeaving: 3, minColonists: 2,
+  dustChance: 0.15, requestChance: 0.5,
+  emergencyGems: 15, emergencySlots: 8,
+  padTurnaround: 90, // seconds the pad needs between launches (≈3 per window)
+  milestones: [[10, 25], [25, 50], [50, 100], [100, 200]],
+};
+// Every flight to Mars needs this launch vehicle; the payload is what changes.
+const VEHICLE = { fuselage: 6, tank: 4, engine: 3, fuel: 8, avionics: 1 };
+const SUPPLY_PRODUCT = { food: 'foodcrate', water: 'canister', spares: 'spares' };
+const MARS_MODULES = {
+  habitat: { name: 'Habitat Dome', icon: '🏠', payload: { fuselage: 4, lifesupport: 2, heatshield: 2 }, desc: 'Room for 4 colonists' },
+  solar: { name: 'Solar Farm', icon: '⚡', payload: { solar: 6, wiring: 4 }, desc: `+${3} power for the other modules` },
+  greenhouse: { name: 'Greenhouse', icon: '🌱', payload: { lifesupport: 2, solar: 4, panel: 10 }, max: 3, desc: 'Grows food: −25% food needed per level' },
+  icemine: { name: 'Ice Mine', icon: '🧊', payload: { turbopump: 2, alloy: 4, sensor: 2 }, max: 3, desc: 'Makes water and oxygen: −25% Water/O₂ needed per level' },
+  pad: { name: 'Landing Pad', icon: '🛬', payload: { alloy: 6, heatshield: 4, avionics: 2 }, max: 1, desc: 'Return flights: Rare Metals get sold back home' },
+  station: { name: 'Research Station', icon: '🔬', payload: { computer: 2, sensor: 4, avionics: 2 }, max: 1, desc: 'Colonists make +50% ⭐ reputation' },
+};
+
 // Total parts per product across all stages.
 LAUNCH.needs = {};
 for (const st of LAUNCH.stages) for (const [p, n] of Object.entries(st.needs)) LAUNCH.needs[p] = (LAUNCH.needs[p] || 0) + n;
@@ -594,6 +627,7 @@ const PROPERTIES = [
       { x: 8, y: 0, dir: 2, price: 80000, cargo: { steel: 1 } },
       { x: 0, y: 4, dir: 1, price: 120000, cargo: { composite: 1 } },
       { x: 0, y: 10, dir: 1, price: 200000, receive: true },
+      { x: 10, y: 3, dir: 3, price: 150000, cargo: { provisions: 1 } }, // for Mars food crates
     ],
     outDocks: [
       { x: 3, y: 15, price: 0 },

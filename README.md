@@ -134,6 +134,15 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **🚀 Launching**: the first rocket launches when you press LAUNCH, with a full cinematic (countdown, ignition,
   liftoff, staging, into space; skippable). After that, rockets can launch automatically as soon as their parts
   arrive (Launch Site → Auto-launch), with no animation. The Map button shows 🚀 when one is waiting.
+- **🔴 Mars colony** (after the first rocket): every launch flies to Mars during a **launch window** (every 25 min of
+  play, open 5 min; 6-minute trip; the pad needs 90 s between launches). Each rocket needs a fixed launch vehicle
+  (6 🛡️ 4 🛢️ 3 🔥 8 🧪 1 🛰️) plus a 30-slot cargo manifest: one base module (12 slots: 🏠 Habitat, ⚡ Solar Farm,
+  🌱 Greenhouse, 🧊 Ice Mine, 🛬 Landing Pad, 🔬 Research Station), colonists (2 slots) and supply crates (1 slot):
+  🍞 Food Crate (3 🌾 Provisions + 🔲), 💧 Water/O₂ Canister (2 🧊 + 🟦), 🔧 Spares Kit (🚰 + 📟 + 🧵). Provisions come
+  from a new supplier door on the Regional Depot. Colonists use supplies each window and make ⭐, 💎 and Rare Metals
+  (sold once a Landing Pad flies them home); shortages mean rationing at half output and, after a while, colonists
+  going home, never a wipe. Dust storms, colonist requests, population milestones and a 15 💎 emergency supply drop.
+  The colony runs on the game clock, so it pauses while you're away.
 - **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).

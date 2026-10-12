@@ -24,7 +24,7 @@ function relevantProducts(id) {
 // Sites this product could be trucked to from `from`.
 function routeTargets(from, product) {
   const out = PROPERTIES.filter((d) => d.id !== from && state.props[d.id].owned && hasReceiveDock(d)).map((d) => d.id);
-  if (state.launch.owned && LAUNCH.needs[product]) out.push('launch');
+  if (state.launch.owned && (marsOn() ? marsAccepts(product) : LAUNCH.needs[product])) out.push('launch');
   return out;
 }
 
@@ -457,7 +457,8 @@ function launchDetailHTML() {
   if (!state.launch.owned) {
     html += `<button class="btn" data-act="buylaunch" ${state.money < LAUNCH.price ? 'disabled' : ''}>Buy ${fmt(LAUNCH.price)}</button></div>`;
   } else html += '</div>';
-  html += `<h3 class="sec">${state.launch.count ? `Rocket #${state.launch.count + 1}` : 'Your rocket'}: 3 stages</h3>`;
+  if (state.launch.owned && marsOn()) return html + marsControlHTML();
+  html += '<h3 class="sec">Your first rocket: 3 stages</h3>';
   for (const st of launchStageProgress()) {
     const rows = Object.entries(st.needs).map(([p, n]) => {
       const have = st.have[p];
@@ -565,6 +566,7 @@ function launchStageProgress() {
 
 // The first launch plays the cinematic; `auto` launches (later rockets) just report.
 function doLaunch(opts = {}) {
+  if (marsOn()) { marsLaunch(); return; }
   if (!launchReady()) return;
   state.launch.count++;
   state.launch.parts = {};
@@ -590,13 +592,19 @@ function launchMessage(n, stars) {
     <p class="intro">${n === 1
     ? `From a rusty shed to a rocket in <b>${Math.floor(mins / 60)}h ${mins % 60}m</b> of play. Your supply chain did it!`
     : 'Another flawless launch.'}</p>
-    <p class="intro">+${GEMS.perLaunch} 💎 · +${stars} ⭐ · Keep going: the next rocket needs ${LAUNCH.growth}× the parts.</p>
-    ${n === 1 ? '<p class="intro small">From now on you can let rockets launch themselves as soon as their parts arrive: 🚀 Launch Site → Auto-launch.</p>' : ''}`);
+    <p class="intro">+${GEMS.perLaunch} 💎 · +${stars} ⭐</p>
+    ${n === 1 ? `<div class="power-box unlock-box"><div class="power-head"><span>🔴 Next stop: Mars</span></div>
+      <div class="power-note">Every rocket from now on flies to Mars during a launch window (every ${Math.round(MARS.windowEvery / 60)} minutes of play). Send a 🏠 Habitat Dome and colonists first, then keep them supplied with 🍞 Food Crates, 💧 Water/O₂ Canisters and 🔧 Spares Kits. Colonists pay you back in ⭐, 💎 and Rare Metals.<br>Open 🚀 Launch Site → Mission Control to plan the first flight.</div></div>` : ''}`);
 }
 
 // Auto-launch (after the first rocket) and a heads-up when one is ready to go.
 function checkLaunch() {
   if (!state.launch.owned || !launchReady()) { ui.launchReadyToasted = false; return; }
+  if (marsOn()) {
+    // Auto: one rocket per window, as soon as the vehicle is ready.
+    if (state.launch.auto && (M().autoWindow !== M().windowAt || planCargo(MARS.slots, true).used >= MARS.slots / 2)) marsLaunch();
+    return;
+  }
   if (state.launch.count >= 1 && state.launch.auto) { doLaunch({ auto: true }); return; }
   if (!ui.launchReadyToasted) {
     ui.launchReadyToasted = true;
@@ -713,6 +721,8 @@ function handleEnterpriseAct(act, id) {
     return true;
   }
   if (act === 'launch') { doLaunch(); return 'stop'; }
+  const mars = handleMarsAct(act, id);
+  if (mars) return mars;
   if (act === 'autolaunch') { state.launch.auto = id === 'on'; save(); if (state.launch.auto) checkLaunch(); return true; }
   if (act === 'asmfeed') {
     const o = curProp().tiles[ui.assemblerAt.y][ui.assemblerAt.x].obj;

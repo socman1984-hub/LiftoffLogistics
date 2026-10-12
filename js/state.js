@@ -119,6 +119,11 @@ function migrate(s) {
     }
     for (const st of STAFF) if (typeof p.staff[st.id] !== 'number') p.staff[st.id] = 0;
     for (const u of UPGRADES) if (typeof p.upgrades[u.id] !== 'number') p.upgrades[u.id] = 0;
+    // Docks added to a site after the save was made (e.g. the Depot's Provisions door).
+    for (const d of def.inDocks) {
+      const t = p.tiles[d.y][d.x];
+      if (t.base !== 'in') p.tiles[d.y][d.x] = { base: 'in', dir: d.dir, locked: d.price > 0, price: d.price };
+    }
     // v4: receiving docks are free and open.
     for (const d of def.inDocks) if (d.price === 0 && p.tiles[d.y][d.x].base === 'in') p.tiles[d.y][d.x].locked = false;
   }
@@ -506,6 +511,7 @@ const LEDGER_CATS = {
   trucks: { label: 'Trucks', icon: '🚚' },
   property: { label: 'Properties', icon: '🏢' },
   research: { label: 'Research', icon: '🔬' },
+  mars: { label: 'Mars exports', icon: '🔴' },
   dev: { label: 'Test mode', icon: '🧪' },
   other: { label: 'Other', icon: '•' },
 };

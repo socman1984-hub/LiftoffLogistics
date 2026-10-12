@@ -131,7 +131,7 @@ const planOf = (prop, p) => prop.plans[p] || DEFAULT_PLAN;
 
 function destValid(from, to, p) {
   if (to === 'sell' || to === 'store') return true;
-  if (to === 'launch') return state.launch.owned && !!LAUNCH.needs[p];
+  if (to === 'launch') return state.launch.owned && (marsOn() ? marsAccepts(p) : !!LAUNCH.needs[p]);
   const def = PROP_BY_ID[to];
   return !!def && to !== from && state.props[to].owned && hasReceiveDock(def);
 }
@@ -800,18 +800,20 @@ function launchStock(p) {
 // 'pause' stops an assembler; 'auto' stops it while the rocket has enough of its part.
 function assemblerIdle(o) {
   if (o.mode === 'pause') return true;
-  if (o.mode !== 'auto' || !state.launch.owned || !LAUNCH.needs[o.recipe]) return false;
+  if (o.mode !== 'auto' || !state.launch.owned || !(marsOn() ? marsAccepts(o.recipe) : LAUNCH.needs[o.recipe])) return false;
   return launchStock(o.recipe) >= (launchNeeds()[o.recipe] || 0);
 }
 
 function launchNeeds() {
-  const mult = Math.pow(LAUNCH.growth, state.launch.count) * (1 - rfx('launchParts'));
+  if (marsOn()) return marsPadWants(); // the next Mars flight: vehicle + chosen cargo
+  const mult = 1 - rfx('launchParts');
   const out = {};
   for (const [p, n] of Object.entries(LAUNCH.needs)) out[p] = Math.max(1, Math.round(n * mult));
   return out;
 }
 
 function launchReady() {
+  if (marsOn()) return state.launch.owned && vehicleReady() && marsWindowOpen() && !padBusy();
   const need = launchNeeds();
   return state.launch.owned && Object.entries(need).every(([p, n]) => (state.launch.parts[p] || 0) >= n);
 }
@@ -913,7 +915,7 @@ let supplierTick = 0;
 function stepWorld(dt) {
   state.clock += dt;
   stepLab(dt);
-  if ((supplierTick += dt) >= 1) { supplierTick = 0; stepSuppliers(); sampleRates(); checkLaunch(); }
+  if ((supplierTick += dt) >= 1) { supplierTick = 0; stepSuppliers(); sampleRates(); checkLaunch(); stepMars(); }
   for (const def of PROPERTIES) {
     if (state.props[def.id].owned) stepProperty(def.id, dt);
   }

@@ -50,10 +50,10 @@ function curTiles() {
 // Deliver parts for the first n stages of the current rocket.
 function fillLaunch(n) {
   state.launch.owned = true;
-  const mult = Math.pow(LAUNCH.growth, state.launch.count);
+  if (marsOn()) { state.launch.parts = { ...launchNeeds() }; return; } // next Mars flight
   const parts = {};
   LAUNCH.stages.slice(0, n).forEach((st) => {
-    for (const [p, k] of Object.entries(st.needs)) parts[p] = (parts[p] || 0) + k * mult;
+    for (const [p, k] of Object.entries(st.needs)) parts[p] = (parts[p] || 0) + k;
   });
   state.launch.parts = parts;
 }

@@ -579,3 +579,29 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .lfx-sub { font-size: 16px; font-weight: 600; margin-top: 8px; opacity: 0.9; }
 @keyframes lfxPop { 0% { transform: scale(1.6); opacity: 0; } 30% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.85; } }
 @keyframes lfxIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- Mars ---- */
+.mars-window { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--panel-2); border-radius: 12px; padding: 10px 14px; border: 2px solid transparent; }
+.mars-window.open { border-color: #6fcf97; }
+.mars-window .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.mars-parts { display: flex; flex-wrap: wrap; gap: 6px; }
+.mars-parts span { background: var(--panel-2); border-radius: 8px; padding: 3px 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.mars-parts span.ok { background: rgba(111,207,151,0.18); }
+.mars-mods .chip { font-size: 12px; }
+.mars-mods .chip.faint { opacity: 0.5; }
+.mars-step { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.mars-step > span:first-child { flex: 1; }
+.mars-step .dest-ctl { margin: 0; }
+.mars-scene { border-radius: 14px; overflow: hidden; background: linear-gradient(#2b1a24 0%, #6b3326 38%, #b5562f 39%, #c46a3c 70%, #9b4a2a 100%); padding: 12px; position: relative; margin-bottom: 10px; }
+.mars-sky { height: 44px; position: relative; }
+.mars-earth { position: absolute; right: 8px; top: 2px; font-size: 18px; opacity: 0.85; }
+.mars-plots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mars-plot { background: rgba(0,0,0,0.18); border: 2px dashed rgba(255,255,255,0.25); border-radius: 12px; padding: 8px 4px; text-align: center; color: #fff; min-width: 0; }
+.mars-plot.built { background: rgba(255,255,255,0.12); border-style: solid; border-color: rgba(255,255,255,0.45); }
+.mars-plot .mp-ic { font-size: 26px; line-height: 1.1; }
+.mars-plot .mp-nm { font-size: 11px; font-weight: 700; }
+.mars-plot .mp-lv { font-size: 10px; opacity: 0.85; }
+.mars-pop { color: #fff; font-size: 13px; margin-top: 10px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+.mars-meter { background: var(--panel-2); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; }
+.mars-meter .mm-top { display: flex; justify-content: space-between; font-size: 13px; }
+.mars-meter .bar { margin: 6px 0 3px; }
