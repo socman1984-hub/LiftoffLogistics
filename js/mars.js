@@ -206,14 +206,32 @@ function takeFromPad(c) {
   for (const p of Object.keys(pad)) if (pad[p] <= 0) delete pad[p];
 }
 
+// One emergency drop per launch window (windowAt moves on once a window has passed).
+const emergencyUsed = () => M().emergencyWin === M().windowAt;
+
+// Rocket parts the pad is short of because their ingredients are being sent up as terraform parts.
+function terraConflicts() {
+  const m = M(), pad = state.launch.parts, cut = 1 - rfx('launchParts');
+  if (!m.manifest.terra || !terraStage() || !terraUnlocked()) return [];
+  const rem = terraRemaining(), out = [];
+  for (const [p, n] of Object.entries(VEHICLE)) {
+    const need = Math.max(1, Math.round(n * cut)) * MARS.padRockets;
+    if ((pad[p] || 0) >= need || !RECIPES[p]) continue;
+    for (const q of Object.keys(RECIPES[p].in)) if (rem[q] > 0) out.push({ part: p, have: pad[p] || 0, need, via: q });
+  }
+  return out;
+}
+
 // A cargo rocket to Mars (regular), or a gem-paid emergency supply drop.
 function marsLaunch(opts = {}) {
   const m = M();
   if (opts.emergency) {
+    if (emergencyUsed()) { toast('🆘 One emergency drop per launch window'); return false; }
     if (state.gems < MARS.emergencyGems) { toast(`🆘 Needs ${MARS.emergencyGems} 💎`); return false; }
     const c = emergencyCargo();
     if (!c.used) { toast('🆘 No supply crates on the pad to send'); return false; }
     state.gems -= MARS.emergencyGems;
+    m.emergencyWin = m.windowAt;
     takeFromPad(c);
     m.flights.push({ ...c, arriveAt: state.clock + transitTime(), emergency: true });
     toast(`🆘 Emergency drop on its way: ${cargoText(c)} · arrives in ${fmtSecs(transitTime())}`);
@@ -408,6 +426,11 @@ function marsLaunchHTML() {
     const need = Math.max(1, Math.round(n * cut)), have = Math.min(need, pad[p] || 0);
     return `<span class="${have >= need ? 'ok' : ''}">${PRODUCTS[p].icon} ${have}/${need}</span>`;
   }).join('') + '</div>';
+  const plural = (p) => PRODUCTS[p].name + (PRODUCTS[p].name.endsWith('s') ? '' : 's');
+  for (const w of terraConflicts()) {
+    const maker = PROPERTIES.find((d) => state.props[d.id].owned && state.props[d.id].tiles.some((row) => row.some((t) => t.obj && t.obj.k === 'assembler' && t.obj.recipe === w.part)));
+    html += `<div class="mars-warn">⚠️ <b>Short on ${PRODUCTS[w.part].icon} ${plural(w.part)}</b> (${w.have}/${w.need} for the next two rockets). They're built from ${PRODUCTS[w.via].icon} ${plural(w.via)}, which are also going up as terraform parts (${pad[w.via] || 0} on the pad). Send more ${plural(w.via)} to ${maker ? `the ${maker.name}` : `an assembler making ${plural(w.part)}`}, or carry fewer terraform parts.</div>`;
+  }
   const slots = rocketSlots();
   const c = planCargo(slots, true);
   const plan = plannedSlots();
@@ -455,7 +478,8 @@ function marsLaunchHTML() {
   html += `<div class="choice"><span class="ctl-lbl">Launch</span>
     <button class="chip ${state.launch.auto ? 'on' : ''}" data-act="autolaunch" data-id="on">🔁 Automatically each window</button>
     <button class="chip ${!state.launch.auto ? 'on' : ''}" data-act="autolaunch" data-id="off">👆 When I press Launch</button></div>`;
-  html += `<button class="btn secondary" style="width:100%;margin-top:6px" data-act="marsemergency" ${state.gems >= MARS.emergencyGems ? '' : 'disabled'}>🆘 Emergency supply drop now · up to ${MARS.emergencySlots} crates · ${MARS.emergencyGems} 💎</button>`;
+  html += `<button class="btn secondary" style="width:100%;margin-top:6px" data-act="marsemergency" ${state.gems >= MARS.emergencyGems && !emergencyUsed() ? '' : 'disabled'}>${emergencyUsed() ? `🆘 Emergency drop used · next after this window` : `🆘 Emergency supply drop now · up to ${MARS.emergencySlots} crates · ${MARS.emergencyGems} 💎`}</button>`;
+  html += `<p class="intro small">Emergency drops skip the rocket and the window: one per launch window.</p>`;
   // Pad upgrades: a place for late-game cash.
   const next = PAD_LEVELS[m.padLevel];
   html += `<h3 class="sec">Launch pad</h3>` + card('🚧', `Pad level ${m.padLevel + 1}/${PAD_LEVELS.length + 1}`,

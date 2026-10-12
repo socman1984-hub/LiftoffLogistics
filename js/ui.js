@@ -768,6 +768,8 @@ function helpHTML() {
       'Each rocket needs the same launch vehicle plus a <b>cargo manifest</b>: one base module, colonists, and supply crates. Plan it in 🚀 Launch Site → Mission Control.',
       'Modules: 🏠 Habitat (homes), ⚡ Solar Farm (power), 🌱 Greenhouse and 🧊 Ice Mine (cut needs), 🛬 Landing Pad (Rare Metals come home), 🔬 Research Station, ⚛️ Fusion Reactor.',
       'Colonists use 🍞 Food, 💧 Water/O₂ and 🔧 Spares each window. Run short and they ration, then start going home (nobody dies).',
+      `In a pinch, an 🆘 <b>emergency drop</b> (${MARS.emergencyGems} 💎, one per launch window) sends up to ${MARS.emergencySlots} supply crates without a rocket.`,
+      'Terraform parts compete with the rocket: Turbopumps sent to Mars don’t become Engines. Mission Control warns you when that happens.',
       'Events: 🌪️ dust storms (🔋 Power Cells), ☄️ meteor strikes (repaired with Spares), 🦠 sickness (💊 Medical Kits).',
       'Colonists make ⭐, 💎 and 🪨 <b>Rare Metals</b>: sell them, or deliver them to a site for ⚛️ Fusion Cores.',
       'The 🔴 <b>Colony</b> research branch, 🚧 pad upgrades and the 📦 Spaceport Cargo Center (at the Mega Hub) grow the colony faster.',

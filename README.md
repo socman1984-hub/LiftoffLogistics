@@ -143,7 +143,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   🍞 Food Crate (3 🌾 Provisions + 🔲), 💧 Water/O₂ Canister (2 🧊 + 🟦), 🔧 Spares Kit (🚰 + 📟 + 🧵). Provisions come
   from a new supplier door on the Regional Depot. Colonists use supplies each window and make ⭐, 💎 and Rare Metals
   (sold once a Landing Pad flies them home); shortages mean rationing at half output and, after a while, colonists
-  going home, never a wipe. Dust storms, colonist requests, population milestones and a 15 💎 emergency supply drop.
+  going home, never a wipe. Dust storms, colonist requests, population milestones and a 25 💎 emergency supply drop (one per launch window). Mission Control warns when
+  terraform parts are starving the rocket (e.g. Turbopumps sent up instead of becoming Engines).
   The colony runs on the game clock, so it pauses while you're away.
   **Later colony stage:** a 🔴 **Colony** research branch (after the first launch: lower needs, bigger habitats,
   heavy-lift rockets, faster transit and pad turnaround, Rare Metal refining, gentler rationing, ⚛️ Fusion Power,

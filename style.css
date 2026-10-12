@@ -648,3 +648,5 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .vt-step { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,0.06); font-size: 14px; opacity: 0.45; }
 .vt-step.done { opacity: 1; background: rgba(111,207,151,0.25); }
 .vt-step.next { opacity: 1; box-shadow: 0 0 0 2px var(--accent); }
+
+.mars-warn { background: rgba(242, 153, 74, 0.15); border: 1px solid rgba(242, 153, 74, 0.6); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 13px; line-height: 1.35; }

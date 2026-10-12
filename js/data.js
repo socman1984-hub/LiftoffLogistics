@@ -514,7 +514,7 @@ const MARS = {
   starsPerColonist: 1, metalsPerColonist: 2, metalValue: 4000,
   rationsBeforeLeaving: 3, minColonists: 2,
   dustChance: 0.15, requestChance: 0.5,
-  emergencyGems: 15, emergencySlots: 8, cargoBoostSlots: 15, powerCellBoost: 2, fusionPower: 12,
+  emergencyGems: 25, emergencySlots: 8, cargoBoostSlots: 15, powerCellBoost: 2, fusionPower: 12,
   padTurnaround: 90, // seconds the pad needs between launches (≈3 per window)
   milestones: [[10, 25], [25, 50], [50, 100], [100, 200]],
 };
