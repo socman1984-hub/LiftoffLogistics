@@ -27,10 +27,47 @@ function availableReqs(product) {
   return reqs;
 }
 
-function shippedPerMin(product) {
+// Packages sold per minute (averaged over the last few minutes), optionally only those with a tag.
+function shippedPerMin(product, req) {
   let n = 0;
-  for (const s of shipLog) if (s.type === product) n++;
-  return n; // shipLog covers the last 60s
+  for (const s of shipLog) if (s.type === product && (!req || (s.tags && s.tags.includes(req)))) n++;
+  const mins = Math.max(0.5, Math.min(SHIPLOG_SECS, state.clock) / 60);
+  return n / mins;
+}
+
+// How likely is an order to be filled in time? Compares your recent sales of
+// exactly this item with what the deadline needs, after the active orders
+// ahead of it take their share.
+function contractOutlook(o, activeIndex) {
+  const c = state.contracts;
+  const rate = shippedPerMin(o.product, o.req);
+  const ahead = (activeIndex == null ? c.active : c.active.slice(0, activeIndex))
+    .filter((a) => a.product === o.product && (!a.req || a.req === o.req)).reduce((n, a) => n + (a.n - a.progress), 0);
+  const left = activeIndex == null ? o.n : o.n - o.progress;
+  const secs = activeIndex == null ? o.minutes * 60 : Math.max(0, o.deadline - state.clock);
+  const needRate = (left + ahead) / Math.max(0.1, secs / 60);
+  const ratio = needRate ? rate / needRate : 9;
+  const what = `${o.req ? MACHINES[o.req].past + ' ' : ''}${PRODUCTS[o.product].name}`;
+  const detail = rate ? `You sell ~${rate < 10 ? rate.toFixed(1) : Math.round(rate)}/min of ${what} · needs ~${Math.ceil(needRate)}/min${ahead ? ` (incl. ${ahead} for earlier orders)` : ''}` : `No ${what} sold in the last few minutes`;
+  let label, cls;
+  if (!rate) [label, cls] = ['❌ Not selling these yet', 'bad'];
+  else if (ratio >= 1.5) [label, cls] = ['✅ Very likely', 'good'];
+  else if (ratio >= 1.05) [label, cls] = ['🙂 Likely', 'good'];
+  else if (ratio >= 0.7) [label, cls] = ['😬 Risky', 'warn'];
+  else [label, cls] = ['❌ Unlikely', 'bad'];
+  return { label, cls, detail };
+}
+
+// Swap all current offers for fresh ones.
+function refreshOffers() {
+  const c = state.contracts;
+  if (state.gems < CONTRACT_REFRESH_GEMS) { toast(`🔄 Needs ${CONTRACT_REFRESH_GEMS} 💎`); return; }
+  state.gems -= CONTRACT_REFRESH_GEMS;
+  c.offers = [];
+  for (let i = 0; i < OFFER_COUNT; i++) { const o = makeOffer(); if (o) c.offers.push(o); }
+  c.nextOfferAt = state.clock + OFFER_REFILL;
+  toast(`🔄 ${c.offers.length} new offers`);
+  save();
 }
 
 function makeOffer() {

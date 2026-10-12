@@ -607,3 +607,20 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .mars-meter .bar { margin: 6px 0 3px; }
 
 .mars-plot.damaged { border-color: #eb5757; background: rgba(235,87,87,0.25); }
+
+.outlook { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; margin-top: 6px; font-size: 12px; padding: 4px 8px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+.outlook b { font-weight: 700; }
+.outlook span { opacity: 0.8; }
+.outlook.good { background: rgba(111,207,151,0.14); }
+.outlook.warn { background: rgba(242,201,76,0.16); }
+.outlook.bad { background: rgba(235,87,87,0.16); }
+
+.help-steps { padding-left: 22px; margin: 6px 0 12px; }
+.help-steps li { margin: 6px 0; }
+.help-sec { background: var(--panel-2); border-radius: 12px; margin: 8px 0; padding: 0 12px; }
+.help-sec summary { cursor: pointer; font-weight: 700; padding: 11px 0; list-style: none; }
+.help-sec summary::-webkit-details-marker { display: none; }
+.help-sec summary::after { content: '▸'; float: right; opacity: 0.6; }
+.help-sec[open] summary::after { content: '▾'; }
+.help-sec ul { margin: 0 0 12px; padding-left: 18px; }
+.help-sec li { margin: 6px 0; }

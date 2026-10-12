@@ -1,7 +1,9 @@
 'use strict';
 // Game state: creation, layout generation, persistence, cost/effect helpers.
 
-const SAVE_KEY = 'conveyor-tycoon-v1';
+// ?slot=name keeps a separate save (e.g. ?slot=test for experiments), so testing never touches your real game.
+const SAVE_SLOT = (new URLSearchParams(location.search).get('slot') || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 20);
+const SAVE_KEY = 'conveyor-tycoon-v1' + (SAVE_SLOT ? '-' + SAVE_SLOT : '');
 const START_MONEY = 3000; // enough to follow the tutorial without waiting
 
 let state = null;
@@ -161,7 +163,8 @@ function migrate(s) {
 
 // ---- Runtime (not persisted): items in flight, timers, sales log ----
 const runtime = {}; // propId -> { items, occ, timers, sales, floaters, time, unpaid, techs, shutdown }
-const shipLog = []; // { t: state.clock, type } for estimating contract sizes
+const shipLog = []; // { t: state.clock, type, tags } sold packages, for sizing contracts and judging them
+const SHIPLOG_SECS = 180;
 
 function initRuntime(id) {
   const def = PROP_BY_ID[id];
@@ -215,7 +218,7 @@ function snapshotRuntime() {
   }
   const buckets = [];
   for (const [sec, b] of ledger.buckets) buckets.push([sec, b]);
-  return { sites, ledger: { buckets, recent: ledger.recent } };
+  return { sites, ledger: { buckets, recent: ledger.recent }, shipLog: shipLog.slice(-600) };
 }
 
 function restoreRuntime(snap) {
@@ -243,6 +246,7 @@ function restoreRuntime(snap) {
       r.occ[y][x] = it;
     }
   }
+  for (const s of snap.shipLog || []) shipLog.push(s);
   if (snap.ledger) {
     for (const [sec, b] of snap.ledger.buckets || []) ledger.buckets.set(sec, b);
     ledger.recent = snap.ledger.recent || [];

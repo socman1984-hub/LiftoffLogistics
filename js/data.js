@@ -294,6 +294,7 @@ const CONTRACT_REQ_MULT = { scanner: 1.3, labeler: 1.6, wrapper: 2.2, chiller: 1
 const OFFER_COUNT = 3;
 const OFFER_LIFETIME = 180; // seconds an unaccepted offer stays on the board
 const OFFER_REFILL = 20; // seconds between new offers
+const CONTRACT_REFRESH_GEMS = 3; // swap all offers for new ones
 
 // ---- Products: what's on the belts ----
 // `cls` is the handling class (see CARGO). Raw materials arrive by truck from

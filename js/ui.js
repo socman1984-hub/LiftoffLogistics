@@ -621,6 +621,12 @@ function statsHTML(def, prop) {
   return html;
 }
 
+// The confidence chip under an order (active orders say "on track" instead of "likely").
+function outlookHTML(ol, active) {
+  const label = active ? ol.label.replace('Very likely', 'On track').replace('🙂 Likely', '🙂 Should make it') : ol.label;
+  return `<div class="outlook ${ol.cls}"><b>${label}</b><span>${ol.detail}</span></div>`;
+}
+
 function contractsHTML() {
   const c = state.contracts;
   if (!state.current) return '<p class="intro">Buy a warehouse first.</p>';
@@ -636,9 +642,10 @@ function contractsHTML() {
       <div class="desc">Ship ${contractLabel(a)}</div>
       <div class="bar"><div style="width:${pct}%"></div></div>
       <div class="meta">${a.progress}/${a.n} · ⏱ <span class="${left < 30 ? 'neg' : ''}">${fmtTime(left)}</span> · ${fmt(a.reward)} + ${a.stars}⭐</div>
+      ${outlookHTML(contractOutlook(a, c.active.indexOf(a)), true)}
       </div><button class="btn secondary small" data-act="abandon" data-id="${a.id}">✕</button></div>`;
   }
-  html += '<h3 class="sec">Offers</h3>';
+  html += `<div class="sec-row"><h3 class="sec">Offers</h3><button class="btn small secondary" data-act="refreshoffers" ${state.gems >= CONTRACT_REFRESH_GEMS ? '' : 'disabled'}>🔄 New offers · ${CONTRACT_REFRESH_GEMS} 💎</button></div>`;
   if (!c.offers.length) html += '<p class="intro">New offers arrive every ~20 seconds.</p>';
   for (const o of c.offers) {
     const full = c.active.length >= slots;
@@ -646,6 +653,7 @@ function contractsHTML() {
       <div class="title">${o.client}</div>
       <div class="desc">Ship ${contractLabel(o)} within ${o.minutes} min</div>
       <div class="meta">Reward <b class="gold">${fmt(o.reward)}</b> + <b>${o.stars}⭐</b> · offer ends in ${fmtTime(o.expires - state.clock)}</div>
+      ${outlookHTML(contractOutlook(o))}
       </div><button class="btn" data-act="accept" data-id="${o.id}" ${full ? 'disabled' : ''}>${full ? 'Full' : 'Accept'}</button></div>`;
   }
   return html;
@@ -690,63 +698,88 @@ function sorterHTML() {
 }
 
 function helpHTML() {
-  const def = curDef() || PROP_BY_ID.shed;
+  const sec = (icon, title, items, open) => `<details class="help-sec" ${open ? 'open' : ''}><summary>${icon} ${title}</summary><ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul></details>`;
+  const recipes = RECIPE_IDS.map((p) => `${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b> = ${recipeText(p)}${LAUNCH.needs[p] ? ' 🚀' : ''}${RECIPES[p].research ? ` <span class="muted">(🔬 ${RESEARCH_BY_ID[RECIPES[p].research].name})</span>` : ''}`);
   return `<div class="help">
-    <p><b>Goal: build a rocket 🚀.</b> Suppliers truck raw materials to the green <b>🚚 doors</b>. Move them on conveyors into
-    <b>🏭 Assemblers</b> to build parts, and out the blue <b>📦 SHIP doors</b>.</p>
-    <h3>Supply chain</h3>
-    <ul>
-      ${RECIPE_IDS.map((p) => `<li>${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b> = ${recipeText(p)}${LAUNCH.needs[p] ? ' 🚀' : ''}</li>`).join('')}
-      <li><b>🚚 Logistics → Distribution</b> (or tap a 📦 SHIP door): for each product a site ships, list destinations (sell, or another site's purple 📥 receiving dock) with <b>weights</b> to split the flow and optional <b>caps</b>. Choose whether surplus is sold or stored.</li>
-      <li><b>🗄️ Racks</b> are tiles you build (Rack tool, drag to paint). Run a conveyor into a rack to store products directly. Tap a rack to see what's on it. Each holds 15; tap a rack to upgrade it (up to 50). Goods waiting for a truck, stored surplus and goods trucked in all sit on racks (bar on the SHIP door). Full racks back up the line, and arriving trucks wait to unload.</li>
-      <li><b>👷 Workers walk the floor.</b> They can't cross broken floor, machines, racks or facilities (they step over conveyors), so repair paths for them. Each assembler needs an Assembler Operator standing beside it. Techs walk to repairs. Stuck workers show ❗ and raise a ⚠️ problem alert.</li>
-      <li><b>😊 Morale</b>: restroom and break room coverage, paying wages, accidents and filthy floors all affect it (an HR Manager helps). Low morale slows everyone down, and below 50% staff start to quit.</li>
-      <li><b>🧽 Dirt</b>: foot traffic dirties floors and every building gets dirty (restrooms and break rooms with each break). <b>Filthy</b> floor blocks walking and filthy buildings stop working. 🧹 Janitors clean; the 🔨 Repair tool and a building's details can clean too.</li>
-      <li><b>🚻 Restrooms and ☕ Break Rooms</b> cover staff who work within their <b>range</b>, up to a capacity. Tap one to see its range and upgrade it (bigger range, more staff, faster breaks).</li>
-      <li><b>🏢 Facilities</b> (one tile each): 🚻 Restrooms and ☕ Break Rooms keep morale up (they cover staff within range, up to a capacity; tap to upgrade); 🖥️ Ops Center, 🩹 First Aid, 🛡️ Security Booth, 🔧 Maintenance Shop and 🔌 Generator add bonuses.</li>
-      <li><b>🚜 Handling</b>: every put-away, truck load, unload and pick is a <b>move</b>. A site manages 10 moves/min alone; each Forklift Operator adds 30 and Operations Managers add 15%. Too few hands and goods get stuck.</li>
-      <li><b>🚚 Logistics → Fleet</b>: buy trucks and assign them to routes, and set when part-loaded trucks leave. A route with no trucks just piles up. Each new site comes with a free truck.</li>
-      <li>Scanners, Labelers and Wrappers only raise the <b>sale</b> price. Selling processed goods can beat feeding the chain, so choose.</li>
-      <li>Buy the 🚀 Launch Site, truck it 🛡️ fuselage, 🛢️ tanks, 🔥 engines and 🛰️ avionics, then LAUNCH to win.</li>
-    </ul>
-    <h3>Building</h3>
-    <ul>
-      <li><b>Drag</b> across the floor with the Conveyor tool to lay a line in the direction you swipe.</li>
-      <li>Tap a conveyor to turn it. Placing on damaged floor repairs it automatically.</li>
-      <li>Each tile holds one package, so faster belts mean more throughput. Use <b>⏫ Upgrade</b> on conveyors: Basic, Fast, then Express (research).</li>
-    </ul>
-    <h3>Economy</h3>
-    <ul>
-      <li>Suppliers charge for raw materials, so selling raw goods earns little. Build things!</li>
-      <li><b>💹 Market</b>: selling lots of one product drives its price down until demand recovers. Booms and gluts come and go.</li>
-      <li><b>⚡ Power</b>: machines and assemblers draw power; overload a site and everything slows. Electrical upgrades add capacity.</li>
-      <li>Advanced rocket recipes need research. The rocket has three stages: Booster, Upper Stage, Crew Capsule.</li>
-      <li><b>💎 Gems</b> buy time-saving boosts (tap 💎 at the top for the Gem Store). Earn them from goals, contracts, daily play and launches.</li>
-      <li>While you're away your sites earn at ${Math.round(offlineRate() * 100)}% of their recent average for ${OFFLINE_FULL_HOURS} hours, then half that, up to ${Math.round(offlineCapSec() / 3600)} hours. A <b>🌙 Night Crew</b> (Gem Store) keeps them at ${Math.round(NIGHT_CREW_RATE * 100)}% for a set number of hours.</li>
-    </ul>
-    <h3>Handling</h3>
-    <ul>
-      ${CARGO_IDS.filter((k) => k !== 'standard').map((k) => `<li><b>${CARGO[k].name}</b> (${PRODUCT_IDS.filter((p) => PRODUCTS[p].cls === k).map((p) => PRODUCTS[p].icon).join(' ')}): ${CARGO[k].desc}</li>`).join('')}
-      <li>Each truck door shows what it brings.</li>
-    </ul>
-    <h3>Machines</h3>
-    <ul>
-      <li><b>🏭 Assembler</b>: builds a product from its recipe. Tap it with the Assembler tool to choose.</li>
-      <li><b>🔍 Scanner</b>: ${MACHINES.scanner.desc()}. Quick.</li>
-      <li><b>🏷️ Labeler</b>: ${MACHINES.labeler.desc()}.</li>
-      <li><b>❄️ Chiller</b>: ${MACHINES.chiller.desc()}.</li>
-      <li><b>🎁 Wrapper</b>: ${MACHINES.wrapper.desc()}. Slow.</li>
-      <li>Order matters: flat bonuses before multipliers pay more.</li>
-      <li>All equipment, conveyors included, wears out and <b>breaks down ⚠️</b>. Tap it to fix it, or hire Maintenance Techs, who fix breakdowns and service worn gear before it fails.</li>
-      <li><b>🔀 Splitters</b> deal packages out evenly. <b>🚦 Sorters</b> pull one product out a chosen side. Conveyors merge from any side.</li>
-    </ul>
-    <h3>Business</h3>
-    <ul>
-      <li><b>📋 Contracts</b> pay bonus cash and ⭐ reputation. <b>🔬 Research</b> spends ⭐ on new machines and perks.</li>
-      <li><b>Staff</b> are hired per building and paid every minute: Maintenance Techs, Operations Managers (speed), Forklift Drivers (trucks), Sales Reps (value), Security (stops theft), Safety Officers (stop accidents) and an HR Manager (cheaper wages).</li>
-      <li>Bigger sites suffer more <b>theft</b>, and every person you hire raises the <b>accident</b> risk. An accident stops the building for ${ACCIDENT_SHUTDOWN}s.</li>
-      <li>Tap <b>🔒 doors</b> to open more docks. Buy more sites on the 🗺️ Map. Every site keeps earning, even while you're away.</li>
-    </ul>
+    <p><b>Goal:</b> grow from a rusty shed into a supply chain that builds a rocket 🚀, then supply a colony on Mars 🔴.</p>
+    <h3>Quick start</h3>
+    <ol class="help-steps">
+      <li>Suppliers drop raw materials at the green <b>🚚 IN doors</b>. Drag <b>➡️ Conveyors</b> from a door to a blue <b>📦 SHIP door</b> to sell.</li>
+      <li>Put an <b>🏭 Assembler</b> on the line to turn raw materials into parts worth more. Hire an <b>👷 Operator</b> to run it.</li>
+      <li>Fill <b>📋 Contracts</b> for cash and ⭐ reputation, and spend ⭐ on <b>🔬 Research</b>.</li>
+      <li>Buy new sites on the <b>🗺️ Map</b>, truck parts between them, and build up to the 🚀 Launch Site.</li>
+    </ol>
+    ${sec('🧱', 'Building', [
+      '<b>Drag</b> with the Conveyor tool to lay a line; you confirm the cost before it is placed. Tap a conveyor to turn it.',
+      'Building over something asks first; <b>double-tap</b> anything to remove it. Full refund for 2 minutes, then it fades to 25%.',
+      '<b>⏫ Upgrade</b> conveyors: Basic → Fast → Express (research). Each tile holds one package, so speed is throughput.',
+      '<b>🔀 Splitters</b> deal packages out; <b>🚦 Sorters</b> pull one product out, and can split it by ratio across exits.',
+      'New sites unlock new pieces everywhere: 🌉 <b>Bridge</b> (lines cross), 🧺 <b>Accumulator</b> (holds 20), 🫙 <b>Silo</b>, 🏗️ Loading Crane, 🧪 Research Bench, 🦾 Cobot Station.',
+      '🌡️ <b>Heatmaps</b> (top right) show traffic, wear, dirt and more.',
+    ], true)}
+    ${sec('🏭', 'Assemblers and machines', [
+      'Tap an assembler to pick a recipe. Feed each ingredient from a different side so one cannot block another.',
+      '<b>Modes</b>: ▶ Run, ⏸ Pause, or 🚀 Until the rocket has enough, so shared ingredients reach assemblers further down the line.',
+      '<b>Restock from storage</b>: when an assembler runs out of something on this site’s racks, a 🚜 Forklift Operator brings up to 10 at a time.',
+      '🔍 Scanner, 🏷️ Labeler, 🎁 Wrapper and ❄️ Chiller raise the <b>sale</b> price (flat bonuses before multipliers pay more).',
+      'Everything wears out and <b>breaks down ⚠️</b>. Tap to fix, or hire 🔧 Maintenance Techs to fix and service it.',
+    ])}
+    ${sec('🗄️', 'Storage', [
+      '<b>Racks</b> hold goods waiting for trucks, goods trucked in, and anything sent to “Store here”. Run a conveyor into a rack to store directly.',
+      'Tap a rack to upgrade it (15 → 50), choose <b>what goes on it</b>, and sell stored stock (all of it or a chosen amount).',
+      '<b>🚜 Handling</b>: every put-away, truck load and unload is a move. A site manages 10 a minute alone; each Forklift Operator adds 30.',
+    ])}
+    ${sec('👷', 'People', [
+      'Workers walk the floor; they step over conveyors but not broken floor, machines or buildings. Stuck workers show ❗.',
+      'Janitors, Techs, Operators and Forklift Operators are open from the start. <b>Specialists unlock through research</b>: Sales Rep, Security, Safety, Ops Manager, HR, Purchasing Agent.',
+      '😊 <b>Morale</b> comes from 🚻 restroom and ☕ break room coverage (within range), pay, accidents and filthy floors. Below 50% people quit.',
+      'Tap a worker to see what they are doing, set the site’s pay rate, or let them go.',
+      '🧽 Floors and buildings get dirty; filthy floors block walking. 🧹 Janitors clean.',
+      'Other facilities (Generator, Maintenance Shop, First Aid, Security Booth, Ops Center) unlock through research.',
+    ])}
+    ${sec('🏢', 'Sites and suppliers', [
+      'Each site has its own raw materials and role. A new site earns little until you boost it: follow its <b>💡 Make it pay</b> checklist (roof, sales reps, scanner or labeler, wrapper).',
+      'Tap a raw-material door to pick its <b>supplier</b> (Budget, Standard, Express) or <b>🤝 negotiate</b> a cheaper contract. Read their mood; lowballing burns patience fast.',
+      'A 🧾 <b>Purchasing Agent</b> renews deals for you, but settles for less. You can <b>⏸ pause</b> a door when a line is flooded.',
+      'Purple <b>📥 receiving docks</b> unload trucks from your other sites; tap one to see what is coming.',
+    ])}
+    ${sec('🚚', 'Logistics', [
+      '<b>Distribution</b> (or tap a SHIP door): for each product, list destinations with weights and optional caps. Surplus is sold or stored.',
+      '<b>Fleet</b>: buy trucks and assign them to routes. Each truck shows live what it is doing: loading, driving, or stuck unloading and why. Tap a route on the map to jump to it.',
+      'Each truck you own makes the next one 25% dearer.',
+    ])}
+    ${sec('💰', 'Money', [
+      '<b>💹 Market</b>: selling lots of one product drops its price until demand recovers. Booms and gluts come and go.',
+      '<b>⚡ Power</b>: machines and assemblers draw power; overload a site and everything slows.',
+      'Tap your money (top left) for the <b>finances</b>: where money comes from and where it goes.',
+      `While you are away, sites earn ${Math.round(offlineRate() * 100)}% of their recent average for ${OFFLINE_FULL_HOURS} hours, then half that, up to ${Math.round(offlineCapSec() / 3600)} hours. A 🌙 Night Crew keeps them at ${Math.round(NIGHT_CREW_RATE * 100)}%.`,
+    ])}
+    ${sec('🔬', 'Research and contracts', [
+      'Research is a tree in six branches. Each node needs its prerequisites, costs ⭐ and cash, and takes time in the lab (one at a time; 💎 can finish it early).',
+      '<b>📋 Contracts</b> (also a tab in Research) pay cash, ⭐ and 💎. Each offer shows how likely you are to fill it, based on what you have actually been selling. 🔄 New offers costs a few 💎.',
+    ])}
+    ${sec('🚀', 'The rocket', [
+      'Buy the 🚀 Launch Site and truck it the parts for three stages (Booster, Upper Stage, Crew Capsule), then press LAUNCH.',
+      'After that, rockets can launch automatically.',
+    ])}
+    ${sec('🔴', 'Mars colony', [
+      'After the first launch, rockets fly to Mars during a <b>launch window</b> (every 25 minutes of play, open for 5). The colony pauses while you are away.',
+      'Each rocket needs the same launch vehicle plus a <b>cargo manifest</b>: one base module, colonists, and supply crates. Plan it in 🚀 Launch Site → Mission Control.',
+      'Modules: 🏠 Habitat (homes), ⚡ Solar Farm (power), 🌱 Greenhouse and 🧊 Ice Mine (cut needs), 🛬 Landing Pad (Rare Metals come home), 🔬 Research Station, ⚛️ Fusion Reactor.',
+      'Colonists use 🍞 Food, 💧 Water/O₂ and 🔧 Spares each window. Run short and they ration, then start going home (nobody dies).',
+      'Events: 🌪️ dust storms (🔋 Power Cells), ☄️ meteor strikes (repaired with Spares), 🦠 sickness (💊 Medical Kits).',
+      'Colonists make ⭐, 💎 and 🪨 <b>Rare Metals</b>: sell them, or deliver them to a site for ⚛️ Fusion Cores.',
+      'The 🔴 <b>Colony</b> research branch, 🚧 pad upgrades and the 📦 Spaceport Cargo Center (at the Mega Hub) grow the colony faster.',
+    ])}
+    ${sec('💎', 'Gems', [
+      'Gems save time and never unlock anything you cannot earn: boosts, finishing research, refreshing contracts, emergency Mars drops, cargo boosts.',
+      'Earn them from goals, contracts, daily play, launches and the Mars colony.',
+    ])}
+    ${sec('📜', 'All recipes', recipes)}
+    ${sec('📦', 'Cargo types', [
+      ...CARGO_IDS.filter((k) => k !== 'standard').map((k) => `<b>${CARGO[k].name}</b> (${PRODUCT_IDS.filter((p) => PRODUCTS[p].cls === k).map((p) => PRODUCTS[p].icon).join(' ')}): ${CARGO[k].desc}`),
+      'Bigger sites suffer more theft, and every hire adds accident risk.',
+    ])}
     <button class="btn" style="width:100%;margin-top:14px" data-act="tutorial">🎓 Restart the tutorial</button>
     <button class="btn danger" style="width:100%;margin-top:10px" data-act="reset">Reset game</button>
   </div>`;
@@ -958,6 +991,8 @@ function onPanelClick(e) {
   } else if (act === 'fire') {
     if (prop.staff[id] > 0) prop.staff[id]--;
     save();
+  } else if (act === 'refreshoffers') {
+    refreshOffers();
   } else if (act === 'accept') {
     acceptContract(Number(id));
   } else if (act === 'abandon') {

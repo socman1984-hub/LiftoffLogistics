@@ -383,7 +383,7 @@ function shipOut(id, prop, r, it, x, y) {
   prop.earned += amount;
   prop.shipped[it.product] = (prop.shipped[it.product] || 0) + 1;
   r.sales.push({ t: r.time, v: amount });
-  shipLog.push({ t: state.clock, type: it.product });
+  shipLog.push({ t: state.clock, type: it.product, tags: it.tags.slice() });
   addFloater(id, r, x + 0.5, y + 0.2, '+' + fmt(amount), '111,207,151');
   onPackageShipped(it);
 }
@@ -922,7 +922,7 @@ function stepWorld(dt) {
   }
   stepFleet(dt);
   stepMarket(dt);
-  while (shipLog.length && shipLog[0].t < state.clock - 60) shipLog.shift();
+  while (shipLog.length && shipLog[0].t < state.clock - SHIPLOG_SECS) shipLog.shift();
   tickContracts();
 }
 
