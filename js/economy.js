@@ -29,7 +29,7 @@ function pricesHTML() {
     const d = demandOf(id);
     const price = marketPrice(id);
     const ev = eventMult(id);
-    const tag = P.raw ? `raw · supplier ${fmt(supplierCost(id))}` : LAUNCH.needs[id] ? '🚀 rocket part' : 'component';
+    const tag = P.mars ? '🔴 from Mars' : P.raw ? `raw · supplier ${fmt(supplierCost(id))}` : LAUNCH.needs[id] ? '🚀 rocket part' : 'component';
     const locked = RECIPES[id] && RECIPES[id].research && !hasResearch(RECIPES[id].research);
     html += `<div class="price-row ${locked ? 'locked' : ''}">
       <div class="pr-icon">${P.icon}</div>
@@ -100,6 +100,11 @@ function buyBoost(id) {
     state.gems -= b.cost;
     earn(gain, 'boost', 'Time Warp');
     toast(`⏱️ Time Warp: +${fmt(gain)}`);
+  } else if (id === 'cargo') {
+    if (!marsOn()) { toast('📦 Cargo Boost is for Mars rockets: launch your first rocket first'); return; }
+    state.gems -= b.cost;
+    M().cargoBoost = (M().cargoBoost || 0) + MARS.cargoBoostSlots;
+    toast(`📦 Next Mars rocket gets +${M().cargoBoost} cargo slots`);
   } else if (id === 'crew') {
     let fixed = 0;
     for (const def of PROPERTIES) {

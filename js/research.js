@@ -9,6 +9,7 @@ function researchState(r) {
   if (hasResearch(r.id)) return 'done';
   if (state.lab && state.lab.id === r.id) return 'active';
   if (!researchMet(r)) return 'locked';
+  if (r.b === 'colony' && !(state.launch && state.launch.count >= 1)) return 'locked'; // after the first launch
   return 'open';
 }
 

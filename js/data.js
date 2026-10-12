@@ -182,6 +182,7 @@ const RESEARCH_BRANCHES = [
   { id: 'logi', name: 'Logistics', icon: '🚚', desc: 'Trucks, suppliers and storage' },
   { id: 'biz', name: 'Business', icon: '💼', desc: 'Contracts, prices and earnings' },
   { id: 'aero', name: 'Aerospace', icon: '🚀', desc: 'Rocket technology' },
+  { id: 'colony', name: 'Colony', icon: '🔴', desc: 'Mars: needs, rockets and output (unlocks after your first launch)' },
 ];
 // Default cost by tier: [⭐, $, seconds in the lab].
 // Tuned by bot playthroughs: tier 1 lands in the first half hour, the whole
@@ -258,6 +259,18 @@ const RESEARCH = [
   R('aero', 3, 2, 'photovoltaics', '☀️', 'Photovoltaics', 'Unlocks the Solar Array recipe', ['guidance']),
   R('aero', 4, 1, 'flighttest', '🧪', 'Flight Testing', '+50% ⭐ reputation from rocket launches', ['thermal', 'habitat'], { launchStars: 0.5 }),
   R('aero', 5, 1, 'reusable', '♻️', 'Reusable Boosters', 'Each rocket needs 20% fewer parts', ['flighttest', 'photovoltaics'], { launchParts: 0.2 }),
+  // 🔴 Colony: the late-game sink for reputation and cash (open after the first launch)
+  R('colony', 1, 0, 'hydroponics', '🥬', 'Hydroponics', 'Colonists need 15% less food', [], { marsFood: 0.15 }, { cost: 20, money: 500000, time: 600 }),
+  R('colony', 1, 1, 'robotics', '🤖', 'Repair Drones', 'Modules need 25% fewer spares', [], { marsSpares: 0.25 }, { cost: 20, money: 500000, time: 600 }),
+  R('colony', 1, 2, 'recyclers', '♻️', 'Water Recyclers', 'Colonists need 15% less water and oxygen', [], { marsWater: 0.15 }, { cost: 20, money: 500000, time: 600 }),
+  R('colony', 2, 0, 'domes2', '🏘️', 'Expanded Habitats', 'Each Habitat Dome holds 1 more colonist', ['hydroponics'], { marsCap: 1 }, { cost: 40, money: 1500000, time: 1200 }),
+  R('colony', 2, 1, 'heavylift', '🏋️', 'Heavy-Lift Rockets', '+8 cargo slots on every Mars rocket', ['robotics'], { marsSlots: 8 }, { cost: 40, money: 1500000, time: 1200 }),
+  R('colony', 2, 2, 'transit', '🛸', 'Ion Transit', 'Rockets reach Mars 30% faster', ['recyclers'], { marsTransit: 0.3 }, { cost: 40, money: 1500000, time: 1200 }),
+  R('colony', 3, 0, 'refining', '🔥', 'Rare Metal Refining', 'Colonists dig 50% more Rare Metals', ['domes2'], { marsMetals: 0.5 }, { cost: 70, money: 4000000, time: 2400 }),
+  R('colony', 3, 1, 'rapidpad', '⏱️', 'Rapid Pad Turnaround', 'The launch pad resets 30 seconds faster', ['heavylift'], { marsTurn: 30 }, { cost: 70, money: 4000000, time: 2400 }),
+  R('colony', 3, 2, 'medbay', '🩺', 'Colony Medicine', 'Rationing and sickness cost a quarter less output', ['transit'], { marsRation: 0.25 }, { cost: 70, money: 4000000, time: 2400 }),
+  R('colony', 4, 1, 'fusion', '⚛️', 'Fusion Power', 'Unlocks the Fusion Core recipe and the Fusion Reactor module', ['refining'], {}, { cost: 110, money: 10000000, time: 3600 }),
+  R('colony', 5, 1, 'terraform', '🌍', 'Terraforming Studies', 'Colonists make 25% more reputation and Rare Metals', ['fusion', 'rapidpad'], { marsOutput: 0.25 }, { cost: 180, money: 25000000, time: 7200 }),
 ];
 for (const r of RESEARCH) {
   // Nodes that open up a job say so.
@@ -319,6 +332,11 @@ const PRODUCTS = {
   foodcrate: { name: 'Food Crate', icon: '🍞', cls: 'standard', value: 70 },
   canister: { name: 'Water/O₂ Canister', icon: '💧', cls: 'cold', value: 140 },
   spares: { name: 'Spares Kit', icon: '🔧', cls: 'standard', value: 170 },
+  medkit: { name: 'Medical Kit', icon: '💊', cls: 'fragile', value: 260 },
+  powercell: { name: 'Power Cell', icon: '🔋', cls: 'standard', value: 700 },
+  // From Mars
+  raremetal: { name: 'Rare Metals', icon: '🪨', cls: 'bulky', value: 4000, raw: true, mars: true },
+  fusioncore: { name: 'Fusion Core', icon: '⚛️', cls: 'fragile', value: 15000 },
 };
 const PRODUCT_IDS = Object.keys(PRODUCTS);
 
@@ -343,6 +361,9 @@ const RECIPES = {
   foodcrate: { in: { provisions: 3, panel: 1 }, time: 3 },
   canister: { in: { lox: 2, alloy: 1 }, time: 3 },
   spares: { in: { valve: 1, circuit: 1, wiring: 1 }, time: 4 },
+  medkit: { in: { sensor: 1, provisions: 2 }, time: 3 },
+  powercell: { in: { solar: 2, circuit: 1 }, time: 4 },
+  fusioncore: { in: { raremetal: 2, computer: 1, alloy: 2 }, time: 8, research: 'fusion' },
 };
 const RECIPE_IDS = Object.keys(RECIPES);
 const ASSEMBLER = { name: 'Assembler', cost: 400, life: 500, bufferRecipes: 2 };
@@ -405,6 +426,7 @@ const FACILITIES = {
   generator: { name: 'Generator', icon: '🔌', color: '#b7950b', cost: 2000, power: -12, outside: true, research: 'efficiency', desc: '+12 ⚡ power capacity. Built outside, on the building\'s outer wall' },
   crane: { name: 'Loading Crane', icon: '🏗️', color: '#d35400', cost: 4000, power: 4, outside: true, unlock: 'depot', research: 'forklift', desc: '+50% rack handling here: trucks load and unload faster, forklifts are freed up. Built outside, on the outer wall' },
   bench: { name: 'Research Bench', icon: '🧪', color: '#16a085', cost: 6000, power: 3, unlock: 'lab', research: 'fastassembly', desc: `+25% research speed for every bench you own, at any site (up to ${BENCH_MAX})` },
+  cargocenter: { name: 'Spaceport Cargo Center', icon: '📦', color: '#1f618d', cost: 20000, power: 5, max: 1, unlock: 'hub', onlySite: 'hub', research: 'heavylift', desc: 'Packs Mars cargo: +10 cargo slots per rocket and the pad resets 30 s faster. Built at the Mega Hub' },
   cobot: { name: 'Cobot Station', icon: '🦾', color: '#5d6d7e', cost: 8000, power: 4, unlock: 'hub', research: 'automation', desc: `A robot arm that counts as one extra crew member at every assembler within ${COBOT_RANGE} tiles. No wages, no breaks` },
 };
 const FACILITY_IDS = Object.keys(FACILITIES);
@@ -487,13 +509,20 @@ const MARS = {
   starsPerColonist: 1, metalsPerColonist: 2, metalValue: 4000,
   rationsBeforeLeaving: 3, minColonists: 2,
   dustChance: 0.15, requestChance: 0.5,
-  emergencyGems: 15, emergencySlots: 8,
+  emergencyGems: 15, emergencySlots: 8, cargoBoostSlots: 15, powerCellBoost: 2, fusionPower: 12,
   padTurnaround: 90, // seconds the pad needs between launches (≈3 per window)
   milestones: [[10, 25], [25, 50], [50, 100], [100, 200]],
 };
 // Every flight to Mars needs this launch vehicle; the payload is what changes.
 const VEHICLE = { fuselage: 6, tank: 4, engine: 3, fuel: 8, avionics: 1 };
-const SUPPLY_PRODUCT = { food: 'foodcrate', water: 'canister', spares: 'spares' };
+const SUPPLY_PRODUCT = { food: 'foodcrate', water: 'canister', spares: 'spares', med: 'medkit', power: 'powercell' };
+const SUPPLY_KINDS = Object.keys(SUPPLY_PRODUCT);
+const MARS_EVENTS = {
+  dust: { icon: '🌪️', name: 'Dust storm', chance: 0.12, windows: 2, desc: 'Solar output halved. 🔋 Power Cells in stock add 2 power each window (one used per window).' },
+  meteor: { icon: '☄️', name: 'Meteor strike', chance: 0.08, desc: 'A module is knocked offline until the colony has 4 spare 🔧 Spares Kits to repair it.' },
+  sick: { icon: '🦠', name: 'Sickness', chance: 0.08, desc: 'Output down 30% until 2 💊 Medical Kits are in stock to treat it.' },
+};
+const PAD_LEVELS = [{ cost: 1000000, cut: 20 }, { cost: 3000000, cut: 20 }, { cost: 8000000, cut: 20 }]; // launch pad upgrades: seconds off the turnaround
 const MARS_MODULES = {
   habitat: { name: 'Habitat Dome', icon: '🏠', payload: { fuselage: 4, lifesupport: 2, heatshield: 2 }, desc: 'Room for 4 colonists' },
   solar: { name: 'Solar Farm', icon: '⚡', payload: { solar: 6, wiring: 4 }, desc: `+${3} power for the other modules` },
@@ -501,6 +530,7 @@ const MARS_MODULES = {
   icemine: { name: 'Ice Mine', icon: '🧊', payload: { turbopump: 2, alloy: 4, sensor: 2 }, max: 3, desc: 'Makes water and oxygen: −25% Water/O₂ needed per level' },
   pad: { name: 'Landing Pad', icon: '🛬', payload: { alloy: 6, heatshield: 4, avionics: 2 }, max: 1, desc: 'Return flights: Rare Metals get sold back home' },
   station: { name: 'Research Station', icon: '🔬', payload: { computer: 2, sensor: 4, avionics: 2 }, max: 1, desc: 'Colonists make +50% ⭐ reputation' },
+  fusion: { name: 'Fusion Reactor', icon: '⚛️', payload: { fusioncore: 2, alloy: 6, heatshield: 2 }, max: 2, research: 'fusion', desc: '+12 power that dust storms can\'t touch' },
 };
 
 // Total parts per product across all stages.
@@ -536,6 +566,7 @@ const BOOSTS = [
   { id: 'double', kind: 'play', name: 'Double Earnings', icon: '💰', cost: 15, dur: 1800, desc: 'Every sale pays 2× for 30 minutes of play' },
   { id: 'freight', kind: 'play', name: 'Express Freight', icon: '🚛', cost: 10, dur: 1800, desc: 'Trucks between your sites drive 3× faster for 30 minutes of play' },
   { id: 'warp', kind: 'instant', name: 'Time Warp', icon: '⏱️', cost: 20, desc: 'Instantly collect 1 hour of your current net income' },
+  { id: 'cargo', kind: 'instant', name: 'Cargo Boost', icon: '📦', cost: 12, desc: '+15 cargo slots on your next Mars rocket' },
   { id: 'crew', kind: 'instant', name: 'Emergency Crew', icon: '🧰', cost: 5, desc: 'Instantly fix every breakdown and service all equipment' },
   { id: 'night4', kind: 'away', hours: 4, name: 'Night Crew · 4 hours', icon: '🌙', cost: 10, desc: 'Your sites earn at 40% speed for your next 4 hours away' },
   { id: 'night8', kind: 'away', hours: 8, name: 'Night Crew · 8 hours', icon: '🌙', cost: 18, desc: '40% earnings for your next 8 hours away (a good night\'s sleep)' },

@@ -144,6 +144,12 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   (sold once a Landing Pad flies them home); shortages mean rationing at half output and, after a while, colonists
   going home, never a wipe. Dust storms, colonist requests, population milestones and a 15 💎 emergency supply drop.
   The colony runs on the game clock, so it pauses while you're away.
+  **Later colony stage:** a 🔴 **Colony** research branch (after the first launch: lower needs, bigger habitats,
+  heavy-lift rockets, faster transit and pad turnaround, Rare Metal refining, gentler rationing, ⚛️ Fusion Power,
+  Terraforming); ☄️ meteor strikes (repair with Spares), 🦠 sickness (💊 Medical Kits) and 🌪️ dust storms (🔋 Power
+  Cells); Rare Metals sold on arrival or delivered to a site for ⚛️ Fusion Cores (2 🪨 + 💻 + 2 🟦), which build the
+  ⚛️ Fusion Reactor module; 🚧 launch pad upgrades; the 📦 Spaceport Cargo Center at the Mega Hub (+10 slots, faster
+  pad); and a 💎 Cargo Boost.
 - **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).

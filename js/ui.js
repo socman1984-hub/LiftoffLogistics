@@ -1271,6 +1271,7 @@ function handleTap(x, y) {
     const type = ui.facilityType;
     if (!type) { openPanel('facilities'); return; }
     if (facLockReason(FACILITIES[type])) { toast(facLockReason(FACILITIES[type])); return; }
+    if (FACILITIES[type].onlySite && state.current !== FACILITIES[type].onlySite) { toast(`${FACILITIES[type].icon} ${FACILITIES[type].name} can only be built at the ${PROP_BY_ID[FACILITIES[type].onlySite].name}`); return; }
     if (t.obj) { toast('Remove what is here first'); return; }
     const f = FACILITIES[type];
     if (f.max && facCount(state.current, type) >= f.max) { toast(`Only ${f.max} ${f.name} per site`); return; }

@@ -602,7 +602,7 @@ function checkLaunch() {
   if (!state.launch.owned || !launchReady()) { ui.launchReadyToasted = false; return; }
   if (marsOn()) {
     // Auto: one rocket per window, as soon as the vehicle is ready.
-    if (state.launch.auto && (M().autoWindow !== M().windowAt || planCargo(MARS.slots, true).used >= MARS.slots / 2)) marsLaunch();
+    if (state.launch.auto && (M().autoWindow !== M().windowAt || planCargo(rocketSlots(), true).used >= rocketSlots() / 2)) marsLaunch();
     return;
   }
   if (state.launch.count >= 1 && state.launch.auto) { doLaunch({ auto: true }); return; }

@@ -6,18 +6,32 @@
 // colony simply pauses while you're away.
 
 const marsOn = () => state.launch.count >= 1;
-const M = () => state.mars || (state.mars = marsFresh());
+const M = () => {
+  const m = state.mars || (state.mars = marsFresh());
+  // Saves from before a field existed.
+  for (const k of SUPPLY_KINDS) { if (m.stock[k] == null) m.stock[k] = 0; if (m.manifest[k] == null) m.manifest[k] = 0; }
+  if (!m.events) { m.events = { dust: m.event && m.event.kind === 'dust' ? m.event.left : 0, meteor: null, sick: false }; delete m.event; }
+  if (!m.damaged) m.damaged = {};
+  if (m.metalsTo == null) m.metalsTo = 'sell';
+  if (m.padLevel == null) m.padLevel = 0;
+  return m;
+};
 
 function marsFresh() {
   return {
-    colonists: 0, modules: {}, stock: { food: 0, water: 0, spares: 0 }, rations: 0,
+    colonists: 0, modules: {}, damaged: {}, stock: { food: 0, water: 0, spares: 0, med: 0, power: 0 }, rations: 0,
     windowAt: state.clock + MARS.firstWindow, nextCycle: state.clock + MARS.firstWindow, cycle: 0,
-    flights: [], manifest: { module: 'habitat', food: 4, water: 4, spares: 2, colonists: 4 },
-    milestones: {}, event: null, request: null, last: null, metalsWaiting: 0, metalsTotal: 0, autoWindow: -1,
+    flights: [], manifest: { module: 'habitat', food: 4, water: 4, spares: 2, med: 0, power: 0, colonists: 4 },
+    milestones: {}, events: { dust: 0, meteor: null, sick: false }, request: null, last: null,
+    metalsWaiting: 0, metalsTotal: 0, metalsTo: 'sell', autoWindow: -1, padLevel: 0, cargoBoost: 0,
   };
 }
 
-// ---------- Windows ----------
+// ---------- Windows, pad and rockets ----------
+const cargoCenter = () => state.props.hub && state.props.hub.owned && facCount('hub', 'cargocenter') > 0;
+const padTurnaround = () => Math.max(20, MARS.padTurnaround - rfx('marsTurn') - PAD_LEVELS.slice(0, M().padLevel).reduce((a, l) => a + l.cut, 0) - (cargoCenter() ? 30 : 0));
+const rocketSlots = () => MARS.slots + rfx('marsSlots') + (cargoCenter() ? 10 : 0) + (M().cargoBoost || 0);
+const transitTime = () => Math.round(MARS.transit * (1 - rfx('marsTransit')));
 const padBusy = () => Math.max(0, (M().padFreeAt || 0) - state.clock);
 function marsWindowOpen() { const m = M(); return state.clock >= m.windowAt && state.clock < m.windowAt + MARS.windowOpen; }
 function marsWindowIn() { const m = M(); return Math.max(0, m.windowAt - state.clock); }
@@ -25,24 +39,31 @@ function marsWindowLeft() { const m = M(); return Math.max(0, m.windowAt + MARS.
 
 // ---------- Colony numbers ----------
 const modCount = (k) => M().modules[k] || 0;
-const marsCap = () => MARS.perHabitat * modCount('habitat');
+const effMod = (k) => Math.max(0, modCount(k) - (M().damaged[k] || 0)); // damaged modules do nothing
+const marsCap = () => (MARS.perHabitat + rfx('marsCap')) * effMod('habitat');
 const totalModules = () => Object.values(M().modules).reduce((a, b) => a + b, 0);
 const inTransitColonists = () => M().flights.reduce((a, f) => a + (f.colonists || 0), 0);
 
-// Share of the powered modules that actually get power (dust storms halve solar).
+// Power: solar (halved by dust; Power Cells help), fusion (immune). Share of powered modules running.
 function marsPower() {
-  const supply = MARS.solarPower * modCount('solar') * (M().event && M().event.kind === 'dust' ? 0.5 : 1);
-  const demand = ['greenhouse', 'icemine', 'station', 'pad'].reduce((a, k) => a + modCount(k), 0);
-  return { supply, demand, frac: demand ? Math.min(1, supply / demand) : 1 };
+  const m = M();
+  const dust = m.events.dust > 0;
+  const solar = MARS.solarPower * effMod('solar') * (dust ? 0.5 : 1);
+  const fusion = MARS.fusionPower * effMod('fusion');
+  const demand = ['greenhouse', 'icemine', 'station', 'pad'].reduce((a, k) => a + effMod(k), 0);
+  const short = Math.max(0, demand - solar - fusion);
+  const cells = dust ? Math.min(m.stock.power, Math.ceil(short / MARS.powerCellBoost)) : 0;
+  const supply = solar + fusion + cells * MARS.powerCellBoost;
+  return { supply, demand, cells, frac: demand ? Math.min(1, supply / demand) : 1 };
 }
 
 // What the colony needs from Earth each window.
 function marsNeeds() {
   const m = M(), pw = marsPower().frac;
-  const food = m.colonists * MARS.foodPerColonist * Math.max(0, 1 - 0.25 * Math.min(3, modCount('greenhouse')) * pw);
-  const water = m.colonists * MARS.waterPerColonist * Math.max(0, 1 - 0.25 * Math.min(3, modCount('icemine')) * pw);
-  const spares = MARS.sparesPerModule * totalModules();
-  return { food: Math.ceil(food), water: Math.ceil(water), spares: Math.ceil(spares) };
+  const food = m.colonists * MARS.foodPerColonist * (1 - rfx('marsFood')) * Math.max(0, 1 - 0.25 * Math.min(3, effMod('greenhouse')) * pw);
+  const water = m.colonists * MARS.waterPerColonist * (1 - rfx('marsWater')) * Math.max(0, 1 - 0.25 * Math.min(3, effMod('icemine')) * pw);
+  const spares = MARS.sparesPerModule * totalModules() * (1 - rfx('marsSpares'));
+  return { food: Math.ceil(food), water: Math.ceil(water), spares: Math.ceil(spares), med: m.events.sick ? 2 : 0, power: 0 };
 }
 
 // Things the Launch Site wants trucked in for the next flight.
@@ -68,29 +89,32 @@ const vehicleReady = () => {
 function moduleAllowed(k) {
   const mm = MARS_MODULES[k];
   if (!mm) return false;
+  if (mm.research && !hasResearch(mm.research)) return false;
   if (k !== 'habitat' && !modCount('habitat') && !M().flights.some((f) => f.module === 'habitat')) return false; // live somewhere first
   if (mm.max && modCount(k) + M().flights.filter((f) => f.module === k).length >= mm.max) return false;
   return true;
 }
 const payloadReady = (k) => Object.entries(MARS_MODULES[k].payload).every(([p, n]) => (state.launch.parts[p] || 0) >= n);
+const emptyCargo = () => ({ module: null, colonists: 0, food: 0, water: 0, spares: 0, med: 0, power: 0 });
 
 // What the next rocket would carry right now, from the pad's stock.
 function planCargo(slots, allowModule) {
-  const m = M(), pad = state.launch.parts, c = { module: null, colonists: 0, food: 0, water: 0, spares: 0 };
+  const m = M(), pad = state.launch.parts, c = emptyCargo();
   let left = slots;
   if (allowModule && m.manifest.module && moduleAllowed(m.manifest.module) && payloadReady(m.manifest.module) && left >= MARS.slotModule) {
     c.module = m.manifest.module;
     left -= MARS.slotModule;
   }
   if (allowModule) {
-    const capAfter = marsCap() + (c.module === 'habitat' ? MARS.perHabitat : 0) + MARS.perHabitat * m.flights.filter((f) => f.module === 'habitat').length;
+    const per = MARS.perHabitat + rfx('marsCap');
+    const capAfter = marsCap() + (c.module === 'habitat' ? per : 0) + per * m.flights.filter((f) => f.module === 'habitat').length;
     const room = Math.max(0, capAfter - m.colonists - inTransitColonists());
     c.colonists = Math.min(m.manifest.colonists, room, Math.floor(left / MARS.slotColonist));
     left -= c.colonists * MARS.slotColonist;
   }
   // Supplies load one crate at a time, most urgent first, up to the manifest's numbers.
   const need = marsNeeds();
-  const order = ['food', 'water', 'spares'].sort((a, b2) => (m.stock[a] + c[a]) / (need[a] || 0.5) - (m.stock[b2] + c[b2]) / (need[b2] || 0.5));
+  const order = [...SUPPLY_KINDS].sort((a, b) => (m.stock[a] + c[a]) / (need[a] || 0.5) - (m.stock[b] + c[b]) / (need[b] || 0.5));
   let moved = true;
   while (left > 0 && moved) {
     moved = false;
@@ -105,9 +129,9 @@ function planCargo(slots, allowModule) {
 // Emergency drops grab whatever's on the pad, most urgent supply first.
 function emergencyCargo() {
   const m = M(), pad = state.launch.parts, need = marsNeeds();
-  const c = { module: null, colonists: 0, food: 0, water: 0, spares: 0 };
+  const c = emptyCargo();
   let left = MARS.emergencySlots;
-  const order = ['food', 'water', 'spares'].sort((a, b) => (m.stock[a] / (need[a] || 1)) - (m.stock[b] / (need[b] || 1)));
+  const order = [...SUPPLY_KINDS].sort((a, b) => (m.stock[a] / (need[a] || 1)) - (m.stock[b] / (need[b] || 1)));
   while (left > 0) {
     let moved = false;
     for (const kind of order) {
@@ -122,7 +146,7 @@ function emergencyCargo() {
 function takeFromPad(c) {
   const pad = state.launch.parts;
   if (c.module) for (const [p, n] of Object.entries(MARS_MODULES[c.module].payload)) pad[p] -= n;
-  for (const kind of ['food', 'water', 'spares']) if (c[kind]) pad[SUPPLY_PRODUCT[kind]] -= c[kind];
+  for (const kind of SUPPLY_KINDS) if (c[kind]) pad[SUPPLY_PRODUCT[kind]] -= c[kind];
   for (const p of Object.keys(pad)) if (pad[p] <= 0) delete pad[p];
 }
 
@@ -135,8 +159,8 @@ function marsLaunch(opts = {}) {
     if (!c.used) { toast('🆘 No supply crates on the pad to send'); return false; }
     state.gems -= MARS.emergencyGems;
     takeFromPad(c);
-    m.flights.push({ ...c, arriveAt: state.clock + MARS.transit, emergency: true });
-    toast(`🆘 Emergency drop on its way: ${cargoText(c)} · arrives in ${fmtSecs(MARS.transit)}`);
+    m.flights.push({ ...c, arriveAt: state.clock + transitTime(), emergency: true });
+    toast(`🆘 Emergency drop on its way: ${cargoText(c)} · arrives in ${fmtSecs(transitTime())}`);
     save();
     return true;
   }
@@ -145,34 +169,33 @@ function marsLaunch(opts = {}) {
   if (!vehicleReady()) { toast('🚀 The rocket still needs parts'); return false; }
   const cut = 1 - rfx('launchParts');
   for (const [p, n] of Object.entries(VEHICLE)) state.launch.parts[p] -= Math.max(1, Math.round(n * cut));
-  const c = planCargo(MARS.slots, true);
+  const c = planCargo(rocketSlots(), true);
   takeFromPad(c);
-  m.flights.push({ ...c, arriveAt: state.clock + MARS.transit });
+  m.flights.push({ ...c, arriveAt: state.clock + transitTime() });
+  m.cargoBoost = 0;
   state.launch.count++;
   m.autoWindow = m.windowAt;
-  m.padFreeAt = state.clock + MARS.padTurnaround;
-  toast(`🚀 Rocket #${state.launch.count} is off to Mars: ${cargoText(c) || 'empty hold'} · arrives in ${fmtSecs(MARS.transit)}`);
+  m.padFreeAt = state.clock + padTurnaround();
+  toast(`🚀 Rocket #${state.launch.count} is off to Mars: ${cargoText(c) || 'empty hold'} · arrives in ${fmtSecs(transitTime())}`);
   save();
   return true;
 }
 
+const SUPPLY_ICON = { food: '🍞', water: '💧', spares: '🔧', med: '💊', power: '🔋' };
 const cargoText = (c) => [c.module && `${MARS_MODULES[c.module].icon} ${MARS_MODULES[c.module].name}`, c.colonists && `👩‍🚀 ${c.colonists}`,
-  c.food && `🍞 ${c.food}`, c.water && `💧 ${c.water}`, c.spares && `🔧 ${c.spares}`].filter(Boolean).join(' · ');
+  ...SUPPLY_KINDS.map((k) => c[k] && `${SUPPLY_ICON[k]} ${c[k]}`)].filter(Boolean).join(' · ');
 
 // ---------- Simulation (once a second) ----------
 function stepMars() {
   if (!marsOn()) return;
   const m = M();
-  // Windows roll forward.
   while (state.clock >= m.windowAt + MARS.windowOpen) m.windowAt += MARS.windowEvery;
   if (marsWindowOpen() && ui.marsWindowToast !== m.windowAt) {
     ui.marsWindowToast = m.windowAt;
     if (!state.launch.auto) toast(`🪐 Mars launch window open for ${fmtSecs(MARS.windowOpen)}${vehicleReady() ? ': your rocket is ready' : ''}`);
   }
-  // Arrivals.
   for (const f of m.flights.filter((q) => q.arriveAt <= state.clock)) marsArrive(f);
   m.flights = m.flights.filter((q) => q.arriveAt > state.clock);
-  // The colony's cycle runs as each window opens.
   while (state.clock >= m.nextCycle) { marsCycle(); m.nextCycle += MARS.windowEvery; }
 }
 
@@ -185,16 +208,17 @@ function marsArrive(f) {
     if (f.module === 'habitat') { // each dome lands stocked for one window, so new arrivals don't start hungry
       m.stock.food += MARS.perHabitat; m.stock.water += MARS.perHabitat; m.stock.spares += 1;
     }
-    if (f.module === 'pad' && m.metalsWaiting) { sellMetals(m.metalsWaiting); m.metalsWaiting = 0; }
+    if (f.module === 'pad' && m.metalsWaiting) { shipMetals(m.metalsWaiting); m.metalsWaiting = 0; }
   }
   if (f.colonists) {
     const n = Math.min(f.colonists, Math.max(0, marsCap() - m.colonists));
     m.colonists += n;
     if (n) bits.push(`👩‍🚀 ${n} colonist${n > 1 ? 's' : ''} landed`);
   }
-  for (const kind of ['food', 'water', 'spares']) if (f[kind]) m.stock[kind] += f[kind];
-  if (f.food || f.water || f.spares) bits.push(`supplies: ${cargoText({ food: f.food, water: f.water, spares: f.spares })}`);
-  // Colonist request filled?
+  for (const kind of SUPPLY_KINDS) if (f[kind]) m.stock[kind] += f[kind];
+  const sup = {};
+  for (const k of SUPPLY_KINDS) sup[k] = f[k];
+  if (SUPPLY_KINDS.some((k) => f[k])) bits.push(`supplies: ${cargoText(sup)}`);
   const rq = m.request;
   if (rq && !rq.done && (f[rq.kind] || 0) >= rq.n) {
     rq.done = true;
@@ -206,47 +230,78 @@ function marsArrive(f) {
   checkMilestones();
 }
 
-function sellMetals(n) {
+// Rare Metals: sold on arrival, or delivered to one of your sites for Fusion Cores.
+function shipMetals(n) {
   if (n <= 0) return;
-  const value = n * MARS.metalValue;
-  earn(value, 'mars', `${n} Rare Metals`);
-  M().metalsTotal += n;
+  const m = M();
+  m.metalsTotal += n;
+  const to = m.metalsTo;
+  if (to !== 'sell' && state.props[to] && state.props[to].owned && hasReceiveDock(PROP_BY_ID[to])) {
+    // Only what the site has room to store; the rest is sold.
+    const take = Math.max(0, Math.min(n, storageRoomFor(to, 'raremetal')));
+    const inbox = state.props[to].inbox;
+    inbox.raremetal = (inbox.raremetal || 0) + take;
+    n -= take;
+  }
+  if (n > 0) earn(n * PRODUCTS.raremetal.value * demandOf('raremetal'), 'mars', `${n} Rare Metals`);
 }
 
 function marsCycle() {
   const m = M();
   m.cycle++;
-  if (m.event) { m.event.left--; if (m.event.left <= 0) { toast('🌤️ The Martian dust storm has cleared'); m.event = null; } }
-  if (m.request && !m.request.done && m.cycle > m.request.due) m.request = null;
-  if (m.request && m.request.done) m.request = null;
+  const ev = m.events;
+  if (ev.dust > 0 && --ev.dust === 0) toast('🌤️ The Martian dust storm has cleared');
+  if (m.request && (m.request.done || m.cycle > m.request.due)) m.request = null;
   if (!m.colonists) { m.last = null; return; }
+  // Power Cells burn during a storm.
+  const pw = marsPower();
+  if (pw.cells) m.stock.power -= pw.cells;
   const need = marsNeeds();
   let short = false;
   for (const kind of ['food', 'water', 'spares']) {
     if (m.stock[kind] < need[kind]) short = true;
     m.stock[kind] = Math.max(0, m.stock[kind] - need[kind]);
   }
+  // Event fixes: spares repair meteor damage, medical kits cure sickness.
+  if (ev.meteor && m.stock.spares >= 4) {
+    m.stock.spares -= 4;
+    m.damaged[ev.meteor] = Math.max(0, (m.damaged[ev.meteor] || 0) - 1);
+    toast(`🔧 Mars: the ${MARS_MODULES[ev.meteor].name} is repaired`);
+    ev.meteor = null;
+  }
+  if (ev.sick && m.stock.med >= 2) { m.stock.med -= 2; ev.sick = false; toast('💊 Mars: the sickness is treated'); }
   m.rations = short ? m.rations + 1 : 0;
-  const mult = m.rations ? 0.5 : 1;
-  const pw = marsPower().frac;
-  const stars = Math.round(m.colonists * (1 + 0.5 * Math.min(1, modCount('station')) * pw) * mult * MARS.starsPerColonist);
-  const metals = Math.round(m.colonists * MARS.metalsPerColonist * mult);
+  let mult = m.rations ? 0.5 + rfx('marsRation') : 1;
+  if (ev.sick) mult *= 1 - 0.3 * (1 - rfx('marsRation'));
+  const stars = Math.round(m.colonists * (1 + 0.5 * Math.min(1, effMod('station')) * pw.frac) * mult * MARS.starsPerColonist * (1 + rfx('marsOutput')));
+  const metals = Math.round(m.colonists * MARS.metalsPerColonist * mult * (1 + rfx('marsMetals') + rfx('marsOutput')));
   const gems = Math.floor(m.colonists / 10);
   state.rep += stars;
   state.gems += gems;
-  if (modCount('pad')) sellMetals(metals + m.metalsWaiting), (m.metalsWaiting = 0);
-  else m.metalsWaiting += metals;
+  if (effMod('pad')) { shipMetals(metals + m.metalsWaiting); m.metalsWaiting = 0; } else m.metalsWaiting += metals;
   let left = 0;
   if (m.rations >= MARS.rationsBeforeLeaving && m.colonists > MARS.minColonists) { m.colonists--; left = 1; }
   m.last = { need, short, stars, metals, gems, left };
   // Something happens now and then.
-  if (!m.event && Math.random() < MARS.dustChance && modCount('solar')) {
-    m.event = { kind: 'dust', left: 2 };
-    toast('🌪️ A dust storm is rolling over the colony: solar power halved for 2 windows');
+  if (!ev.dust && effMod('solar') && Math.random() < MARS_EVENTS.dust.chance) {
+    ev.dust = MARS_EVENTS.dust.windows;
+    toast('🌪️ A dust storm is rolling over the colony: solar power halved for 2 windows (🔋 Power Cells help)');
+  }
+  if (!ev.meteor && totalModules() >= 3 && Math.random() < MARS_EVENTS.meteor.chance) {
+    const hit = Object.keys(m.modules).filter((k) => k !== 'habitat' && effMod(k) > 0);
+    if (hit.length) {
+      ev.meteor = hit[Math.floor(Math.random() * hit.length)];
+      m.damaged[ev.meteor] = (m.damaged[ev.meteor] || 0) + 1;
+      toast(`☄️ Meteor strike! The ${MARS_MODULES[ev.meteor].name} is offline until the colony has 4 spare 🔧 Spares Kits`);
+    }
+  }
+  if (!ev.sick && m.colonists >= 8 && Math.random() < MARS_EVENTS.sick.chance) {
+    ev.sick = true;
+    toast('🦠 Sickness in the colony: output down 30% until 2 💊 Medical Kits arrive');
   }
   if (!m.request && Math.random() < MARS.requestChance) {
     const kind = ['food', 'water', 'spares'][Math.floor(Math.random() * 3)];
-    const n = Math.max(3, Math.round(m.colonists * 1.5));
+    const n = Math.max(3, Math.round(m.colonists * 0.75));
     const who = WORKER_NAMES[Math.floor(Math.random() * WORKER_NAMES.length)];
     m.request = { kind, n, due: m.cycle + 2, stars: 5 + Math.round(n / 2), gems: 2, who };
   }
@@ -267,7 +322,7 @@ function checkMilestones() {
 // ---------- Panels ----------
 function marsControlHTML() {
   const tab = ui.marsTab || 'launch';
-  let html = `<div class="tabs"><button class="tab ${tab === 'launch' ? 'on' : ''}" data-act="marstab" data-id="launch">🚀 Next launch</button>
+  const html = `<div class="tabs"><button class="tab ${tab === 'launch' ? 'on' : ''}" data-act="marstab" data-id="launch">🚀 Next launch</button>
     <button class="tab ${tab === 'base' ? 'on' : ''}" data-act="marstab" data-id="base">🔴 Mars base</button></div>`;
   return html + (tab === 'base' ? marsBaseHTML() : marsLaunchHTML());
 }
@@ -277,18 +332,18 @@ function marsLaunchHTML() {
   const open = marsWindowOpen();
   let html = `<div class="mars-window ${open ? 'open' : ''}"><b>${open ? '🟢 Launch window open' : '🪐 Next launch window'}</b>
     <span class="num">${open ? `${fmtSecs(marsWindowLeft())} left` : `in ${fmtSecs(marsWindowIn())}`}</span></div>
-    <p class="intro small">Earth and Mars line up every ${Math.round(MARS.windowEvery / 60)} minutes of play; rockets can leave while the window is open and reach Mars ${Math.round(MARS.transit / 60)} minutes later. Truck parts and supplies here with 🚚 Logistics → add 🚀 Launch Site as a destination.</p>`;
-  // Vehicle
+    <p class="intro small">Earth and Mars line up every ${Math.round(MARS.windowEvery / 60)} minutes of play; rockets can leave while the window is open and reach Mars in ${fmtSecs(transitTime())}. Truck parts and supplies here with 🚚 Logistics → add 🚀 Launch Site as a destination.</p>`;
   const cut = 1 - rfx('launchParts');
   html += '<h3 class="sec">Rocket</h3><div class="mars-parts">' + Object.entries(VEHICLE).map(([p, n]) => {
     const need = Math.max(1, Math.round(n * cut)), have = Math.min(need, pad[p] || 0);
     return `<span class="${have >= need ? 'ok' : ''}">${PRODUCTS[p].icon} ${have}/${need}</span>`;
   }).join('') + '</div>';
-  // Manifest
-  const c = planCargo(MARS.slots, true);
-  html += `<h3 class="sec">Cargo <span class="muted">${c.used}/${MARS.slots} slots ready</span></h3>`;
+  const slots = rocketSlots();
+  const c = planCargo(slots, true);
+  html += `<h3 class="sec">Cargo <span class="muted">${c.used}/${slots} slots ready${m.cargoBoost ? ` (📦 +${m.cargoBoost} boost)` : ''}</span></h3>`;
   html += '<div class="choice mars-mods">' + `<button class="chip ${!m.manifest.module ? 'on' : ''}" data-act="marsmod" data-id="">No module</button>`
     + Object.entries(MARS_MODULES).map(([k, mm]) => {
+      if (mm.research && !hasResearch(mm.research)) return '';
       const ok = moduleAllowed(k);
       return `<button class="chip ${m.manifest.module === k ? 'on' : ''} ${ok ? '' : 'faint'}" data-act="marsmod" data-id="${k}" title="${mm.desc}">${mm.icon} ${mm.name}${modCount(k) ? ` (${modCount(k)})` : ''}</button>`;
     }).join('') + '</div>';
@@ -300,11 +355,14 @@ function marsLaunchHTML() {
   const step = (kind, label, onPad) => `<div class="mars-step"><span>${label}</span><span class="muted small">${onPad}</span>
     <span class="dest-ctl"><button class="step" data-act="marsqty" data-id="${kind}|-1" ${m.manifest[kind] ? '' : 'disabled'}>−</button><b class="num">${m.manifest[kind]}</b>
     <button class="step" data-act="marsqty" data-id="${kind}|1">+</button></span></div>`;
-  const room = Math.max(0, marsCap() + MARS.perHabitat * (m.manifest.module === 'habitat' ? 1 : 0) - m.colonists - inTransitColonists());
+  const per = MARS.perHabitat + rfx('marsCap');
+  const room = Math.max(0, marsCap() + per * (m.manifest.module === 'habitat' ? 1 : 0) - m.colonists - inTransitColonists());
   html += step('colonists', `👩‍🚀 Colonists <span class="muted small">(${MARS.slotColonist} slots each)</span>`, `room for ${room}`);
   html += step('food', '🍞 Food Crates', `${pad.foodcrate || 0} on pad`);
   html += step('water', '💧 Water/O₂ Canisters', `${pad.canister || 0} on pad`);
   html += step('spares', '🔧 Spares Kits', `${pad.spares || 0} on pad`);
+  html += step('med', '💊 Medical Kits <span class="muted small">(sickness)</span>', `${pad.medkit || 0} on pad`);
+  html += step('power', '🔋 Power Cells <span class="muted small">(dust storms)</span>', `${pad.powercell || 0} on pad`);
   html += `<p class="intro small">This launch would carry: <b>${cargoText(c) || 'nothing yet'}</b>.</p>`;
   const busy = padBusy();
   html += `<button class="btn launch" data-act="marslaunch" ${open && vehicleReady() && !busy ? '' : 'disabled'}>${!vehicleReady() ? '🚀 Rocket needs parts' : !open ? `🪐 Window opens in ${fmtSecs(marsWindowIn())}` : busy ? `🚧 Pad resetting · ${fmtSecs(busy)}` : '🚀 Launch to Mars'}</button>`;
@@ -312,36 +370,55 @@ function marsLaunchHTML() {
     <button class="chip ${state.launch.auto ? 'on' : ''}" data-act="autolaunch" data-id="on">🔁 Automatically each window</button>
     <button class="chip ${!state.launch.auto ? 'on' : ''}" data-act="autolaunch" data-id="off">👆 When I press Launch</button></div>`;
   html += `<button class="btn secondary" style="width:100%;margin-top:6px" data-act="marsemergency" ${state.gems >= MARS.emergencyGems ? '' : 'disabled'}>🆘 Emergency supply drop now · up to ${MARS.emergencySlots} crates · ${MARS.emergencyGems} 💎</button>`;
+  // Pad upgrades: a place for late-game cash.
+  const next = PAD_LEVELS[m.padLevel];
+  html += `<h3 class="sec">Launch pad</h3>` + card('🚧', `Pad level ${m.padLevel + 1}/${PAD_LEVELS.length + 1}`,
+    `Resets in ${fmtSecs(padTurnaround())} between launches${cargoCenter() ? ' (📦 Cargo Center −30 s)' : ''}`,
+    next ? `Next level: −${next.cut} s` : 'Fully upgraded',
+    next ? `<button class="btn" data-act="marspad" ${state.money < next.cost ? 'disabled' : ''}>${fmt(next.cost)}</button>` : '<button class="btn secondary" disabled>Max</button>');
   return html;
 }
 
 function marsBaseHTML() {
-  const m = M();
+  const m = M(), ev = m.events;
   const need = marsNeeds(), pw = marsPower();
-  // The base: one plot per module type, filled when built.
   const plots = Object.entries(MARS_MODULES).map(([k, mm]) => {
-    const n = modCount(k), coming = m.flights.filter((f) => f.module === k).length;
-    return `<div class="mars-plot ${n ? 'built' : ''}"><div class="mp-ic">${n ? mm.icon : '·'}</div><div class="mp-nm">${mm.name}</div>
-      <div class="mp-lv">${n ? (mm.max ? `L${n}/${mm.max}` : `×${n}`) : coming ? '🚀 inbound' : 'not built'}</div></div>`;
+    if (mm.research && !hasResearch(mm.research) && !modCount(k)) return '';
+    const n = modCount(k), dmg = m.damaged[k] || 0, coming = m.flights.filter((f) => f.module === k).length;
+    return `<div class="mars-plot ${n ? 'built' : ''} ${dmg ? 'damaged' : ''}"><div class="mp-ic">${n ? mm.icon : '·'}</div><div class="mp-nm">${mm.name}</div>
+      <div class="mp-lv">${dmg ? '💥 damaged' : n ? (mm.max ? `L${n}/${mm.max}` : `×${n}`) : coming ? '🚀 inbound' : 'not built'}</div></div>`;
   }).join('');
+  const badges = [m.rations ? `<span class="neg">rationing (${m.rations})</span>` : '', ev.dust ? `🌪️ dust storm (${ev.dust})` : '', ev.meteor ? '☄️ meteor damage' : '', ev.sick ? '🦠 sickness' : ''].filter(Boolean).join(' · ');
   let html = `<div class="mars-scene"><div class="mars-sky"><span class="mars-earth">🌍</span></div>
     <div class="mars-plots">${plots}</div>
-    <div class="mars-pop">👩‍🚀 <b>${m.colonists}</b> / ${marsCap()} colonists${m.rations ? ` · <span class="neg">rationing (${m.rations})</span>` : ''}${m.event ? ` · 🌪️ dust storm (${m.event.left})` : ''}</div></div>`;
-  // Supplies in windows-left
+    <div class="mars-pop">👩‍🚀 <b>${m.colonists}</b> / ${marsCap()} colonists${badges ? ` · ${badges}` : ''}</div></div>`;
+  // Active events and what fixes them
+  for (const [k, on] of [['dust', ev.dust], ['meteor', ev.meteor], ['sick', ev.sick]]) {
+    if (!on) continue;
+    const e = MARS_EVENTS[k];
+    html += `<div class="power-box over"><div class="power-head"><span>${e.icon} ${e.name}${k === 'meteor' ? `: ${MARS_MODULES[ev.meteor].name}` : ''}</span></div><div class="power-note">${e.desc}</div></div>`;
+  }
   const meter = (kind, label) => {
     const per = need[kind];
     const w = per ? m.stock[kind] / per : Infinity;
     const pct = per ? Math.min(100, (w / 4) * 100) : 100;
-    const col = !per ? 'var(--good,#6fcf97)' : w >= 2 ? '#6fcf97' : w >= 1 ? '#f2c94c' : '#eb5757';
+    const col = !per ? '#6fcf97' : w >= 2 ? '#6fcf97' : w >= 1 ? '#f2c94c' : '#eb5757';
     return `<div class="mars-meter"><div class="mm-top"><span>${label}</span><span class="num">${m.stock[kind]} · ${per ? `${w.toFixed(1)} windows` : 'not needed'}</span></div>
       <div class="bar"><div style="width:${pct}%;background:${col}"></div></div><div class="muted small">uses ${per} per window</div></div>`;
   };
   html += '<h3 class="sec">Supplies</h3>' + meter('food', '🍞 Food') + meter('water', '💧 Water / O₂') + meter('spares', '🔧 Spares');
+  html += `<p class="intro small">In reserve: 💊 ${m.stock.med} Medical Kits · 🔋 ${m.stock.power} Power Cells</p>`;
   html += `<div class="stats risk">
-    <div class="stat-row"><span>⚡ Power</span><b class="${pw.frac < 1 ? 'neg' : ''}">${pw.supply} / ${pw.demand}${pw.frac < 1 ? ` · ${Math.round(pw.frac * 100)}% of modules running` : ''}</b></div>
+    <div class="stat-row"><span>⚡ Power</span><b class="${pw.frac < 1 ? 'neg' : ''}">${pw.supply} / ${pw.demand}${pw.cells ? ` (🔋 ${pw.cells} cells)` : ''}${pw.frac < 1 ? ` · ${Math.round(pw.frac * 100)}% running` : ''}</b></div>
     <div class="stat-row"><span>Next window</span><b>${marsWindowOpen() ? 'open now' : `in ${fmtSecs(marsWindowIn())}`}</b></div>
     ${m.last ? `<div class="stat-row"><span>Last window made</span><b>+${m.last.stars} ⭐ · ${m.last.metals} 🪨${m.last.gems ? ` · +${m.last.gems} 💎` : ''}</b></div>` : ''}
     <div class="stat-row"><span>🪨 Rare Metals shipped home</span><b>${m.metalsTotal}${m.metalsWaiting ? ` (+${m.metalsWaiting} waiting for a Landing Pad)` : ''}</b></div></div>`;
+  // Where Rare Metals go
+  const sites = PROPERTIES.filter((d) => state.props[d.id].owned && hasReceiveDock(d));
+  html += `<h3 class="sec">Rare Metals go to</h3><div class="choice">
+    <button class="chip ${m.metalsTo === 'sell' ? 'on' : ''}" data-act="marsmetals" data-id="sell">💰 Sell on arrival</button>
+    ${sites.map((d) => `<button class="chip ${m.metalsTo === d.id ? 'on' : ''}" data-act="marsmetals" data-id="${d.id}">🚚 ${d.emoji} ${d.name}</button>`).join('')}</div>
+    <p class="intro small">${m.metalsTo === 'sell' ? `Sold at ${fmt(marketPrice('raremetal'))} each.` : `Unloaded at the ${PROP_BY_ID[m.metalsTo].name}'s receiving dock${hasResearch('fusion') ? ', ready for ⚛️ Fusion Cores (2 🪨 + 💻 + 2 🟦)' : '. Research ⚛️ Fusion Power (Colony) to turn them into Fusion Cores'}.`}</p>`;
   if (m.request) {
     const rq = m.request, nm = { food: '🍞 Food Crates', water: '💧 Water/O₂ Canisters', spares: '🔧 Spares Kits' }[rq.kind];
     html += `<div class="power-box"><div class="power-head"><span>📨 ${rq.who} asks</span><b>${rq.done ? '✅ done' : `${Math.max(0, rq.due - m.cycle + 1)} window${rq.due - m.cycle ? 's' : ''} left`}</b></div>
@@ -350,9 +427,9 @@ function marsBaseHTML() {
   if (m.flights.length) {
     html += '<h3 class="sec">On the way</h3>' + m.flights.map((f) => `<div class="truck-row go"><span class="tr-ic">${f.emergency ? '🆘' : '🚀'}</span><div class="tr-body">
       <div class="tr-text">Lands in ${fmtSecs(f.arriveAt - state.clock)} · ${cargoText(f) || 'empty'}</div>
-      <div class="bar tr-bar"><div style="width:${Math.min(100, (1 - (f.arriveAt - state.clock) / MARS.transit) * 100)}%"></div></div></div></div>`).join('');
+      <div class="bar tr-bar"><div style="width:${Math.min(100, (1 - (f.arriveAt - state.clock) / transitTime()) * 100)}%"></div></div></div></div>`).join('');
   }
-  html += `<p class="intro small">Colonists use supplies each window and make ⭐, 💎 and Rare Metals (sold when a 🛬 Landing Pad can fly them home). Run short and they ration at half output; after ${MARS.rationsBeforeLeaving} short windows one goes home each window. The colony pauses while you're away.</p>`;
+  html += `<p class="intro small">Colonists use supplies each window and make ⭐, 💎 and Rare Metals. Run short and they ration at half output; after ${MARS.rationsBeforeLeaving} short windows one goes home each window. The 🔴 Colony research branch improves all of this. The colony pauses while you're away.</p>`;
   return html;
 }
 
@@ -362,11 +439,17 @@ function handleMarsAct(act, id) {
   if (act === 'marsmod') { m.manifest.module = id || null; save(); return true; }
   if (act === 'marsqty') {
     const [kind, d] = id.split('|');
-    m.manifest[kind] = Math.max(0, Math.min(MARS.slots, (m.manifest[kind] || 0) + Number(d)));
+    m.manifest[kind] = Math.max(0, Math.min(60, (m.manifest[kind] || 0) + Number(d)));
     save();
     return true;
   }
   if (act === 'marslaunch') { marsLaunch(); return true; }
   if (act === 'marsemergency') { marsLaunch({ emergency: true }); return true; }
+  if (act === 'marsmetals') { m.metalsTo = id; save(); return true; }
+  if (act === 'marspad') {
+    const next = PAD_LEVELS[m.padLevel];
+    if (next && spend(next.cost, 'upgrades', 'Launch pad')) { m.padLevel++; toast(`🚧 Launch pad level ${m.padLevel + 1}: resets in ${fmtSecs(padTurnaround())}`); save(); }
+    return true;
+  }
   return false;
 }
