@@ -17,12 +17,13 @@ function sorterSideDir(o) { return o.out != null ? o.out : (o.dir + o.side) % 4;
 function sorterSplit(o) { return o.split || { [sorterSideDir(o)]: 1 }; }
 const sorterMatchDirs = (o) => Object.entries(sorterSplit(o)).filter(([, w]) => w > 0).map(([d]) => +d);
 
-// Weighted round-robin over the sorted cargo's exits, preferring ones with room.
+// Weighted round-robin over the sorted cargo's exits, so the split matches the
+// player's ratio. `openOnly`: a package that has waited too long at a blocked exit
+// takes any exit with room instead.
 function chooseSortDir(prop, def, r, it, o, openOnly) {
   const dirs = sorterMatchDirs(o);
   if (dirs.length === 1) return dirs[0];
-  const open = dirs.filter((d) => canEnter(prop, def, r, it.x + DIRS[d].x, it.y + DIRS[d].y, opposite(d), it));
-  const pool = open.length ? open : openOnly ? [] : dirs;
+  const pool = openOnly ? dirs.filter((d) => canEnter(prop, def, r, it.x + DIRS[d].x, it.y + DIRS[d].y, opposite(d), it)) : dirs;
   if (!pool.length) return null;
   const split = sorterSplit(o);
   const cur = o.wrr || (o.wrr = {});
@@ -474,6 +475,11 @@ function tryMove(id, prop, def, r, it) {
     // A splitter (or a sorter splitting its cargo) whose exit got blocked may try another.
     const sorterSplitting = t.obj && t.obj.k === 'sorter' && sorterMatches(t.obj, it) && sorterMatchDirs(t.obj).length > 1;
     if (!(t.obj && t.obj.k === 'splitter') && !sorterSplitting) return false;
+    // Keep to the ratio: only reroute once the chosen exit has been jammed a while.
+    if (sorterSplitting) {
+      if (it.blockedAt == null) it.blockedAt = r.time;
+      if (r.time - it.blockedAt < SORTER.patience) return false;
+    }
     const d = sorterSplitting ? chooseSortDir(prop, def, r, it, t.obj, true) : chooseSplitterDir(prop, def, r, it, t.obj);
     if (sorterSplitting && d != null) it.sortDir = d;
     if (d == null) return false;
@@ -523,6 +529,7 @@ function tryMove(id, prop, def, r, it) {
   it.fromDir = opposite(outDir);
   it.outDir = null;
   it.sortDir = null;
+  it.blockedAt = null;
   it.proc = 0;
   it.processed = false;
   it.wait = 0;

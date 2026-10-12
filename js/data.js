@@ -64,7 +64,7 @@ const PM_THRESHOLD = 0.4; // techs service equipment once it's 40% worn
 const EQUIP_PER_TECH = 30; // pieces of equipment one tech can cover
 
 const SPLITTER = { name: 'Splitter', cost: 120, speed: 2.0, life: 2200 };
-const SORTER = { name: 'Sorter', cost: 250, speed: 2.0, life: 2200, research: 'sorter' };
+const SORTER = { name: 'Sorter', cost: 250, speed: 2.0, life: 2200, research: 'sorter', patience: 3 }; // patience: s a package waits at a jammed split exit before taking another
 // Unlocked by owning later sites (see `unlock` on TOOLS / FACILITIES).
 const BRIDGE = { name: 'Conveyor Bridge', cost: 300, speed: 2.0, life: 2500 }; // lines cross: packages keep going straight
 const BUFFER = { name: 'Accumulator', cost: 900, speed: 2.0, life: 1800, cap: 20 }; // holds packages, feeds them out steadily
