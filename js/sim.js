@@ -732,6 +732,8 @@ function nextInboxProduct(prop, r) {
 
 function stepAssemblers(id, prop, def, r, dt) {
   const speed = speedMult(id, prop) * (1 + rfx('assembly')) * r.power * (def.asmSpeed || 1);
+  const fabs = tilesOf(prop, 'fabcell', true);
+  const fabBoost = (x, y) => (fabs.some((c) => Math.abs(c.x - x) + Math.abs(c.y - y) <= FAB_RANGE) ? 1 + FAB_SPEED : 1);
   for (let y = 0; y < def.rows; y++) {
     for (let x = 0; x < def.cols; x++) {
       const o = prop.tiles[y][x].obj;
@@ -752,7 +754,7 @@ function stepAssemblers(id, prop, def, r, dt) {
       const rec = RECIPES[o.recipe];
       const buf = o.buf || (o.buf = {});
       if (!Object.entries(rec.in).every(([p, n]) => (buf[p] || 0) >= n)) { o.craftT = 0; continue; }
-      o.craftT = (o.craftT || 0) + dt * speed * (crew ? workPace(id) : 1) * crewMult;
+      o.craftT = (o.craftT || 0) + dt * speed * fabBoost(x, y) * (crew ? workPace(id) : 1) * crewMult;
       if (o.craftT < rec.time) continue;
       if (r.occ[y][x]) { o.craftT = rec.time; continue; } // output backed up
       for (const [p, n] of Object.entries(rec.in)) buf[p] -= n;

@@ -722,6 +722,7 @@ function helpHTML() {
       '<b>Modes</b>: ▶ Run, ⏸ Pause, or 🚀 Until the rocket has enough, so shared ingredients reach assemblers further down the line.',
       '<b>Restock from storage</b>: when an assembler runs out of something on this site’s racks, a 🚜 Forklift Operator brings up to 10 at a time.',
       '🔍 Scanner, 🏷️ Labeler, 🎁 Wrapper and ❄️ Chiller raise the <b>sale</b> price (flat bonuses before multipliers pay more).',
+      '⚙️ <b>Precision Fab Cells</b> (late game, 🔬 Full Automation) make every assembler within 2 tiles work 50% faster. One assembler starving the whole chain? Put a cell beside it, or build a second one.',
       'Everything wears out and <b>breaks down ⚠️</b>. Tap to fix, or hire 🔧 Maintenance Techs to fix and service it.',
     ])}
     ${sec('🗄️', 'Storage', [

@@ -71,6 +71,7 @@ const BUFFER = { name: 'Accumulator', cost: 900, speed: 2.0, life: 1800, cap: 20
 const SILO = { name: 'Silo', cost: 3000, cap: 100 }; // bulk storage for one product
 const BENCH_MAX = 8; // research benches that count
 const COBOT_RANGE = 3;
+const FAB_RANGE = 2, FAB_SPEED = 0.5;
 const DOCK_SPEED = 2.0;
 const MACHINE_SPEED = 2.0;
 const BASE_TRUCK_INTERVAL = 1.6; // seconds between packages per open IN dock
@@ -431,6 +432,7 @@ const FACILITIES = {
   bench: { name: 'Research Bench', icon: '🧪', color: '#16a085', cost: 6000, power: 3, unlock: 'lab', research: 'fastassembly', desc: `+25% research speed for every bench you own, at any site (up to ${BENCH_MAX})` },
   cargocenter: { name: 'Spaceport Cargo Center', icon: '📦', color: '#1f618d', cost: 20000, power: 5, max: 1, unlock: 'hub', onlySite: 'hub', research: 'heavylift', desc: 'Packs Mars cargo: +10 cargo slots per rocket and the pad resets 30 s faster. Built at the Mega Hub' },
   cobot: { name: 'Cobot Station', icon: '🦾', color: '#5d6d7e', cost: 8000, power: 4, unlock: 'hub', research: 'automation', desc: `A robot arm that counts as one extra crew member at every assembler within ${COBOT_RANGE} tiles. No wages, no breaks` },
+  fabcell: { name: 'Precision Fab Cell', icon: '⚙️', color: '#6c3483', cost: 6000, power: 6, unlock: 'lab', research: 'automation', desc: `Tooling and jigs: assemblers within ${FAB_RANGE} tiles work ${FAB_SPEED * 100}% faster (one cell per assembler counts)` },
 };
 const FACILITY_IDS = Object.keys(FACILITIES);
 for (const r of RESEARCH) {
@@ -527,9 +529,9 @@ const MARS_EVENTS = {
 };
 // 🌍 Project Terraform: the win. Three stages delivered to Mars in rocket cargo (1 slot per part).
 const TERRAFORM = [
-  { id: 'atmo', icon: '🏭', name: 'Atmosphere Processors', pop: 20, research: 'fusion', needs: { fusioncore: 6, turbopump: 20, solar: 30 }, effect: 'Water/O₂ needs halved' },
-  { id: 'shield', icon: '🧲', name: 'Magnetic Shield', pop: 40, needs: { fusioncore: 12, superconductor: 40, avionics: 10 }, effect: 'No more dust storms or meteor strikes' },
-  { id: 'ocean', icon: '🌊', name: 'Ocean Seeding', pop: 80, research: 'terraform', needs: { fusioncore: 20, canister: 150, superconductor: 40, lifesupport: 20 }, effect: 'Mars is alive: you win' },
+  { id: 'atmo', icon: '🏭', name: 'Atmosphere Processors', pop: 20, research: 'fusion', needs: { fusioncore: 4, turbopump: 12, solar: 18 }, effect: 'Water/O₂ needs halved' },
+  { id: 'shield', icon: '🧲', name: 'Magnetic Shield', pop: 40, needs: { fusioncore: 8, superconductor: 24, avionics: 6 }, effect: 'No more dust storms or meteor strikes' },
+  { id: 'ocean', icon: '🌊', name: 'Ocean Seeding', pop: 80, research: 'terraform', needs: { fusioncore: 12, canister: 90, superconductor: 24, lifesupport: 12 }, effect: 'Mars is alive: you win' },
 ];
 const LEGACY_BONUS = 0.1; // New Game+: +10% package value per completed game (up to 5)
 const PAD_LEVELS = [{ cost: 1000000, cut: 20 }, { cost: 3000000, cut: 20 }, { cost: 8000000, cut: 20 }]; // launch pad upgrades: seconds off the turnaround

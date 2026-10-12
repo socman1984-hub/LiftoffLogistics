@@ -64,7 +64,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **🆕 Each site unlocks a new building** (usable everywhere once you own it): 🏭 Mill → 🌉 Conveyor Bridge
   (two lines cross), ⚒️ Foundry → 🧺 Accumulator (holds 20 packages, feeds them out steadily), 🏬 Depot →
   🏗️ Loading Crane (outside; +50% rack handling), 🏗️ Refinery → 🫙 Silo (100 of one product), 🔬 Lab →
-  🧪 Research Bench (+25% research speed each, up to 8), 🏟️ Hub → 🦾 Cobot Station (extra crew for assemblers within 3 tiles).
+  🧪 Research Bench (+25% research speed each, up to 8) and ⚙️ Precision Fab Cell (after 🔬 Full Automation:
+  assemblers within 2 tiles work 50% faster), 🏟️ Hub → 🦾 Cobot Station (extra crew for assemblers within 3 tiles).
 - **🚚 Suppliers**: tap a raw-material door to pick its supplier (Budget: cheap and slow · Standard · Express: fast
   and pricey) and **🤝 negotiate** a contract: make offers, read their mood, and don't run out their patience. Longer
   contracts get lower prices. A 🧾 **Purchasing Agent** renews deals automatically, but settles for less.
