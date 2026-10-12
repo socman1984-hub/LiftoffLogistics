@@ -97,6 +97,19 @@ function moduleAllowed(k) {
 const payloadReady = (k) => Object.entries(MARS_MODULES[k].payload).every(([p, n]) => (state.launch.parts[p] || 0) >= n);
 const emptyCargo = () => ({ module: null, colonists: 0, food: 0, water: 0, spares: 0, med: 0, power: 0 });
 
+// Slots the cargo plan asks for (module + colonists who have room + supply crates).
+function colonistRoom() {
+  const m = M(), per = MARS.perHabitat + rfx('marsCap');
+  return Math.max(0, marsCap() + per * (m.manifest.module === 'habitat' ? 1 : 0) + per * m.flights.filter((f) => f.module === 'habitat').length - m.colonists - inTransitColonists());
+}
+function plannedSlots() {
+  const m = M();
+  const mod = m.manifest.module && moduleAllowed(m.manifest.module) ? MARS.slotModule : 0;
+  const col = Math.min(m.manifest.colonists || 0, colonistRoom()) * MARS.slotColonist;
+  const sup = SUPPLY_KINDS.reduce((a, k) => a + (m.manifest[k] || 0), 0);
+  return { mod, col, sup, total: mod + col + sup };
+}
+
 // What the next rocket would carry right now, from the pad's stock.
 function planCargo(slots, allowModule) {
   const m = M(), pad = state.launch.parts, c = emptyCargo();
@@ -340,7 +353,13 @@ function marsLaunchHTML() {
   }).join('') + '</div>';
   const slots = rocketSlots();
   const c = planCargo(slots, true);
-  html += `<h3 class="sec">Cargo <span class="muted">${c.used}/${slots} slots ready${m.cargoBoost ? ` (📦 +${m.cargoBoost} boost)` : ''}</span></h3>`;
+  const plan = plannedSlots();
+  const over = plan.total > slots;
+  html += `<h3 class="sec">Cargo</h3><div class="cargo-cap ${over ? 'over' : ''}">
+    <div class="cc-top"><span>📦 Cargo plan</span><b class="num">${plan.total} / ${slots} slots</b></div>
+    <div class="bar"><div style="width:${Math.min(100, (plan.total / slots) * 100)}%"></div></div>
+    <div class="cc-note">${plan.mod ? `🏠 module ${plan.mod}` : 'no module'} · 👩‍🚀 colonists ${plan.col} · 📦 supplies ${plan.sup}${over ? ` · <b class="neg">${plan.total - slots} over: lower something, or it won't fit</b>` : ` · ${slots - plan.total} free`}</div>
+    <div class="cc-note">Ready on the pad now: <b>${c.used}/${slots}</b>. Each rocket holds ${slots} slots (module ${MARS.slotModule}, colonist ${MARS.slotColonist}, crate 1)${m.cargoBoost ? `, including 📦 +${m.cargoBoost} boost` : ''}. Heavy-Lift research, the Cargo Center and Cargo Boost add more.</div></div>`;
   html += '<div class="choice mars-mods">' + `<button class="chip ${!m.manifest.module ? 'on' : ''}" data-act="marsmod" data-id="">No module</button>`
     + Object.entries(MARS_MODULES).map(([k, mm]) => {
       if (mm.research && !hasResearch(mm.research)) return '';
@@ -352,11 +371,15 @@ function marsLaunchHTML() {
     const why = !moduleAllowed(m.manifest.module) ? (mm.max && modCount(m.manifest.module) >= mm.max ? ' · already at max' : ' · build a Habitat first') : '';
     html += `<p class="intro small">${mm.icon} <b>${mm.name}</b>: ${mm.desc}${why}<br>Payload (${MARS.slotModule} slots): ${Object.entries(mm.payload).map(([p, n]) => `<span class="${(pad[p] || 0) >= n ? 'pos' : ''}">${PRODUCTS[p].icon} ${Math.min(n, pad[p] || 0)}/${n}</span>`).join(' · ')}</p>`;
   }
-  const step = (kind, label, onPad) => `<div class="mars-step"><span>${label}</span><span class="muted small">${onPad}</span>
+  const free = slots - plan.total;
+  const step = (kind, label, onPad) => {
+    const cost = kind === 'colonists' ? MARS.slotColonist : 1;
+    const canAdd = free >= cost && !(kind === 'colonists' && m.manifest.colonists >= colonistRoom());
+    return `<div class="mars-step"><span>${label}</span><span class="muted small">${onPad}</span>
     <span class="dest-ctl"><button class="step" data-act="marsqty" data-id="${kind}|-1" ${m.manifest[kind] ? '' : 'disabled'}>−</button><b class="num">${m.manifest[kind]}</b>
-    <button class="step" data-act="marsqty" data-id="${kind}|1">+</button></span></div>`;
-  const per = MARS.perHabitat + rfx('marsCap');
-  const room = Math.max(0, marsCap() + per * (m.manifest.module === 'habitat' ? 1 : 0) - m.colonists - inTransitColonists());
+    <button class="step" data-act="marsqty" data-id="${kind}|1" ${canAdd ? '' : 'disabled'}>+</button></span></div>`;
+  };
+  const room = colonistRoom();
   html += step('colonists', `👩‍🚀 Colonists <span class="muted small">(${MARS.slotColonist} slots each)</span>`, `room for ${room}`);
   html += step('food', '🍞 Food Crates', `${pad.foodcrate || 0} on pad`);
   html += step('water', '💧 Water/O₂ Canisters', `${pad.canister || 0} on pad`);
@@ -439,7 +462,9 @@ function handleMarsAct(act, id) {
   if (act === 'marsmod') { m.manifest.module = id || null; save(); return true; }
   if (act === 'marsqty') {
     const [kind, d] = id.split('|');
-    m.manifest[kind] = Math.max(0, Math.min(60, (m.manifest[kind] || 0) + Number(d)));
+    const cost = kind === 'colonists' ? MARS.slotColonist : 1;
+    if (Number(d) > 0 && plannedSlots().total + cost > rocketSlots()) { toast(`📦 The rocket is full (${rocketSlots()} slots). Lower something else first`); return true; }
+    m.manifest[kind] = Math.max(0, (m.manifest[kind] || 0) + Number(d));
     save();
     return true;
   }

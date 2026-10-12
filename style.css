@@ -626,3 +626,11 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .help-sec li { margin: 6px 0; }
 
 .stage-card .title .count { font-weight: 500; opacity: 0.7; font-size: 12px; }
+
+.cargo-cap { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; border: 2px solid transparent; }
+.cargo-cap.over { border-color: #eb5757; }
+.cargo-cap .cc-top { display: flex; justify-content: space-between; font-size: 14px; }
+.cargo-cap .bar { margin: 6px 0; }
+.cargo-cap .bar div { background: var(--accent); }
+.cargo-cap.over .bar div { background: #eb5757; }
+.cargo-cap .cc-note { font-size: 12px; opacity: 0.85; margin-top: 3px; }
