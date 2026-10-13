@@ -176,6 +176,8 @@ function devBuildSite(id) {
   // Staff: an operator per assembler, plus the regulars.
   const asm = P.tiles.flat().filter((t) => t.obj && t.obj.k === 'assembler').length;
   Object.assign(P.staff, { operator: asm, janitor: 1, tech: 1, forklift: id === 'shed' ? 1 : 2, sales: hasResearch('marketing') ? 2 : 0 });
+  // The specialists a site this size needs, once they're researched.
+  for (const role of Object.keys(STAFF_NEEDS)) P.staff[role] = staffNeedOpen(P, role) ? 1 : 0;
   markLayoutDirty(id);
 }
 

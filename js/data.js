@@ -174,6 +174,20 @@ const STAFF = [
 ];
 const STAFF_BY_ID = Object.fromEntries(STAFF.map((s) => [s.id, s]));
 const HIRE_FEE_MINUTES = 10; // signing fee = 10 minutes of wages
+// Specialists you can get away without at first: once a site is big enough (and the role is researched),
+// going without one slowly makes things worse. Hiring calms it back down (3x faster than it built up).
+const STAFF_NEEDS = {
+  security: { minStaff: 4, rise: 1 / 2700, alt: 'securitybooth', label: '🦹 Thieves are getting bolder', tip: 'hire a 🛡️ Security Guard or build a Security Booth', effect: (v) => `theft ×${(1 + NEGLECT.theftMult * v).toFixed(1)}${v >= NEGLECT.breakInAt ? ', break-ins' : ''}` },
+  safety: { minStaff: 6, rise: 1 / 3600, label: '🚑 Safety corners are being cut', tip: 'hire a ⛑️ Safety Officer', effect: (v) => `accidents ×${(1 + NEGLECT.accidentMult * v).toFixed(1)}${v >= NEGLECT.fineAt ? ', inspector fines' : ''}` },
+  hr: { minStaff: 10, rise: 1 / 5400, label: '🗂️ Grievances are piling up', tip: 'hire an 🗂️ HR Manager', effect: (v) => `morale −${Math.round(NEGLECT.moraleHit * v * 100)}%` },
+};
+const NEGLECT = {
+  fall: 3, // recovers this many times faster once covered
+  theftMult: 3, breakInAt: 0.5, breakInPerMin: 0.1, breakInShare: 0.25, // security
+  accidentMult: 3, fineAt: 0.5, fineMinutes: 6, // safety: fine = minutes of the site's wages
+  moraleHit: 0.2, // HR
+  alertAt: 0.25,
+};
 // Accidents: chance per staff member per minute; halts the building.
 const ACCIDENT_RATE = 0.012;
 const ACCIDENT_SHUTDOWN = 20; // seconds

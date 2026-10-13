@@ -408,6 +408,7 @@ function computeMorale(id, prop, r) {
     for (const row of prop.tiles) for (const t of row) if ((t.dirt || 0) >= DIRT.filthy) filthy++;
     if (filthy) parts.push({ label: `🪣 ${filthy} filthy floor tile${filthy > 1 ? 's' : ''}`, v: -Math.min(MORALE.filthyMax, filthy * MORALE.perFilthy) });
     if (prop.staff.hr > 0) parts.push({ label: '🗂️ HR Manager looking after people', v: MORALE.hrBonus });
+    if (neglectOf(prop, 'hr') > 0.02) parts.push({ label: '🗂️ Grievances piling up (no HR Manager)', v: -NEGLECT.moraleHit * neglectOf(prop, 'hr') });
     if (rfx('morale')) parts.push({ label: '🔬 Research perks', v: rfx('morale') });
     if (prop.payRate) parts.push({ label: `💵 Paying ${PAY_RATES[prop.payRate].label} wages`, v: PAY_RATES[prop.payRate].morale });
   }

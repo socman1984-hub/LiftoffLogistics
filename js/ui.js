@@ -571,7 +571,13 @@ function staffHTML(def, prop) {
       <button class="btn small" data-act="hire" data-id="${s.id}" ${full || state.money < fee ? 'disabled' : ''}>${full ? 'Max' : '+ ' + fmt(fee)}</button>
     </div>`;
     const pips = Array.from({ length: s.max }, (_, i) => `<div class="pip ${i < n ? 'on' : ''}"></div>`).join('');
-    html += card(s.icon, `${s.name} <span class="count">${n}/${s.max}</span>`, s.desc,
+    // Specialists this site is starting to need: say so, and how bad going without has got.
+    const need = STAFF_NEEDS[s.id];
+    const v = need ? neglectOf(prop, s.id) : 0;
+    const needed = need && staffNeedOpen(prop, s.id) && !staffNeedMet(id, prop, s.id);
+    const tag = needed ? ` <span class="need-tag ${v >= 0.5 ? 'bad' : ''}">⚠️ needed</span>` : '';
+    const note = needed ? `<div class="need-note">${need.label}: ${need.effect(v)} and rising.</div>` : need && v > 0.02 ? `<div class="need-note ok">Calming down: ${need.effect(v)}.</div>` : '';
+    html += card(s.icon, `${s.name} <span class="count">${n}/${s.max}</span>${tag}`, s.desc + note,
       `<div class="pips">${pips}</div>${fmt(wage)}/min each`, btns);
   }
   return html;
@@ -740,6 +746,7 @@ function helpHTML() {
     ${sec('👷', 'People', [
       'Workers walk the floor; they step over conveyors but not broken floor, machines or buildings. Stuck workers show ❗.',
       'Janitors, Techs, Operators and Forklift Operators are open from the start. <b>Specialists unlock through research</b>: Sales Rep, Security, Safety, Ops Manager, HR, Purchasing Agent.',
+      '<b>Some specialists stop being optional as a site grows.</b> Once researched, a site with 4+ staff and no 🛡️ Security Guard (or Security Booth) slowly draws bolder thieves (up to 4× theft, then rack break-ins); 6+ staff and no ⛑️ Safety Officer means more accidents (up to 4×, then inspector fines); 10+ staff and no 🗂️ HR Manager lets grievances drag morale down (up to −20%). It builds over an hour or so and calms down once you hire. Ops Managers, Sales Reps and Purchasing Agents stay optional.',
       '😊 <b>Morale</b> comes from 🚻 restroom and ☕ break room coverage (within range), pay, accidents and filthy floors. Below 50% people quit.',
       'Tap a worker to see what they are doing, set the site’s pay rate, or let them go.',
       '🧽 Floors and buildings get dirty; filthy floors block walking. 🧹 Janitors clean.',

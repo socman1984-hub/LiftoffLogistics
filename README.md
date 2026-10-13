@@ -66,6 +66,11 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   🏗️ Loading Crane (outside; +50% rack handling), 🏗️ Refinery → 🫙 Silo (100 of one product), 🔬 Lab →
   🧪 Research Bench (+25% research speed each, up to 8) and ⚙️ Precision Fab Cell (after 🔬 Full Automation:
   assemblers within 2 tiles work 50% faster), 🏟️ Hub → 🦾 Cobot Station (extra crew for assemblers within 3 tiles).
+- **⚠️ Specialists a growing site needs**: once researched, going without them gets slowly worse (it builds over
+  45–90 min, then fades 3× faster once covered): 🛡️ Security Guard or Security Booth at 4+ staff (theft up to ×4, then
+  rack break-ins), ⛑️ Safety Officer at 6+ staff (accidents up to ×4, then inspector fines of a few minutes' wages),
+  🗂️ HR Manager at 10+ staff (grievances, morale up to −20%). Staff cards say "needed" and show the current cost;
+  site alerts warn past 25%. Ops Manager, Sales Rep and Purchasing Agent stay optional.
 - **🚚 Suppliers**: tap a raw-material door to pick its supplier (Budget: cheap and slow · Standard · Express: fast
   and pricey) and **🤝 negotiate** a contract: make offers, read their mood, and don't run out their patience. Longer
   contracts get lower prices. A 🧾 **Purchasing Agent** renews deals automatically, but settles for less.

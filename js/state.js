@@ -458,13 +458,19 @@ function wagesPerMin(id) {
   return sum;
 }
 
+// ---- Specialists a site shouldn't go without for long ----
+const neglectOf = (prop, role) => (prop.neglect && prop.neglect[role]) || 0;
+const staffNeedOpen = (prop, role) => (!STAFF_BY_ID[role].research || hasResearch(STAFF_BY_ID[role].research)) && totalStaff(prop) >= STAFF_NEEDS[role].minStaff;
+const staffNeedMet = (id, prop, role) => prop.staff[role] > 0 || (!!STAFF_NEEDS[role].alt && facCount(id, STAFF_NEEDS[role].alt) > 0);
+
 function theftChance(id, prop) {
-  return PROP_BY_ID[id].theft * Math.pow(0.5, staffCount(id, prop, 'security') + facCount(id, 'securitybooth')) * (1 - rfx('theft'));
+  return PROP_BY_ID[id].theft * Math.pow(0.5, staffCount(id, prop, 'security') + facCount(id, 'securitybooth')) * (1 - rfx('theft'))
+    * (1 + NEGLECT.theftMult * neglectOf(prop, 'security'));
 }
 
 function accidentsPerMin(id, prop) {
   return ACCIDENT_RATE * totalStaff(prop) * Math.pow(0.25, staffCount(id, prop, 'safety'))
-    * Math.pow(0.5, facCount(id, 'firstaid')) * (2 - moraleOf(id)) * (1 - rfx('accident'));
+    * Math.pow(0.5, facCount(id, 'firstaid')) * (2 - moraleOf(id)) * (1 - rfx('accident')) * (1 + NEGLECT.accidentMult * neglectOf(prop, 'safety'));
 }
 
 // Machines and conveyors that wear out (racks and facilities don't).
@@ -522,6 +528,7 @@ const LEDGER_CATS = {
   trucks: { label: 'Trucks', icon: '🚚' },
   property: { label: 'Properties', icon: '🏢' },
   research: { label: 'Research', icon: '🔬' },
+  fines: { label: 'Fines', icon: '🧾' },
   mars: { label: 'Mars exports', icon: '🔴' },
   dev: { label: 'Test mode', icon: '🧪' },
   other: { label: 'Other', icon: '•' },

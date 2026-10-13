@@ -353,6 +353,28 @@ function chooseDest(id, prop, r, p, fromStorage) {
   return best.to;
 }
 
+// Neglect builds while a big enough site goes without a specialist, and fades once one is hired.
+function stepNeglect(id, prop, r, def, dt) {
+  const ng = prop.neglect || (prop.neglect = {});
+  for (const [role, n] of Object.entries(STAFF_NEEDS)) {
+    const v = ng[role] || 0;
+    ng[role] = staffNeedOpen(prop, role) && !staffNeedMet(id, prop, role) ? Math.min(1, v + n.rise * dt) : Math.max(0, v - n.rise * NEGLECT.fall * dt);
+    if (ng[role] >= NEGLECT.alertAt) setAlert(r, 'need_' + role, `${n.label} at the ${def.name} (${n.effect(ng[role])}): ${n.tip} in Manage → Staff.`, ...doorXY(prop, def));
+  }
+  // Bold thieves break into the racks now and then.
+  const bold = ng.security || 0;
+  if (bold >= NEGLECT.breakInAt && Math.random() < (NEGLECT.breakInPerMin * bold / 60) * dt) {
+    const p = Object.keys(prop.held).filter((k) => prop.held[k] > 0).sort((a, b) => prop.held[b] - prop.held[a])[0];
+    if (p) {
+      const n = Math.max(1, Math.round(prop.held[p] * NEGLECT.breakInShare));
+      prop.held[p] -= n;
+      prop.stolen += n;
+      syncRacks(id);
+      toast(`🦹 Break-in at the ${def.name}: ${n} ${PRODUCTS[p].icon} ${PRODUCTS[p].name} stolen from the racks. Hire a 🛡️ Security Guard`);
+    }
+  }
+}
+
 // A package went out a SHIP door: sell it, or queue it for a truck.
 function shipOut(id, prop, r, it, x, y) {
   if (Math.random() < theftChance(id, prop)) {
@@ -568,6 +590,8 @@ function stepProperty(id, dt) {
     else r.unpaid = true;
   } else r.unpaid = false;
 
+  stepNeglect(id, prop, r, def, dt);
+
   // Workplace accidents halt everything for a while.
   if (r.shutdown > 0) {
     r.shutdown = Math.max(0, r.shutdown - dt);
@@ -577,7 +601,11 @@ function stepProperty(id, dt) {
     r.shutdown = facCount(id, 'firstaid') ? ACCIDENT_SHUTDOWN / 2 : ACCIDENT_SHUTDOWN;
     r.lastAccident = r.time; // shakes morale for a while
     prop.accidents++;
-    toast(`🚑 Workplace accident at the ${def.name}! Work stopped for ${r.shutdown}s`);
+    // Long without a Safety Officer, an inspector follows the ambulance.
+    const lax = neglectOf(prop, 'safety');
+    const fine = lax >= NEGLECT.fineAt ? Math.round(wagesPerMin(id) * NEGLECT.fineMinutes * lax) : 0;
+    if (fine) { state.money -= fine; book('fines', -fine, `Safety fine: ${def.name}`, id); }
+    toast(`🚑 Workplace accident at the ${def.name}! Work stopped for ${r.shutdown}s${fine ? ` · an inspector fined you ${fmt(fine)} (no ⛑️ Safety Officer)` : ''}`);
     return;
   }
 
