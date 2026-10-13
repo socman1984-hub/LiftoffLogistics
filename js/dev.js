@@ -131,6 +131,7 @@ function applyStage(st) {
     m.padLevel = st.launch.padLevel || 0;
     m.manifest = { module: m.modules.habitat ? 'greenhouse' : 'habitat', food: 6, water: 6, spares: 3, med: 0, power: 0, colonists: 4 };
   }
+  devBuildLayouts(st); // conveyors, assemblers, staff and trucks, as if you'd played to here
   state.current = st.sites[st.sites.length - 1];
   // Start the goal list where this stage is; Mars stages are past every goal.
   const gi = st.goal === '*' ? OBJECTIVES.length : OBJECTIVES.findIndex((o) => o.text().includes(st.goal));
@@ -166,7 +167,7 @@ function devHTML() {
   return `<p class="warn">🧪 Test mode. Changes are saved like normal play; use Help → Reset game to start clean.</p>
     <h3 class="sec">Game speed</h3><div class="choice">${speed}</div>
     <h3 class="sec">🎬 Jump to a stage</h3>${slotNote}
-    <p class="intro small">Each stage sets the money, ⭐, gems, research, sites, upgrades and trucks a player typically has at that point (from bot playthroughs). Floors are repaired and key docks opened; you build the lines and hire staff.</p>
+    <p class="intro small">Each stage sets the money, ⭐, gems, research, sites, upgrades and trucks a player typically has at that point (from bot playthroughs). Every site is built the way the test bot plays it by then: conveyor trunk, assemblers with recipes, sorters, racks, facilities, value machines, staff, distribution plans and trucks (Fab Cells and benches late on).</p>
     ${stages}
     <h3 class="sec">Money &amp; currency</h3><div class="choice">
       ${b('money10k', '+$10K')}${b('money100k', '+$100K')}${b('money1m', '+$1M')}${b('money10m', '+$10M')}
