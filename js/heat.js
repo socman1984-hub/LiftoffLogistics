@@ -40,9 +40,8 @@ function accumulateTraffic(def, r, dt) {
 function accessMap(prop, def, r) {
   if (r.access && r.time - r.accessAt < 0.5) return r.access;
   const seen = new Uint8Array(def.cols * def.rows);
-  const door = entranceOf(prop, def);
-  const queue = [door.y * def.cols + door.x];
-  seen[queue[0]] = 1;
+  const queue = entrances(prop, def).map((d) => d.y * def.cols + d.x); // any open door
+  for (const i of queue) seen[i] = 1;
   for (let qi = 0; qi < queue.length; qi++) {
     const cur = queue[qi], cx = cur % def.cols, cy = (cur / def.cols) | 0;
     for (const d of DIRS) {

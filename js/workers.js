@@ -36,8 +36,18 @@ function walkable(prop, def, x, y, wade) {
   return !o || o.k === 'belt' || o.k === 'splitter' || o.k === 'sorter' || o.k === 'bridge'; // step over conveyors
 }
 
+// Doors staff can come in by: unlocked, with walkable floor just inside (a machine parked
+// right in front of a door blocks it, but staff simply use another one).
+function entrances(prop, def) {
+  const doors = [...def.outDocks, ...def.inDocks].filter((k) => !prop.tiles[k.y][k.x].locked);
+  const open = doors.filter((k) => DIRS.some((d) => {
+    const nx = k.x + d.x, ny = k.y + d.y;
+    return nx > 0 && ny > 0 && nx < def.cols - 1 && ny < def.rows - 1 && walkable(prop, def, nx, ny);
+  }));
+  return open.length ? open : doors.slice(0, 1);
+}
 function entranceOf(prop, def) {
-  const d = def.outDocks.find((k) => !prop.tiles[k.y][k.x].locked) || def.inDocks.find((k) => !prop.tiles[k.y][k.x].locked);
+  const d = entrances(prop, def)[0];
   return { x: d.x, y: d.y };
 }
 
@@ -653,9 +663,8 @@ function workerBadge(r, w) {
 // Which assemblers / facilities / racks staff can stand next to right now.
 function reachableTargets(prop, def) {
   const seen = new Uint8Array(def.cols * def.rows);
-  const door = entranceOf(prop, def);
-  const q = [door.y * def.cols + door.x];
-  seen[q[0]] = 1;
+  const q = entrances(prop, def).map((d) => d.y * def.cols + d.x); // staff come in by any open door
+  for (const i of q) seen[i] = 1;
   for (let i = 0; i < q.length; i++) {
     const cx = q[i] % def.cols, cy = (q[i] / def.cols) | 0;
     for (const d of DIRS) {
