@@ -113,6 +113,7 @@ function boot() {
   const loaded = load();
   state = loaded || newState();
   if (loaded) { restoreRuntime(loaded.snap); delete state.snap; }
+  if (state.inMars && state.launch.count >= 1) ui.marsView = true; // reopen where you left off
   buildToolbar();
   initInput();
   new ResizeObserver(resizeCanvas).observe(canvas);

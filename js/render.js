@@ -16,6 +16,7 @@ function resizeCanvas() {
 }
 
 function layoutView() {
+  if (ui.marsView) { layoutMars(); return; }
   const def = curDef();
   if (!def) return;
   const pad = 8;
@@ -25,6 +26,7 @@ function layoutView() {
 }
 
 function screenToTile(px, py) {
+  if (ui.marsView) return marsScreenToTile(px, py);
   const def = curDef();
   if (!def) return null;
   const x = Math.floor((px - view.ox) / view.ts);
@@ -932,6 +934,7 @@ function drawItem(it, prop) {
 }
 
 function render(tool) {
+  if (ui.marsView && view.ts >= 4) { renderMars(); return; }
   const def = curDef();
   if (def && view.ts < 4) return; // no room to draw yet (hidden or zero-size canvas)
   ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);

@@ -87,6 +87,7 @@ function mapHTML() {
   if (state.current) {
     const idle = idleTrucks();
     html += `<button class="btn log-btn" data-act="openlog" data-id="${ui.mapSel === 'launch' ? state.current : ui.mapSel}">🚚 Logistics: distribution &amp; trucks${idle > 0 ? ` · ${idle} idle truck${idle > 1 ? 's' : ''}` : ''}</button>`;
+    if (marsOn()) html += marsGoButton();
   }
   html += `<svg class="map" viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">`;
   html += `<rect x="0" y="0" width="100" height="70" rx="3" class="map-bg"/>`;

@@ -79,6 +79,7 @@ function buildToolbar() {
     b.addEventListener('click', () => selectTool(t.id));
     tray.appendChild(b);
   }
+  buildMarsBar();
   refreshToolbar();
 }
 
@@ -104,6 +105,11 @@ function selectTool(id) {
 }
 
 function refreshToolbar() {
+  const mars = !!ui.marsView;
+  $('toolGroups').classList.toggle('hidden', mars);
+  $('marsGroups').classList.toggle('hidden', !mars);
+  if (mars) { $('toolTray').classList.add('hidden'); refreshMarsBar(); return; }
+  $('marsTray').classList.add('hidden');
   const def = curDef();
   const open = TOOL_GROUPS.find((g) => g.id === ui.toolGroup);
   $('toolTray').classList.toggle('hidden', !open);
@@ -227,7 +233,8 @@ function refreshTopbar() {
   $('rep').textContent = '⭐ ' + state.rep;
   $('gems').textContent = '💎 ' + state.gems;
   const def = curDef();
-  $('propName').textContent = def ? `${def.emoji} ${def.name}` : 'No warehouse';
+  $('propName').textContent = ui.marsView ? '🔴 Mars Base' : def ? `${def.emoji} ${def.name}` : 'No warehouse';
+  $('heatBtn').classList.toggle('hidden', !!ui.marsView);
 
   const c = state.contracts;
   const free = contractSlots() - c.active.length;
@@ -768,7 +775,7 @@ function helpHTML() {
       'After the first launch, rockets fly to Mars during a <b>launch window</b> (every 25 minutes of play, open for 5). The colony pauses while you are away.',
       'Each rocket needs the same launch vehicle plus a <b>cargo manifest</b>: one base module, colonists, and supply crates. Plan it in 🚀 Launch Site → Mission Control.',
       'Modules: 🏠 Habitat (homes), ⚡ Solar Farm (power), 🌱 Greenhouse and 🧊 Ice Mine (cut needs), 🛬 Landing Pad (Rare Metals come home), 🔬 Research Station, ⚛️ Fusion Reactor.',
-      '<b>🗺️ Build the base:</b> modules land as kits. In 🔴 Mars base, pick a kit and tap a tile; colonists build one at a time (faster with more colonists). Ice Mines go on 🧊 ice, nothing goes on 🪨 rock, and Greenhouses, Ice Mines, the Research Station and the Landing Pad only work within reach of a ⚡ Solar Farm (2 tiles) or ⚛️ Fusion Reactor (3). Colonists whose dome isn’t finished shelter in the 🛸 Lander at half pace. Prefer not to? Switch new kits to ✨ Place automatically.',
+      '<b>🗺️ Build the base:</b> modules land as kits. Go to Mars (🗺️ Map → 🔴 Go to Mars base, like switching sites) and the bottom bar becomes your Mars build bar: 🏗️ Build a kit by tapping a tile, 📦 Move a site that hasn’t started, ✨ Auto-place, 📊 Colony stats. Colonists build one at a time (faster with more colonists). Ice Mines go on 🧊 ice, nothing goes on 🪨 rock, and Greenhouses, Ice Mines, the Research Station and the Landing Pad only work within reach of a ⚡ Solar Farm (2 tiles) or ⚛️ Fusion Reactor (3). Colonists whose dome isn’t finished shelter in the 🛸 Lander at half pace. Prefer not to? Switch new kits to ✨ Place automatically.',
       'Colonists use 🍞 Food, 💧 Water/O₂ and 🔧 Spares each window. Run short and they ration, then start going home (nobody dies).',
       `In a pinch, an 🆘 <b>emergency drop</b> (${MARS.emergencyGems} 💎, one per launch window) sends up to ${MARS.emergencySlots} supply crates without a rocket.`,
       'Terraform parts compete with the rocket: Turbopumps sent to Mars don’t become Engines. Mission Control warns you when that happens.',
@@ -1039,6 +1046,7 @@ function onPanelClick(e) {
 }
 
 function switchProperty(id) {
+  if (ui.marsView) leaveMars();
   state.current = id;
   rt(id);
   layoutView();
@@ -1494,6 +1502,7 @@ function onPointerDown(e) {
   const p = pointerPos(e);
   const tile = screenToTile(p.x, p.y);
   if (!tile) return;
+  if (ui.marsView) { marsTap(tile.x, tile.y); return; }
   canvas.setPointerCapture(e.pointerId);
   drag.active = true;
   drag.start = tile;

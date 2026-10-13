@@ -664,38 +664,17 @@ function marsBaseHTML() {
   return html;
 }
 
+// The way to the base, with what's waiting there.
+function marsGoButton() {
+  const m = M(), kits = Object.values(m.kits).reduce((x, y) => x + y, 0), q = m.map.b.find((b) => !b.done);
+  return `<button class="btn mars-btn" data-act="gomars">🔴 Go to Mars base${kits ? ` · 📦 ${kits} kit${kits > 1 ? 's' : ''} to place` : q ? ` · 🏗️ building ${MARS_MODULES[q.k].name}` : ''}</button>`;
+}
+
 function marsMapHTML() {
   const m = M(), map = m.map;
-  if (ui.marsKit && !(m.kits[ui.marsKit] > 0)) ui.marsKit = null;
-  const sel = ui.marsKit;
-  const dmgLeft = { ...m.damaged };
-  let cells = '';
-  for (let y = 0; y < map.t.length; y++) for (let x = 0; x < map.t[0].length; x++) {
-    const ter = map.t[y][x], q = buildingAt(map, x, y);
-    let inner = '', cls = `mt mt-${ter}`;
-    if (isLander(map, x, y)) { inner = '🛸'; cls += ' lander'; }
-    else if (q) {
-      const mm = MARS_MODULES[q.k];
-      const broken = q.done && dmgLeft[q.k] > 0 && (dmgLeft[q.k]--, true);
-      const off = q.done && needsPower(q.k) && !coversAt(map, x, y);
-      cls += q.done ? ' built' : ' building';
-      inner = `<span class="mt-ic">${mm.icon}</span>${!q.done ? `<span class="mt-bar"><span style="width:${Math.round(q.prog * 100)}%"></span></span>` : ''}${broken ? '<span class="mt-badge">💥</span>' : off ? '<span class="mt-badge">🔌</span>' : ''}`;
-    } else if (ter === 'r') inner = '<span class="mt-rock">🪨</span>';
-    if (sel && !q && !isLander(map, x, y)) {
-      if (!placeProblem(map, sel, x, y)) cls += needsPower(sel) && !coversAt(map, x, y) ? ' can nopow' : ' can';
-    }
-    if (!sel && !q && coversAt(map, x, y) && ter !== 'r' && !isLander(map, x, y)) cls += ' lit';
-    cells += `<button class="${cls}" data-act="marstile" data-id="${x},${y}">${inner}</button>`;
-  }
-  let html = `<div class="mars-map" style="grid-template-columns:repeat(${map.t[0].length},minmax(0,1fr))">${cells}</div>
-    <div class="mars-legend">🧊 ice · 🪨 rock · 🛸 Lander · <span class="lit-key"></span> powered · 🔌 no power · 💥 damaged</div>`;
+  let html = marsGoButton();
   const kits = Object.keys(MARS_MODULES).filter((k) => m.kits[k] > 0);
-  html += `<h3 class="sec">📦 Kits to place</h3>`;
-  if (kits.length) {
-    html += `<div class="choice">${kits.map((k) => `<button class="chip ${sel === k ? 'on' : ''}" data-act="marskit" data-id="${k}">${MARS_MODULES[k].icon} ${MARS_MODULES[k].name} ×${m.kits[k]}</button>`).join('')}
-      <button class="chip" data-act="marsautoplace">✨ Place all for me</button></div>`;
-    html += `<p class="intro small">${sel ? `Tap a <b>green</b> tile to build the ${MARS_MODULES[sel].icon} ${MARS_MODULES[sel].name}.${needsPower(sel) ? ' It needs power: <b>orange</b> tiles are out of reach of a ⚡ Solar Farm or ⚛️ Fusion Reactor.' : ''}${sel === 'icemine' ? ' Ice Mines only go on 🧊 ice.' : ''}${MARS_MAP.powerRange[sel] ? ` It powers everything within ${MARS_MAP.powerRange[sel]} tiles.` : ''}` : 'Pick a kit, then tap where it goes. Colonists build one at a time.'}</p>`;
-  } else html += `<p class="intro small">Nothing waiting. Modules arrive as kits on rockets; place them here and colonists build them.</p>`;
+  if (kits.length) html += `<p class="intro small">📦 Waiting on the ground: ${kits.map((k) => `${MARS_MODULES[k].icon} ${MARS_MODULES[k].name} ×${m.kits[k]}`).join(', ')}. Go to the base and use 🏗️ Build to place them.</p>`;
   html += `<div class="choice"><span class="ctl-lbl">New kits</span>
     <button class="chip ${!m.autoBuild ? 'on' : ''}" data-act="marsautobuild" data-id="off">👆 I place them</button>
     <button class="chip ${m.autoBuild ? 'on' : ''}" data-act="marsautobuild" data-id="on">✨ Place automatically</button></div>`;
@@ -709,35 +688,20 @@ function marsMapHTML() {
       return `<div class="truck-row ${i ? '' : 'go'}"><span class="tr-ic">${mm.icon}</span><div class="tr-body">
         <div class="tr-text">${mm.name} · ${i ? `queued, done in ${fmtSecs(wait)}` : `${Math.round(q.prog * 100)}% · ${fmtSecs(left)} left`}</div>
         <div class="bar tr-bar"><div style="width:${Math.round(q.prog * 100)}%"></div></div></div></div>`;
-    }).join('') + `<p class="intro small">Builders work at ${speed.toFixed(1)}× (more colonists and 🤖 Repair Drones research build faster). Tap a site that hasn't started to pack it back up.</p>`;
+    }).join('') + `<p class="intro small">Builders work at ${speed.toFixed(1)}× (more colonists and 🤖 Repair Drones research build faster).</p>`;
   }
+  const built = Object.keys(MARS_MODULES).filter((k) => modCount(k));
+  if (built.length) html += `<p class="intro small">Built: ${built.map((k) => { const on = onlineCount(k), n = modCount(k); return `${MARS_MODULES[k].icon} ${n}${on < n ? ` <span class="warn">(${n - on} without power)</span>` : ''}`; }).join(' · ')}</p>`;
   return html;
 }
 
 function handleMarsTile(id) {
   const m = M(), [x, y] = id.split(',').map(Number), map = m.map;
   const q = buildingAt(map, x, y);
-  if (ui.marsKit && !q) {
-    const why = placeProblem(map, ui.marsKit, x, y);
-    if (why) { toast(why); return true; }
-    const k = ui.marsKit;
-    placeKit(k, x, y);
-    toast(`🏗️ ${MARS_MODULES[k].icon} ${MARS_MODULES[k].name} site marked${needsPower(k) && !coversAt(map, x, y) ? ' · ⚠️ no power reaches here yet' : ''}`);
-    save();
-    return true;
-  }
   if (isLander(map, x, y)) { toast(`🛸 The Lander: where rockets set down. Colonists without a finished dome shelter here (${shelteringColonists()} now)`); return true; }
   if (q) {
     const mm = MARS_MODULES[q.k];
-    if (!q.done && q.prog === 0) { // not started: pack it back into a kit
-      map.b.splice(map.b.indexOf(q), 1);
-      m.kits[q.k] = (m.kits[q.k] || 0) + 1;
-      ui.marsKit = q.k;
-      toast(`📦 ${mm.name} packed up: tap a new spot`);
-      save();
-      return true;
-    }
-    if (!q.done) { toast(`🏗️ ${mm.icon} ${mm.name}: ${Math.round(q.prog * 100)}% built`); return true; }
+    if (!q.done) { toast(`🏗️ ${mm.icon} ${mm.name}: ${Math.round(q.prog * 100)}% built${q.prog === 0 ? ' · 📦 Move can still shift it' : ''}`); return true; }
     const off = needsPower(q.k) && !coversAt(map, x, y);
     toast(`${mm.icon} ${mm.name}: ${mm.desc}${off ? ' · 🔌 offline: no ⚡ power reaches it' : ''}${MARS_MAP.powerRange[q.k] ? ` · powers everything within ${MARS_MAP.powerRange[q.k]} tiles` : ''}`);
     return true;
@@ -814,9 +778,7 @@ function handleMarsAct(act, id) {
   if (act === 'newgameplus') { if (confirm('Start New Game+? This world is replaced by a fresh one with your legacy bonus.')) newGamePlus(); return 'stop'; }
   if (act === 'showvictory') { showVictory(); return 'stop'; }
   if (act === 'marstab') { ui.marsTab = id; return true; }
-  if (act === 'marskit') { ui.marsKit = ui.marsKit === id ? null : id; return true; }
-  if (act === 'marstile') return handleMarsTile(id);
-  if (act === 'marsautoplace') { const n = autoPlaceKits(); toast(n ? `✨ ${n} kit${n > 1 ? 's' : ''} placed` : 'No room left for these kits'); ui.marsKit = null; save(); return true; }
+  if (act === 'gomars') { goMars(); return 'stop'; }
   if (act === 'marsautobuild') { m.autoBuild = id === 'on'; if (m.autoBuild) autoPlaceKits(); save(); return true; }
   if (act === 'marsmod') { m.manifest.module = id || null; save(); return true; }
   if (act === 'marsqty') {
