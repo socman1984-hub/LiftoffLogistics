@@ -714,6 +714,7 @@ function helpHTML() {
   const sec = (icon, title, items, open) => `<details class="help-sec" ${open ? 'open' : ''}><summary>${icon} ${title}</summary><ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul></details>`;
   const recipes = RECIPE_IDS.map((p) => `${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b> = ${recipeText(p)}${LAUNCH.needs[p] ? ' 🚀' : ''}${RECIPES[p].research ? ` <span class="muted">(🔬 ${RESEARCH_BY_ID[RECIPES[p].research].name})</span>` : ''}`);
   return `<div class="help">
+    <div class="help-version">🚀 Liftoff Logistics <b>v${GAME_VERSION}</b> · <a href="#" data-act="helpnotes">📝 What's new</a></div>
     <p><b>Goal:</b> grow from a rusty shed into a supply chain that builds a rocket 🚀, found a colony on Mars 🔴, and finish <b>🌍 Project Terraform</b> to win. The 🏆 Road to victory on the Map shows where you are.</p>
     <h3>Quick start</h3>
     <ol class="help-steps">
@@ -809,6 +810,8 @@ function helpHTML() {
       ...CARGO_IDS.filter((k) => k !== 'standard').map((k) => `<b>${CARGO[k].name}</b> (${PRODUCT_IDS.filter((p) => PRODUCTS[p].cls === k).map((p) => PRODUCTS[p].icon).join(' ')}): ${CARGO[k].desc}`),
       'Bigger sites suffer more theft, and every hire adds accident risk.',
     ])}
+    <h3 id="releaseNotes">📝 Release notes</h3>
+    ${releaseNotesHTML()}
     <button class="btn" style="width:100%;margin-top:14px" data-act="tutorial">🎓 Restart the tutorial</button>
     <button class="btn danger" style="width:100%;margin-top:10px" data-act="reset">Reset game</button>
   </div>`;
@@ -846,6 +849,7 @@ function onPanelClick(e) {
     return;
   }
   if (act === 'tutorial') { restartTutorial(); closePanel(); refreshTutorial(); return; }
+  if (act === 'helpnotes') { e.preventDefault(); const n = document.getElementById('releaseNotes'); if (n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
   if (act === 'showalert') {
     const [site, x, y] = id.split('|');
     if (site !== state.current) switchProperty(site);

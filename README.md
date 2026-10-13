@@ -1,5 +1,7 @@
 # Liftoff Logistics (prototype)
 
+**Version:** see `GAME_VERSION` in `js/releases.js` (also shown in Help, with release notes).
+
 Buy run-down warehouses, repair them, and build conveyor systems that move packages
 from truck docks to shipping docks. More throughput means more money. Upgrade the line
 and the building, then expand to bigger properties.
