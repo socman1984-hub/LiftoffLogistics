@@ -691,3 +691,5 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 
 .help-version { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
 .help-version a { color: var(--accent); text-decoration: none; margin-left: 4px; }
+
+.help-sec.locked { padding: 11px 12px; font-weight: 700; opacity: 0.55; }

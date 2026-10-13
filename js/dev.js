@@ -132,6 +132,9 @@ function applyStage(st) {
     m.manifest = { module: m.modules.habitat ? 'greenhouse' : 'habitat', food: 6, water: 6, spares: 3, med: 0, power: 0, colonists: 4 };
   }
   devBuildLayouts(st); // conveyors, assemblers, staff and trucks, as if you'd played to here
+  // Lessons for features you'd already be past count as seen (replay them from Help).
+  state.lessons = { done: {}, cur: null, off: false };
+  for (const L of LESSONS) { try { if (L.when()) state.lessons.done[L.id] = 'skipped'; } catch (e) { /* not reachable yet */ } }
   state.current = st.sites[st.sites.length - 1];
   // Start the goal list where this stage is; Mars stages are past every goal.
   const gi = st.goal === '*' ? OBJECTIVES.length : OBJECTIVES.findIndex((o) => o.text().includes(st.goal));

@@ -712,9 +712,13 @@ function sorterHTML() {
 
 function helpHTML() {
   const sec = (icon, title, items, open) => `<details class="help-sec" ${open ? 'open' : ''}><summary>${icon} ${title}</summary><ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul></details>`;
+  // Later parts of the game stay folded away until you get there.
+  const sites = PROPERTIES.filter((d) => state.props[d.id].owned).length;
+  const gate = (ok, icon, title, when, html) => (ok ? html : `<div class="help-sec locked">🔒 ${icon} ${title} <span class="muted small">· unlocks when ${when}</span></div>`);
   const recipes = RECIPE_IDS.map((p) => `${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b> = ${recipeText(p)}${LAUNCH.needs[p] ? ' 🚀' : ''}${RECIPES[p].research ? ` <span class="muted">(🔬 ${RESEARCH_BY_ID[RECIPES[p].research].name})</span>` : ''}`);
   return `<div class="help">
     <div class="help-version">🚀 Liftoff Logistics <b>v${GAME_VERSION}</b> · <a href="#" data-act="helpnotes">📝 What's new</a></div>
+    ${tutorialHelpHTML()}
     <p><b>Goal:</b> grow from a rusty shed into a supply chain that builds a rocket 🚀, found a colony on Mars 🔴, and finish <b>🌍 Project Terraform</b> to win. The 🏆 Road to victory on the Map shows where you are.</p>
     <h3>Quick start</h3>
     <ol class="help-steps">
@@ -759,11 +763,11 @@ function helpHTML() {
       'A 🧾 <b>Purchasing Agent</b> renews deals for you, but settles for less. You can <b>⏸ pause</b> a door when a line is flooded.',
       'Purple <b>📥 receiving docks</b> unload trucks from your other sites; tap one to see what is coming.',
     ])}
-    ${sec('🚚', 'Logistics', [
+    ${gate(sites >= 2, '🚚', 'Logistics', 'you own two sites', sec('🚚', 'Logistics', [
       '<b>Distribution</b> (or tap a SHIP door): for each product, list destinations with weights and optional caps. Surplus is sold or stored.',
       '<b>Fleet</b>: buy trucks and assign them to routes. Each truck shows live what it is doing: loading, driving, or stuck unloading and why. Tap a route on the map to jump to it.',
       'Each truck you own makes the next one 25% dearer.',
-    ])}
+    ]))}
     ${sec('💰', 'Money', [
       '<b>💹 Market</b>: selling lots of one product drops its price until demand recovers. Booms and gluts come and go.',
       '<b>⚡ Power</b>: machines and assemblers draw power; overload a site and everything slows.',
@@ -775,11 +779,11 @@ function helpHTML() {
       '<b>📋 Contracts</b> (also a tab in Research) pay cash, ⭐ and 💎. Each offer shows how likely you are to fill it, based on what you have actually been selling. 🔄 New offers costs a few 💎.',
       '<b>🏅 Mastery</b> (a Research tab after the first launch): repeatable upgrades for spare ⭐ and cash, plus 🌌 <b>Megaprojects</b> (cash and 💎) like the Orbital Cargo Depot for bigger rockets.',
     ])}
-    ${sec('🚀', 'The rocket', [
+    ${gate(state.props.depot.owned || state.launch.owned, '🚀', 'The rocket', 'you buy the Regional Depot', sec('🚀', 'The rocket', [
       'Buy the 🚀 Launch Site and truck it the parts for three stages (Booster, Upper Stage, Crew Capsule), then press LAUNCH.',
       'After that, rockets can launch automatically.',
-    ])}
-    ${sec('🔴', 'Mars colony', [
+    ]))}
+    ${gate(marsOn(), '🔴', 'Mars colony', 'your first rocket launches', sec('🔴', 'Mars colony', [
       'After the first launch, rockets fly to Mars during a <b>launch window</b> (every 25 minutes of play, open for 5). The colony pauses while you are away.',
       'Each rocket needs the same launch vehicle plus a <b>cargo manifest</b>: one base module, colonists, and supply crates. Plan it in 🚀 Launch Site → Mission Control.',
       'Modules: 🏠 Habitat (homes), ⚡ Solar Farm (power), 🌱 Greenhouse and 🧊 Ice Mine (cut needs), 🛬 Landing Pad (Rare Metals come home), 🔬 Research Station, ⚛️ Fusion Reactor.',
@@ -794,13 +798,13 @@ function helpHTML() {
       'Events: 🌪️ dust storms (🔋 Power Cells), ☄️ meteor strikes (repaired with Spares), 🦠 sickness (💊 Medical Kits).',
       'Colonists make ⭐, 💎 and 🪨 <b>Rare Metals</b>: sell them, or deliver them to a site for ⚛️ Fusion Cores.',
       'The 🔴 <b>Colony</b> research branch, 🚧 pad upgrades and the 📦 Spaceport Cargo Center (at the Mega Hub) grow the colony faster.',
-    ])}
-    ${sec('🌍', 'Winning: Project Terraform', [
+    ]))}
+    ${gate(marsOn(), '🌍', 'Winning: Project Terraform', 'your first rocket launches', sec('🌍', 'Winning: Project Terraform', [
       'Three stages, each unlocked by colony size and delivered in rocket cargo (set aside 🌍 Terraform slots in the cargo plan):',
       ...TERRAFORM.map((st) => `${st.icon} <b>${st.name}</b>: ${st.pop} colonists${st.research ? ` + ${RESEARCH_BY_ID[st.research].name}` : ''} · needs ${Object.entries(st.needs).map(([p, n]) => `${n} ${PRODUCTS[p].icon}`).join(' ')} · ${st.effect}.`),
       '🧲 Superconductors are 1 🪨 Rare Metal + 2 🧵 Wiring (after Rare Metal Refining); ⚛️ Fusion Cores need Fusion Power.',
       'Finish all three to win. Then keep playing, or start <b>🔁 New Game+</b>: +10% package value per win (up to +50%), double starting cash, Sorting Systems researched, gems kept.',
-    ])}
+    ]))}
     ${sec('💎', 'Gems', [
       'Gems save time and never unlock anything you cannot earn: boosts, finishing research, refreshing contracts, emergency Mars drops, cargo boosts.',
       'Earn them from goals, contracts, daily play, launches and the Mars colony.',
@@ -812,7 +816,6 @@ function helpHTML() {
     ])}
     <h3 id="releaseNotes">📝 Release notes</h3>
     ${releaseNotesHTML()}
-    <button class="btn" style="width:100%;margin-top:14px" data-act="tutorial">🎓 Restart the tutorial</button>
     <button class="btn danger" style="width:100%;margin-top:10px" data-act="reset">Reset game</button>
   </div>`;
 }
@@ -849,6 +852,9 @@ function onPanelClick(e) {
     return;
   }
   if (act === 'tutorial') { restartTutorial(); closePanel(); refreshTutorial(); return; }
+  const tut = handleTutorialAct(act, id);
+  if (tut === 'stop') { refreshTutorial(); return; }
+  if (tut) { renderPanel(); refreshTutorial(); return; }
   if (act === 'helpnotes') { e.preventDefault(); const n = document.getElementById('releaseNotes'); if (n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
   if (act === 'showalert') {
     const [site, x, y] = id.split('|');
