@@ -26,6 +26,7 @@ const M = () => {
     syncMods(m);
   }
   if (!m.map.veined) addVeins(m.map);
+  if (m.ore == null) { m.ore = m.metalsWaiting || 0; m.metalsWaiting = 0; }
   if (!m.kitHead) m.kitHead = {};
   return m;
 };
@@ -71,6 +72,7 @@ function marsWindowIn() { const m = M(); return Math.max(0, m.windowAt - state.c
 function marsWindowLeft() { const m = M(); return Math.max(0, m.windowAt + MARS.windowOpen - state.clock); }
 
 // ---------- Colony numbers ----------
+const oreCap = () => MARS_STORE.lander + MARS_STORE.silo * modCount('silo'); // the Lander keeps a little; Ore Silos the rest
 // ---------- The base map ----------
 // Terrain: g ground, i ice (Ice Mines go here), r rock (nothing can be built). The Lander sits in the middle.
 function marsMapFresh() {
@@ -185,7 +187,6 @@ function stepConstruction(dt) {
   syncMods(m);
   const mm = MARS_MODULES[q.k];
   toast(`🏗️ Mars: ${mm.icon} ${mm.name} finished${needsPower(q.k) && !coversAt(m.map, q.x, q.y) ? ' · ⚠️ no power reaches it: build a ⚡ Solar Farm nearby' : ''}`);
-  if (q.k === 'pad' && m.metalsWaiting) { shipMetals(m.metalsWaiting); m.metalsWaiting = 0; }
   checkMilestones();
 }
 
@@ -434,6 +435,13 @@ function marsArrive(f) {
     if (n) bits.push(`👩‍🚀 ${n} colonist${n > 1 ? 's' : ''} landed`);
   }
   for (const kind of SUPPLY_KINDS) if (f[kind]) m.stock[kind] += f[kind];
+  // The rocket refuels and flies home with ore, if there's a working Landing Pad.
+  if (!f.emergency && effMod('pad') && m.ore > 0) {
+    const n = Math.min(m.ore, MARS_STORE.returnPerRocket);
+    m.ore -= n;
+    shipMetals(n);
+    bits.push(`🪨 ${n} Rare Metals flying home`);
+  }
   if (f.terra && terraStage()) {
     for (const [p, n] of Object.entries(f.terra)) m.terra.delivered[p] = (m.terra.delivered[p] || 0) + n;
     bits.push(`🌍 Terraform parts: ${Object.entries(f.terra).filter(([, n]) => n).map(([p, n]) => `${PRODUCTS[p].icon} ${n}`).join(' ')}`);
@@ -522,11 +530,13 @@ function marsCycle() {
   const gems = Math.floor(m.colonists / 10);
   state.rep += stars;
   state.gems += gems;
-  if (effMod('pad')) { shipMetals(metals + m.metalsWaiting); m.metalsWaiting = 0; } else m.metalsWaiting += metals;
+  const stored = Math.min(metals, Math.max(0, oreCap() - m.ore));
+  m.ore += stored;
+  const lost = metals - stored; // nowhere to keep it
   let left = 0;
   if (m.rations >= MARS.rationsBeforeLeaving && m.colonists > MARS.minColonists) { m.colonists--; left = 1; }
   else if (morale < MARS_MORALE.leaveBelow && m.colonists > MARS.minColonists) { m.colonists--; left = 1; } // unhappy people go home too
-  m.last = { need, short, stars, metals, gems, left, made, morale };
+  m.last = { need, short, stars, metals, gems, left, made, morale, lost };
   // Something happens now and then.
   const shielded = m.terra.stage >= 2;
   if (!shielded && !ev.dust && effMod('solar') && Math.random() < MARS_EVENTS.dust.chance) {
@@ -551,7 +561,7 @@ function marsCycle() {
     const who = WORKER_NAMES[Math.floor(Math.random() * WORKER_NAMES.length)];
     m.request = { kind, n, due: m.cycle + 2, stars: 5 + Math.round(n / 2), gems: 2, who };
   }
-  toast(`🔴 Mars window: colony used ${cargoText(need) || 'nothing'}${short ? ' · ⚠️ rationing' : ''} · made +${stars} ⭐${made ? ` · 🔧 ${made} Spares made` : ''}${left ? ' · 1 colonist went home' : ''}`);
+  toast(`🔴 Mars window: colony used ${cargoText(need) || 'nothing'}${short ? ' · ⚠️ rationing' : ''} · made +${stars} ⭐ · 🪨 ${stored} ore stored${lost ? ` (${lost} lost: storage full, build an 🛢️ Ore Silo)` : ''}${made ? ` · 🔧 ${made} Spares made` : ''}${left ? ' · 1 colonist went home' : ''}`);
 }
 
 function checkMilestones() {
@@ -587,7 +597,7 @@ function marsLaunchHTML() {
   const plural = (p) => PRODUCTS[p].name + (PRODUCTS[p].name.endsWith('s') ? '' : 's');
   if (m.events.meteor) {
     const mm = MARS_MODULES[m.events.meteor];
-    html += `<div class="mars-warn">☄️ <b>${mm.icon} ${mm.name} offline</b> after a meteor strike. Repair: ${m.events.fixed || 0}/${MARS.repairSpares} 🔧 Spares Kits (they go to the repair first, as they land)${m.events.meteor === 'pad' && m.metalsWaiting ? `; ${m.metalsWaiting} 🪨 Rare Metals are waiting to come home` : ''}.</div>`;
+    html += `<div class="mars-warn">☄️ <b>${mm.icon} ${mm.name} offline</b> after a meteor strike. Repair: ${m.events.fixed || 0}/${MARS.repairSpares} 🔧 Spares Kits (they go to the repair first, as they land)${m.events.meteor === 'pad' && m.ore ? `; ${m.ore} 🪨 Rare Metals are waiting to come home` : ''}.</div>`;
   }
   if (m.manifest.module && m.manifest.terra && terraUnlocked()) {
     const mm = MARS_MODULES[m.manifest.module], rem = terraRemaining();
@@ -685,7 +695,8 @@ function marsBaseHTML() {
     <div class="stat-row"><span>⚡ Power</span><b class="${pw.frac < 1 ? 'neg' : ''}">${pw.supply} / ${pw.demand}${pw.cells ? ` (🔋 ${pw.cells} cells)` : ''}${pw.frac < 1 ? ` · ${Math.round(pw.frac * 100)}% running` : ''}</b></div>
     <div class="stat-row"><span>Next window</span><b>${marsWindowOpen() ? 'open now' : `in ${fmtSecs(marsWindowIn())}`}</b></div>
     ${m.last ? `<div class="stat-row"><span>Last window made</span><b>+${m.last.stars} ⭐ · ${m.last.metals} 🪨${m.last.gems ? ` · +${m.last.gems} 💎` : ''}</b></div>` : ''}
-    <div class="stat-row"><span>🪨 Rare Metals shipped home</span><b>${m.metalsTotal}${m.metalsWaiting ? ` (+${m.metalsWaiting} waiting: ${modCount('pad') ? `the Landing Pad is damaged, repair ${m.events.fixed || 0}/${MARS.repairSpares} 🔧 Spares` : 'build a 🛬 Landing Pad'})` : ''}</b></div></div>`;
+    <div class="stat-row"><span>🪨 Ore in storage</span><b>${m.ore} / ${oreCap()}${!effMod('pad') ? ` · ${modCount('pad') ? 'Landing Pad damaged' : 'needs a 🛬 Landing Pad to fly home'}` : ` · up to ${MARS_STORE.returnPerRocket} per rocket home`}</b></div>
+    <div class="stat-row"><span>🪨 Rare Metals shipped home</span><b>${m.metalsTotal}</b></div></div>`;
   // Where Rare Metals go
   const sites = PROPERTIES.filter((d) => state.props[d.id].owned && hasReceiveDock(d));
   html += `<h3 class="sec">Rare Metals go to</h3><div class="choice">
@@ -825,6 +836,8 @@ function handleMarsAct(act, id) {
   if (act === 'marstab') { ui.marsTab = id; return true; }
   if (act === 'gomars') { goMars(); return 'stop'; }
   if (handleCrewAct(act, id)) return true;
+  const info = handleMarsInfoAct(act, id);
+  if (info) return info;
   if (act === 'marsautobuild') { m.autoBuild = id === 'on'; if (m.autoBuild) autoPlaceKits(); save(); return true; }
   if (act === 'marsmod') { m.manifest.module = id || null; save(); return true; }
   if (act === 'marsqty') {

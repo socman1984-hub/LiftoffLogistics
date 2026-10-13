@@ -3,7 +3,7 @@
 // with its own build bar. Warehouse sites keep running underneath; going to
 // Mars only changes what's shown and what taps do.
 
-const MARS_COLOR = { habitat: '#d9824f', solar: '#3a5a8c', greenhouse: '#3f8f4f', icemine: '#5aa7c8', pad: '#6b6f7a', station: '#7a5cc4', fusion: '#c4a23a', mine: '#6d4c3d', rec: '#c2557a', workshop: '#8a7a5a' };
+const MARS_COLOR = { silo: '#7d6a4a', habitat: '#d9824f', solar: '#3a5a8c', greenhouse: '#3f8f4f', icemine: '#5aa7c8', pad: '#6b6f7a', station: '#7a5cc4', fusion: '#c4a23a', mine: '#6d4c3d', rec: '#c2557a', workshop: '#8a7a5a' };
 const marsHud = () => (view.w < 520 ? 48 : 30); // px of status above the map (two lines on phones)
 
 function goMars() {
@@ -121,6 +121,11 @@ function renderMars() {
       ctx.fillStyle = '#f2c94c'; ctx.fillRect(px + s * 0.14, py + s * 0.78, s * 0.72 * q.prog, s * 0.1);
       if (q === map.b.find((b) => !b.done)) { ctx.fillStyle = '#000'; ctx.font = `${Math.floor(s * 0.3)}px system-ui`; ctx.fillText('🏗️', px + s * 0.8, py + s * 0.22 + Math.sin(now * 4) * s * 0.03); }
     }
+    if (q.k === 'silo' && q.done) { // fill gauge
+      const fill = Math.min(1, m.ore / oreCap());
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(px + s * 0.78, py + s * 0.2, s * 0.08, s * 0.6);
+      ctx.fillStyle = '#d4a017'; ctx.fillRect(px + s * 0.78, py + s * 0.2 + s * 0.6 * (1 - fill), s * 0.08, s * 0.6 * fill);
+    }
     if (broken || off) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.arc(px + s * 0.8, py + s * 0.2, s * 0.17, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#000'; ctx.font = `${Math.floor(s * 0.24)}px system-ui`; ctx.fillText(broken ? '💥' : '🔌', px + s * 0.8, py + s * 0.21);
@@ -160,6 +165,7 @@ function renderMars() {
   const parts = [`🧑‍🚀 ${m.colonists} · 🏠 ${marsCap()}${shelter ? ` (${shelter} in Lander)` : ''}${mo != null ? ` · ${mo >= 90 ? '😀' : mo >= 60 ? '🙂' : '😟'} ${mo}%` : ''}`,
     marsWindowOpen() ? '🟢 window open' : `🪐 ${fmtSecs(marsWindowIn())}`,
     q ? `🏗️ ${MARS_MODULES[q.k].name} ${Math.round(q.prog * 100)}%` : '',
+    `🪨 ${m.ore}/${oreCap()}`,
     kits ? `📦 ${kits} kit${kits > 1 ? 's' : ''} to place` : '',
     (() => { const n = map.b.filter((b) => b.done && needsPower(b.k) && !coversAt(map, b.x, b.y)).length; return n ? `🔌 ${n} without power` : ''; })()].filter(Boolean);
   ctx.font = '600 13px system-ui';
@@ -172,8 +178,13 @@ function renderMars() {
 }
 
 // ---------- Taps ----------
-function marsTap(x, y) {
+function marsTap(x, y, px) {
   const m = M(), map = m.map, q = buildingAt(map, x, y);
+  if (px && !ui.marsTool && ui.marsHit) { // tapped a colonist?
+    const r = view.ts * 0.22;
+    const hit = ui.marsHit.filter((h) => Math.hypot(h.x - px.x, h.y - px.y) <= r).sort((a, b) => Math.hypot(a.x - px.x, a.y - px.y) - Math.hypot(b.x - px.x, b.y - px.y))[0];
+    if (hit) { openMarsThing({ person: hit.i }); return; }
+  }
   if (ui.marsTool === 'build' && ui.marsKit && !q) {
     const k = ui.marsKit, why = placeProblem(map, k, x, y);
     if (why) { toast(why); return; }
@@ -201,7 +212,8 @@ function marsTap(x, y) {
     refreshToolbar();
     return;
   }
-  handleMarsTile(`${x},${y}`); // inspect
+  if (q || isLander(map, x, y)) { openMarsThing({ x, y }); return; } // inspect: details panel
+  handleMarsTile(`${x},${y}`);
 }
 
 // ---------- Build bar ----------
@@ -279,39 +291,28 @@ function refreshMarsBar() {
   }
 }
 
-// Colonist sprites. Up to ~24 drawn; each stands at its job and bobs, with a bubble now and then.
+// Colonist sprites: each person at their workplace (laborers stroll). Big colonies show a sample.
 function drawMarsCrew(map, s, now) {
-  const m = M(), crew = marsCrew();
-  if (!m.colonists) return;
-  const scale = Math.min(1, 24 / m.colonists); // big colonies: show a sample
-  const spots = [];
-  for (const job of MARS_JOB_ORDER) {
-    const j = MARS_JOBS[job];
-    let where = [];
-    if (job === 'engineer') {
-      const site = map.b.find((b) => !b.done) || (m.events.meteor && map.b.find((b) => b.k === m.events.meteor && b.done));
-      where = site ? [site] : [map.lander];
-    } else where = map.b.filter((b) => b.k === j.at && b.done && coversAt(map, b.x, b.y) || (b.k === j.at && b.done && !needsPower(b.k)));
-    const n = Math.round(crew[job] * scale);
-    for (let i = 0; i < n && where.length; i++) spots.push({ at: where[i % where.length], bubble: j.bubble, i: spots.length, work: true });
-  }
-  const others = map.b.filter((b) => b.done);
-  for (let i = 0; i < Math.round(crew.laborer * scale); i++) spots.push({ at: others.length ? others[(i * 5) % others.length] : map.lander, from: map.lander, i: spots.length });
+  const people = marsPeople();
+  ui.marsHit = [];
+  if (!people.length) return;
+  const step = Math.max(1, people.length / 28);
   ctx.fillStyle = '#000';
-  for (const w of spots) {
-    const k = w.i * 2.399; // golden-angle offsets so crews spread around a building
+  for (let f = 0; f < people.length; f += step) {
+    const p = people[Math.floor(f)], i = p.i, at = p.at || map.lander;
     let wx, wy;
-    if (w.from) { // laborers stroll between the Lander and a building
-      const t = (Math.sin(now * 0.3 + w.i * 1.7) + 1) / 2;
-      wx = w.from.x + (w.at.x - w.from.x) * t; wy = w.from.y + (w.at.y - w.from.y) * t;
-    } else { wx = w.at.x + Math.cos(k) * 0.42; wy = w.at.y + Math.sin(k) * 0.42; }
-    const bob = Math.sin(now * 3 + w.i) * s * 0.03;
-    const cx = view.ox + (wx + 0.5) * s, cy = view.oy + (wy + 0.5) * s + bob;
+    if (p.job === 'laborer') { // stroll between the Lander and their dome
+      const to = p.home || at, t = (Math.sin(now * 0.3 + i * 1.7) + 1) / 2;
+      wx = map.lander.x + (to.x - map.lander.x) * t; wy = map.lander.y + (to.y - map.lander.y) * t;
+    } else { const k = i * 2.399; wx = at.x + Math.cos(k) * 0.42; wy = at.y + Math.sin(k) * 0.42; }
+    const cx = view.ox + (wx + 0.5) * s, cy = view.oy + (wy + 0.5) * s + Math.sin(now * 3 + i) * s * 0.03;
     ctx.font = `${Math.floor(s * 0.3)}px system-ui`;
     ctx.fillText('🧑‍🚀', cx, cy);
-    if (w.work && Math.sin(now * 0.8 + w.i * 2.1) > 0.6) { // working: show what they're doing
-      ctx.font = `${Math.floor(s * 0.2)}px system-ui`;
-      ctx.fillText(w.bubble, cx + s * 0.14, cy - s * 0.2);
+    const j = MARS_JOBS[p.job];
+    if (j && Math.sin(now * 0.8 + i * 2.1) > 0.6) { ctx.font = `${Math.floor(s * 0.2)}px system-ui`; ctx.fillText(j.bubble, cx + s * 0.14, cy - s * 0.2); }
+    if (ui.marsSel && ui.marsSel.person === i && openPanelName === 'marsthing') { // highlight the one you're looking at
+      ctx.strokeStyle = '#f2c94c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, s * 0.2, 0, Math.PI * 2); ctx.stroke();
     }
+    ui.marsHit.push({ x: cx, y: cy, i });
   }
 }

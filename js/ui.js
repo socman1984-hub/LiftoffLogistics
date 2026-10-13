@@ -777,6 +777,8 @@ function helpHTML() {
       'Modules: 🏠 Habitat (homes), ⚡ Solar Farm (power), 🌱 Greenhouse and 🧊 Ice Mine (cut needs), 🛬 Landing Pad (Rare Metals come home), 🔬 Research Station, ⚛️ Fusion Reactor.',
       '<b>🗺️ Build the base:</b> modules land as kits. Go to Mars (🗺️ Map → 🔴 Go to Mars base, like switching sites) and the bottom bar becomes your Mars build bar: 🏗️ Build a kit by tapping a tile, 🚚 Relocate a building (finished ones cost 2 🔧 Spares and keep 60% of their build), ✨ Auto-place, 📊 Colony stats. Colonists build one at a time (faster with more colonists). Ice Mines go on 🧊 ice, nothing goes on 🪨 rock, and Greenhouses, Ice Mines, the Research Station and the Landing Pad only work within reach of a ⚡ Solar Farm (2 tiles) or ⚛️ Fusion Reactor (3). Colonists whose dome isn’t finished shelter in the 🛸 Lander at half pace. Prefer not to? Switch new kits to ✨ Place automatically.',
       '<b>👥 Colonists have jobs:</b> farmers tend Greenhouses, ice crews run Ice Mines, caretakers keep domes clean, miners dig Rare Metals at ⛏️ Metal Mines (built on 🟫 metal veins), mechanics turn ore into Spares at the 🔧 Workshop, scientists boost ⭐ at the Research Station, and engineers build and repair. A building with nobody on it runs at 30%. Jobs fill automatically, or set them yourself in 📊 Colony.',
+      '<b>🔎 Tap anything on Mars</b> (🔍 Inspect) for details: a building’s crew, power, output and dust, the Lander, or any colonist to see their name, job, what they’re doing and where they live.',
+      '<b>🪨 Ore storage:</b> mined Rare Metals wait on Mars until a rocket flies them home from the 🛬 Landing Pad (up to 60 per rocket that lands). The Lander holds 30; each 🛢️ Ore Silo holds 150 more. Ore with nowhere to go is lost.',
       '<b>🙂 Morale</b> scales everything the colony makes: clean domes and a 🎳 Rec Dome nearby lift it; dusty domes, rationing, sickness and people sheltering in the Lander drag it down. Very low morale sends colonists home.',
       'Colonists use 🍞 Food, 💧 Water/O₂ and 🔧 Spares each window. Run short and they ration, then start going home (nobody dies).',
       `In a pinch, an 🆘 <b>emergency drop</b> (${MARS.emergencyGems} 💎, one per launch window) sends up to ${MARS.emergencySlots} supply crates without a rocket.`,
@@ -1504,7 +1506,7 @@ function onPointerDown(e) {
   const p = pointerPos(e);
   const tile = screenToTile(p.x, p.y);
   if (!tile) return;
-  if (ui.marsView) { marsTap(tile.x, tile.y); return; }
+  if (ui.marsView) { marsTap(tile.x, tile.y, p); return; }
   canvas.setPointerCapture(e.pointerId);
   drag.active = true;
   drag.start = tile;

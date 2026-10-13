@@ -679,3 +679,7 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 #marsTray .tool.locked { opacity: 0.45; }
 .mars-btn { width: 100%; margin-bottom: 10px; background: linear-gradient(90deg, #a8452a, #d9824f); }
 .warn-text { color: #f2994a; }
+
+.colonist-card { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.colonist-card .cc-face { font-size: 40px; background: var(--panel-2); border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+.colonist-card .cc-name { font-size: 18px; font-weight: 800; }

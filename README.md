@@ -157,6 +157,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   covers them. Colonists whose dome isn't finished shelter in the Lander at half output. 🚚 Relocate packs a building
   up to place it again (free before building starts; finished ones cost 2 🔧 Spares and keep 60% of the work);
   ✨ auto-place handles it all for players who'd rather not.
+- **🔎 Details & 🪨 ore storage**: tapping a building, the Lander or a colonist on Mars opens a panel (crew, power, output,
+  dust, residents; a colonist's name, job, current task and home). Mined Rare Metals are stored on Mars (Lander 30, each
+  🛢️ Ore Silo +150; overflow is lost) and every rocket that lands at a working 🛬 Landing Pad flies up to 60 home.
 - **👥 Colonist jobs & 🙂 morale**: colonists work at the buildings: farmers (Greenhouse, 2 each), ice crews (Ice Mine, 2),
   caretakers (1 per dome, keep the dust down), miners (⛏️ Metal Mine on a 🟫 metal vein, 3; ~8 Rare Metals each per window),
   mechanics (🔧 Workshop, 2; 6 Rare Metals → 3 Spares a window), scientists (Research Station, 2) and engineers (build and
