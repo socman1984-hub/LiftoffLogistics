@@ -578,7 +578,7 @@ const MARS_JOBS = {
 const MARS_JOB_ORDER = ['engineer', 'farmer', 'iceminer', 'caretaker', 'miner', 'mechanic', 'scientist']; // auto-assign priority
 const MARS_CREW = {
   idleOutput: 0.3, // a building with nobody working it runs at 30%
-  metalsBase: 0.5, metalsPerMiner: 8, // Rare Metals per window: everyone scavenges a little, miners dig the rest
+  metalsPerLaborer: 1, metalsPerMiner: 8, // Rare Metals per window: laborers scavenge, miners dig the real seams
   sparesPerWorkshop: 3, metalsPerSpare: 2, // a fully staffed Workshop turns 6 Rare Metals into 3 Spares a window
   dirtPerSec: 0.035, cleanPerSec: 0.08, // dome dust (0-100) and how fast one caretaker clears it
   recRange: 3,

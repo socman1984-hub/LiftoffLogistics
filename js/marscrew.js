@@ -106,7 +106,7 @@ function marsCrewHTML() {
       ${manual ? `<span class="dest-ctl"><button class="step" data-act="marscrew" data-id="${job}|-1" ${(m.crewSet[job] || 0) ? '' : 'disabled'}>−</button><b class="num">${m.crewSet[job] || 0}</b>
       <button class="step" data-act="marscrew" data-id="${job}|1" ${crew.laborer > 0 && (!j.at || (m.crewSet[job] || 0) < slots) ? '' : 'disabled'}>+</button></span>` : ''}</div>`;
   }
-  html += `<p class="intro small">🧑‍🚀 ${crew.laborer} laborer${crew.laborer === 1 ? '' : 's'} (help build and scavenge a little). Buildings with nobody on them run at ${Math.round(MARS_CREW.idleOutput * 100)}%.</p>`;
+  html += `<p class="intro small">🧑‍🚀 ${crew.laborer} laborer${crew.laborer === 1 ? '' : 's'} (help build and scavenge ~1 🪨 Rare Metal each per window). Buildings with nobody on them run at ${Math.round(MARS_CREW.idleOutput * 100)}%.</p>`;
   return html;
 }
 

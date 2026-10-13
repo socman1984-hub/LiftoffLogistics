@@ -513,8 +513,8 @@ function marsCycle() {
   const morale = marsMorale().value, mm = 0.5 + 0.5 * morale;
   mult *= mm;
   const stars = Math.round(workers * (1 + 0.5 * Math.min(1, staffedEff('station')) * pw.frac) * mult * MARS.starsPerColonist * (1 + rfx('marsOutput')));
-  // Everyone scavenges a little ore; miners dig the rest.
-  const dig = MARS_CREW.metalsBase * workers + MARS_CREW.metalsPerMiner * MARS_JOBS.miner.per * staffedEff('mine') * pw.frac;
+  // Laborers scavenge ore; miners dig the rest.
+  const dig = MARS_CREW.metalsPerLaborer * marsCrew().laborer * (workers / m.colonists) + MARS_CREW.metalsPerMiner * MARS_JOBS.miner.per * staffedEff('mine') * pw.frac;
   let metals = Math.round(dig * mult * (1 + rfx('marsMetals') + rfx('marsOutput')));
   // Workshops turn some of it into Spares on the spot.
   const made = Math.min(Math.floor(MARS_CREW.sparesPerWorkshop * staffedEff('workshop') * pw.frac), Math.floor(metals / MARS_CREW.metalsPerSpare));

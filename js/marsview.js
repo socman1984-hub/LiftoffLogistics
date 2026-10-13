@@ -160,7 +160,8 @@ function renderMars() {
   const parts = [`🧑‍🚀 ${m.colonists} · 🏠 ${marsCap()}${shelter ? ` (${shelter} in Lander)` : ''}${mo != null ? ` · ${mo >= 90 ? '😀' : mo >= 60 ? '🙂' : '😟'} ${mo}%` : ''}`,
     marsWindowOpen() ? '🟢 window open' : `🪐 ${fmtSecs(marsWindowIn())}`,
     q ? `🏗️ ${MARS_MODULES[q.k].name} ${Math.round(q.prog * 100)}%` : '',
-    kits ? `📦 ${kits} kit${kits > 1 ? 's' : ''} to place` : ''].filter(Boolean);
+    kits ? `📦 ${kits} kit${kits > 1 ? 's' : ''} to place` : '',
+    (() => { const n = map.b.filter((b) => b.done && needsPower(b.k) && !coversAt(map, b.x, b.y)).length; return n ? `🔌 ${n} without power` : ''; })()].filter(Boolean);
   ctx.font = '600 13px system-ui';
   ctx.textAlign = 'left';
   ctx.fillStyle = '#f3d9c7';

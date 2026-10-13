@@ -163,7 +163,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   repair; repairs need one). Unstaffed buildings run at 30%; jobs fill automatically or by hand in 📊 Colony. Morale
   (base 70%: clean domes ±20, 🎳 Rec Dome within 3 tiles +20, Lander crowding −30, rationing −20, sickness −10, well
   stocked +5) scales output by 0.5 + 0.5 × morale, and below 35% colonists head home. New modules: ⛏️ Metal Mine (max 4),
-  🎳 Rec Dome (max 3), 🔧 Workshop (max 2); all need power. Rare Metals now come mostly from mines (everyone scavenges 0.5).
+  🎳 Rec Dome (max 3), 🔧 Workshop (max 2); all need power. Rare Metals now come mostly from mines (laborers scavenge 1 each).
   The colony runs on the game clock, so it pauses while you're away.
   **Later colony stage:** a 🔴 **Colony** research branch (after the first launch: lower needs, bigger habitats,
   heavy-lift rockets, faster transit and pad turnaround, Rare Metal refining, gentler rationing, ⚛️ Fusion Power,
