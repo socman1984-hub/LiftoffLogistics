@@ -5,7 +5,7 @@ const GAME_VERSION = '0.9.1';
 
 const RELEASE_NOTES = [
   { v: '0.9.1', date: 'Oct 13, 2026', title: 'Stuck staff fix', notes: [
-    'Staff who end up cut off (boxed in by new building, or standing at a door that got blocked) now walk back in through an open door, so they stop reporting they "can't reach" restrooms, break rooms and machines that are actually reachable.',
+    'Staff who end up cut off (boxed in by new building, or standing at a door that got blocked) now walk back in through an open door, so they stop reporting they “can’t reach” restrooms, break rooms and machines that are actually reachable.',
   ] },
   { v: '0.9.0', date: 'Oct 13, 2026', title: 'Lessons', notes: [
     'New 💡 lessons pop up the first time each feature unlocks: contracts, research, suppliers and haggling, trucks between sites, specialists, the Launch Site, Mars, colonists and Mastery. Each pays a couple of 💎 the first time.',
