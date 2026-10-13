@@ -1,9 +1,13 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.9.1';
+const GAME_VERSION = '0.9.2';
 
 const RELEASE_NOTES = [
+  { v: '0.9.2', date: 'Oct 13, 2026', title: 'Updates', notes: [
+    'The game now checks for new versions and offers to update, so phones stop getting stuck on an old cached copy.',
+    'Fixed How to Play showing blank, or showing the last screen you were on.',
+  ] },
   { v: '0.9.1', date: 'Oct 13, 2026', title: 'Stuck staff fix', notes: [
     'Staff who end up cut off (boxed in by new building, or standing at a door that got blocked) now walk back in through an open door, so they stop reporting they “can’t reach” restrooms, break rooms and machines that are actually reachable.',
   ] },
@@ -66,4 +70,25 @@ const RELEASE_NOTES = [
 function releaseNotesHTML() {
   return RELEASE_NOTES.map((r, i) => `<details class="help-sec" ${i === 0 ? 'open' : ''}><summary>v${r.v} · ${r.title} <span class="muted small">${r.date}</span></summary>
     <ul>${r.notes.map((n) => `<li>${n}</li>`).join('')}</ul></details>`).join('');
+}
+
+// ---- Updates: phones can keep an old copy of the page cached. Check for a newer
+// version now and then, and reload fresh (a new URL skips the cache; the save stays).
+const verNum = (v) => v.split('.').map(Number).reduce((a, n) => a * 1000 + n, 0);
+async function checkForUpdate() {
+  try {
+    const res = await fetch(`js/releases.js?check=${Date.now()}`, { cache: 'no-store' });
+    const m = (await res.text()).match(/GAME_VERSION = '([\d.]+)'/);
+    if (!m || verNum(m[1]) <= verNum(GAME_VERSION) || ui.updateOffered === m[1]) return;
+    ui.updateOffered = m[1];
+    showMessage('🔄 Update available', `<p class="intro">Version <b>v${m[1]}</b> is out (you have v${GAME_VERSION}). Your game is saved; updating just reloads the page.</p>
+      <button class="btn" style="width:100%;margin-bottom:8px" data-act="appupdate">Update now</button>`, { noClose: true });
+    $('modalBody').insertAdjacentHTML('beforeend', '<button class="btn secondary" style="width:100%" data-act="close">Later</button>');
+  } catch (e) { /* offline: try again later */ }
+}
+function applyUpdate() {
+  save();
+  const q = new URLSearchParams(location.search);
+  q.set('u', Date.now().toString(36));
+  location.replace(`${location.pathname}?${q}`);
 }

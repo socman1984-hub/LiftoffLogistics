@@ -831,6 +831,7 @@ function onPanelClick(e) {
   const id = b.dataset.id;
   const def = curDef(), prop = curProp();
   if (act === 'close') { closePanel(); return; }
+  if (act === 'appupdate') { applyUpdate(); return; }
   if (act === 'mtab') { ui.marketTab = id; renderPanel(); return; }
   if (act === 'openshop') { openPanel('shop'); return; }
   if (act === 'finwin') { ui.finWin = id; renderPanel(); return; }

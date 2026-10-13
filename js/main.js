@@ -126,6 +126,8 @@ function boot() {
   if (!state.current) openPanel('map');
   else if (loaded) awardOffline(loaded.savedAt, loaded.lastRates || { [loaded.current]: loaded.lastRate });
   requestAnimationFrame(frame);
+  setTimeout(checkForUpdate, 4000); // then every 10 minutes
+  setInterval(checkForUpdate, 600000);
 }
 
 boot();
