@@ -268,7 +268,7 @@ const RESEARCH = [
   R('aero', 5, 1, 'reusable', '♻️', 'Reusable Boosters', 'Each rocket needs 20% fewer parts', ['flighttest', 'photovoltaics'], { launchParts: 0.2 }),
   // 🔴 Colony: the late-game sink for reputation and cash (open after the first launch)
   R('colony', 1, 0, 'hydroponics', '🥬', 'Hydroponics', 'Colonists need 15% less food', [], { marsFood: 0.15 }, { cost: 20, money: 300000, time: 600 }),
-  R('colony', 1, 1, 'robotics', '🤖', 'Repair Drones', 'Modules need 25% fewer spares', [], { marsSpares: 0.25 }, { cost: 20, money: 300000, time: 600 }),
+  R('colony', 1, 1, 'robotics', '🤖', 'Repair Drones', 'Modules need 25% fewer spares and get built 50% faster', [], { marsSpares: 0.25, marsBuild: 0.5 }, { cost: 20, money: 300000, time: 600 }),
   R('colony', 1, 2, 'recyclers', '♻️', 'Water Recyclers', 'Colonists need 15% less water and oxygen', [], { marsWater: 0.15 }, { cost: 20, money: 300000, time: 600 }),
   R('colony', 2, 0, 'domes2', '🏘️', 'Expanded Habitats', 'Each Habitat Dome holds 1 more colonist', ['hydroponics'], { marsCap: 1 }, { cost: 40, money: 800000, time: 1200 }),
   R('colony', 2, 1, 'heavylift', '🏋️', 'Heavy-Lift Rockets', '+8 cargo slots on every Mars rocket', ['robotics'], { marsSlots: 8 }, { cost: 40, money: 800000, time: 1200 }),
@@ -555,11 +555,20 @@ const TERRAFORM = [
 ];
 const LEGACY_BONUS = 0.1; // New Game+: +10% package value per completed game (up to 5)
 const PAD_LEVELS = [{ cost: 1000000, cut: 20 }, { cost: 3000000, cut: 20 }, { cost: 8000000, cut: 20 }]; // launch pad upgrades: seconds off the turnaround
+// 🗺️ The Mars base: modules land as kits, you place them on this map and colonists build them.
+const MARS_MAP = {
+  cols: 9, rows: 11, rocks: 10, iceFields: 2, iceSize: 4,
+  powerRange: { solar: 2, fusion: 3 }, // tiles (square) a power source covers
+  shelterOutput: 0.5, // colonists still waiting for their dome shelter in the Lander and work at half pace
+  buildPerColonist: 0.04, // each colonist adds 4% to construction speed
+};
+const MARS_BUILD = { habitat: 240, solar: 180, greenhouse: 300, icemine: 300, pad: 480, station: 360, fusion: 600 }; // seconds of work
+const MARS_POWERED = ['greenhouse', 'icemine', 'station', 'pad']; // offline unless a power source covers them
 const MARS_MODULES = {
   habitat: { name: 'Habitat Dome', icon: '🏠', payload: { fuselage: 4, lifesupport: 2, heatshield: 2 }, desc: 'Room for 5 colonists' },
   solar: { name: 'Solar Farm', icon: '⚡', payload: { solar: 6, wiring: 4 }, desc: `+${3} power for the other modules` },
   greenhouse: { name: 'Greenhouse', icon: '🌱', payload: { lifesupport: 2, solar: 4, panel: 10 }, max: 3, desc: 'Grows food: −25% food needed per level' },
-  icemine: { name: 'Ice Mine', icon: '🧊', payload: { turbopump: 2, alloy: 4, sensor: 2 }, max: 3, desc: 'Makes water and oxygen: −25% Water/O₂ needed per level' },
+  icemine: { name: 'Ice Mine', icon: '🧊', payload: { turbopump: 2, alloy: 4, sensor: 2 }, max: 3, desc: 'Makes water and oxygen: −25% Water/O₂ needed per level. Must be built on ice' },
   pad: { name: 'Landing Pad', icon: '🛬', payload: { alloy: 6, heatshield: 4, avionics: 2 }, max: 1, desc: 'Return flights: Rare Metals get sold back home' },
   station: { name: 'Research Station', icon: '🔬', payload: { computer: 2, sensor: 4, avionics: 2 }, max: 1, desc: 'Colonists make +50% ⭐ reputation' },
   fusion: { name: 'Fusion Reactor', icon: '⚛️', payload: { fusioncore: 2, alloy: 6, heatshield: 2 }, max: 2, research: 'fusion', desc: '+12 power that dust storms can\'t touch' },

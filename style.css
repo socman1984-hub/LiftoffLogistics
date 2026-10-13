@@ -650,3 +650,25 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .vt-step.next { opacity: 1; box-shadow: 0 0 0 2px var(--accent); }
 
 .mars-warn { background: rgba(242, 153, 74, 0.15); border: 1px solid rgba(242, 153, 74, 0.6); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 13px; line-height: 1.35; }
+
+/* Mars base map */
+.mars-pop-row { font-size: 13px; margin: 2px 0 8px; }
+.mars-pop-row .warn { color: #f2994a; }
+.mars-map { display: grid; gap: 2px; padding: 6px; border-radius: 12px; background: linear-gradient(#5a2a1c, #3d1d14); margin: 0 auto 6px; max-width: 400px; }
+.mars-map .mt { aspect-ratio: 1; min-width: 0; width: 100%; margin: 0; border: 0; border-radius: 5px; padding: 0; position: relative; font-size: clamp(14px, 4.4vw, 22px); line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; color: inherit; }
+.mars-map .mt-g { background: #b5562f; }
+.mars-map .mt-i { background: linear-gradient(135deg, #cfe9f5, #8fc3db); }
+.mars-map .mt-r { background: #6e3522; cursor: default; }
+.mars-map .mt-rock { opacity: 0.85; font-size: 0.8em; }
+.mars-map .lander { background: #3b3f4a; box-shadow: inset 0 0 0 2px #9aa4b8; }
+.mars-map .lit { box-shadow: inset 0 0 0 2px rgba(255, 214, 102, 0.55); }
+.mars-map .built { background-color: #d9824f; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
+.mars-map .mt-i.built { background: #8fc3db; }
+.mars-map .building .mt-ic { opacity: 0.45; }
+.mars-map .mt-bar { position: absolute; left: 12%; right: 12%; bottom: 10%; height: 4px; border-radius: 2px; background: rgba(0,0,0,0.45); overflow: hidden; }
+.mars-map .mt-bar span { display: block; height: 100%; background: #f2c94c; }
+.mars-map .mt-badge { position: absolute; right: 2px; top: 2px; font-size: 0.5em; line-height: 1; }
+.mars-map .can { box-shadow: inset 0 0 0 3px #6fcf97; }
+.mars-map .can.nopow { box-shadow: inset 0 0 0 3px #f2994a; }
+.mars-legend { font-size: 11px; opacity: 0.75; margin-bottom: 8px; }
+.mars-legend .lit-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; box-shadow: inset 0 0 0 2px rgba(255, 214, 102, 0.8); vertical-align: -1px; }

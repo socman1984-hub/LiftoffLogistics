@@ -16,6 +16,15 @@ const M = () => {
   if (m.padLevel == null) m.padLevel = 0;
   if (!m.terra) m.terra = { stage: 0, delivered: {} };
   if (typeof m.manifest.terra !== 'number') m.manifest.terra = m.manifest.terra ? 10 : 0; // slots for Terraform parts
+  if (!m.kits) m.kits = {};
+  if (!m.map) { // saves from before the base map: lay out what's already built
+    m.map = marsMapFresh();
+    for (const [k, n] of Object.entries(m.modules)) for (let i = 0; i < n; i++) {
+      const at = autoSpot(m.map, k);
+      if (at) m.map.b.push({ k, x: at[0], y: at[1], prog: 1, done: true }); else m.kits[k] = (m.kits[k] || 0) + 1;
+    }
+    syncMods(m);
+  }
   return m;
 };
 
@@ -60,9 +69,104 @@ function marsWindowIn() { const m = M(); return Math.max(0, m.windowAt - state.c
 function marsWindowLeft() { const m = M(); return Math.max(0, m.windowAt + MARS.windowOpen - state.clock); }
 
 // ---------- Colony numbers ----------
-const modCount = (k) => M().modules[k] || 0;
-const effMod = (k) => Math.max(0, modCount(k) - (M().damaged[k] || 0)); // damaged modules do nothing
-const marsCap = () => (MARS.perHabitat + rfx('marsCap')) * effMod('habitat');
+// ---------- The base map ----------
+// Terrain: g ground, i ice (Ice Mines go here), r rock (nothing can be built). The Lander sits in the middle.
+function marsMapFresh() {
+  const { cols, rows } = MARS_MAP;
+  const rnd = (n) => Math.floor(Math.random() * n);
+  const lx = Math.floor(cols / 2), ly = Math.floor(rows / 2);
+  const t = Array.from({ length: rows }, () => Array(cols).fill('g'));
+  for (const [sx, sy] of [[1 + rnd(2), 1 + rnd(3)], [cols - 2 - rnd(2), rows - 2 - rnd(3)]]) { // two ice fields, opposite corners
+    let x = sx, y = sy, n = 0;
+    while (n < MARS_MAP.iceSize) {
+      if (t[y][x] !== 'i') { t[y][x] = 'i'; n++; }
+      const d = DIRS[rnd(4)];
+      x = Math.max(0, Math.min(cols - 1, x + d.x)); y = Math.max(0, Math.min(rows - 1, y + d.y));
+    }
+  }
+  for (let n = 0; n < MARS_MAP.rocks;) {
+    const x = rnd(cols), y = rnd(rows);
+    if (t[y][x] === 'g' && Math.max(Math.abs(x - lx), Math.abs(y - ly)) > 1) { t[y][x] = 'r'; n++; }
+  }
+  return { t, lander: { x: lx, y: ly }, b: [] };
+}
+const buildingAt = (map, x, y) => map.b.find((q) => q.x === x && q.y === y);
+const isLander = (map, x, y) => map.lander.x === x && map.lander.y === y;
+// Why a kit can't go here (or null when it can).
+function placeProblem(map, k, x, y) {
+  if (y < 0 || x < 0 || y >= map.t.length || x >= map.t[0].length) return 'Off the map';
+  if (isLander(map, x, y)) return 'That is the Lander';
+  if (map.t[y][x] === 'r') return 'Solid rock: nothing can be built here';
+  if (buildingAt(map, x, y)) return 'Something is already here';
+  if (k === 'icemine' && map.t[y][x] !== 'i') return 'Ice Mines must go on 🧊 ice';
+  return null;
+}
+const coversAt = (map, x, y) => map.b.some((q) => q.done && MARS_MAP.powerRange[q.k] && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= MARS_MAP.powerRange[q.k]);
+const needsPower = (k) => MARS_POWERED.includes(k);
+// The best free spot for a kit (auto-place, and old saves).
+function autoSpot(map, k) {
+  const { lander } = map;
+  let best = null, bestScore = -Infinity;
+  for (let y = 0; y < map.t.length; y++) for (let x = 0; x < map.t[0].length; x++) {
+    if (placeProblem(map, k, x, y)) continue;
+    let score = -Math.max(Math.abs(x - lander.x), Math.abs(y - lander.y));
+    if (k !== 'icemine' && map.t[y][x] === 'i') score -= 50; // keep ice for Ice Mines
+    if (needsPower(k) && coversAt(map, x, y)) score += 100;
+    const r = MARS_MAP.powerRange[k];
+    if (r) { // power: reach unpowered buildings and open ground
+      for (let yy = y - r; yy <= y + r; yy++) for (let xx = x - r; xx <= x + r; xx++) {
+        if (yy < 0 || xx < 0 || yy >= map.t.length || xx >= map.t[0].length || coversAt(map, xx, yy)) continue;
+        const q = buildingAt(map, xx, yy);
+        score += q && needsPower(q.k) ? 6 : !q && map.t[yy][xx] !== 'r' ? 1 : 0;
+      }
+    }
+    if (score > bestScore) { bestScore = score; best = [x, y]; }
+  }
+  return best;
+}
+// m.modules mirrors the finished buildings (counts by kind).
+function syncMods(m) {
+  m.modules = {};
+  for (const q of m.map.b) if (q.done) m.modules[q.k] = (m.modules[q.k] || 0) + 1;
+}
+function placeKit(k, x, y) {
+  const m = M();
+  if (!(m.kits[k] > 0) || placeProblem(m.map, k, x, y)) return false;
+  m.kits[k]--;
+  m.map.b.push({ k, x, y, prog: 0, done: false });
+  return true;
+}
+function autoPlaceKits() {
+  const m = M();
+  let n = 0;
+  for (const k of Object.keys(MARS_MODULES)) while (m.kits[k] > 0) { const at = autoSpot(m.map, k); if (!at || !placeKit(k, at[0], at[1])) break; n++; }
+  return n;
+}
+const constructionSpeed = () => (1 + M().colonists * MARS_MAP.buildPerColonist) * (1 + rfx('marsBuild'));
+// Colonists build one site at a time, in the order they were placed.
+function stepConstruction(dt) {
+  const m = M();
+  const q = m.map.b.find((b) => !b.done);
+  if (!q) return;
+  q.prog = Math.min(1, q.prog + (dt * constructionSpeed()) / MARS_BUILD[q.k]);
+  if (q.prog < 1) return;
+  q.done = true;
+  syncMods(m);
+  const mm = MARS_MODULES[q.k];
+  toast(`🏗️ Mars: ${mm.icon} ${mm.name} finished${needsPower(q.k) && !coversAt(m.map, q.x, q.y) ? ' · ⚠️ no power reaches it: build a ⚡ Solar Farm nearby' : ''}`);
+  if (q.k === 'pad' && m.metalsWaiting) { shipMetals(m.metalsWaiting); m.metalsWaiting = 0; }
+  checkMilestones();
+}
+
+// ---------- Colony numbers ----------
+const modCount = (k) => M().modules[k] || 0; // finished
+const pendingCount = (k) => (M().kits[k] || 0) + M().map.b.filter((q) => q.k === k && !q.done).length; // landed, not finished yet
+// Working modules: finished, powered if they need it, minus meteor damage.
+const onlineCount = (k) => M().map.b.filter((q) => q.k === k && q.done && (!needsPower(k) || coversAt(M().map, q.x, q.y))).length;
+const effMod = (k) => Math.max(0, onlineCount(k) - (M().damaged[k] || 0)); // damaged modules do nothing
+const marsCap = () => (MARS.perHabitat + rfx('marsCap')) * effMod('habitat'); // homes in finished domes
+const marsRoom = () => (MARS.perHabitat + rfx('marsCap')) * (modCount('habitat') + pendingCount('habitat')); // incl. domes still to build
+const shelteringColonists = () => Math.max(0, M().colonists - marsCap());
 const totalModules = () => Object.values(M().modules).reduce((a, b) => a + b, 0);
 const inTransitColonists = () => M().flights.reduce((a, f) => a + (f.colonists || 0), 0);
 
@@ -116,8 +220,8 @@ function moduleAllowed(k) {
   const mm = MARS_MODULES[k];
   if (!mm) return false;
   if (mm.research && !hasResearch(mm.research)) return false;
-  if (k !== 'habitat' && !modCount('habitat') && !M().flights.some((f) => f.module === 'habitat')) return false; // live somewhere first
-  if (mm.max && modCount(k) + M().flights.filter((f) => f.module === k).length >= mm.max) return false;
+  if (k !== 'habitat' && !modCount('habitat') && !pendingCount('habitat') && !M().flights.some((f) => f.module === 'habitat')) return false; // live somewhere first
+  if (mm.max && modCount(k) + pendingCount(k) + M().flights.filter((f) => f.module === k).length >= mm.max) return false;
   return true;
 }
 const payloadReady = (k) => Object.entries(MARS_MODULES[k].payload).every(([p, n]) => (state.launch.parts[p] || 0) >= n);
@@ -126,7 +230,7 @@ const emptyCargo = () => ({ module: null, colonists: 0, food: 0, water: 0, spare
 // Slots the cargo plan asks for (module + colonists who have room + supply crates).
 function colonistRoom() {
   const m = M(), per = MARS.perHabitat + rfx('marsCap');
-  return Math.max(0, marsCap() + per * (m.manifest.module === 'habitat' ? 1 : 0) + per * m.flights.filter((f) => f.module === 'habitat').length - m.colonists - inTransitColonists());
+  return Math.max(0, marsRoom() + per * (m.manifest.module === 'habitat' ? 1 : 0) + per * m.flights.filter((f) => f.module === 'habitat').length - m.colonists - inTransitColonists());
 }
 function plannedSlots() {
   const m = M();
@@ -147,7 +251,7 @@ function planCargo(slots, allowModule) {
   }
   if (allowModule) {
     const per = MARS.perHabitat + rfx('marsCap');
-    const capAfter = marsCap() + (c.module === 'habitat' ? per : 0) + per * m.flights.filter((f) => f.module === 'habitat').length;
+    const capAfter = marsRoom() + (c.module === 'habitat' ? per : 0) + per * m.flights.filter((f) => f.module === 'habitat').length;
     const room = Math.max(0, capAfter - m.colonists - inTransitColonists());
     c.colonists = Math.min(m.manifest.colonists, room, Math.floor(left / MARS.slotColonist));
     left -= c.colonists * MARS.slotColonist;
@@ -272,6 +376,9 @@ function stepMars() {
     ui.marsWindowToast = m.windowAt;
     if (!state.launch.auto) toast(`🪐 Mars launch window open for ${fmtSecs(MARS.windowOpen)}${vehicleReady() ? ': your rocket is ready' : ''}`);
   }
+  const dt = Math.min(5, Math.max(0, state.clock - (m.builtAt || state.clock))); // never catch up a long gap
+  m.builtAt = state.clock;
+  stepConstruction(dt);
   for (const f of m.flights.filter((q) => q.arriveAt <= state.clock)) marsArrive(f);
   m.flights = m.flights.filter((q) => q.arriveAt > state.clock);
   while (state.clock >= m.nextCycle) { marsCycle(); m.nextCycle += MARS.windowEvery; }
@@ -281,15 +388,15 @@ function marsArrive(f) {
   const m = M();
   const bits = [];
   if (f.module) {
-    m.modules[f.module] = (m.modules[f.module] || 0) + 1;
-    bits.push(`${MARS_MODULES[f.module].icon} ${MARS_MODULES[f.module].name} built`);
+    m.kits[f.module] = (m.kits[f.module] || 0) + 1;
+    if (m.autoBuild) autoPlaceKits();
+    bits.push(`${MARS_MODULES[f.module].icon} ${MARS_MODULES[f.module].name} kit landed${m.autoBuild ? ' (placed for you)' : ': place it in 🔴 Mars base'}`);
     if (f.module === 'habitat') { // each dome lands stocked for one window, so new arrivals don't start hungry
       m.stock.food += MARS.perHabitat; m.stock.water += MARS.perHabitat; m.stock.spares += 1;
     }
-    if (f.module === 'pad' && m.metalsWaiting) { shipMetals(m.metalsWaiting); m.metalsWaiting = 0; }
   }
   if (f.colonists) {
-    const n = Math.min(f.colonists, Math.max(0, marsCap() - m.colonists));
+    const n = Math.min(f.colonists, Math.max(0, marsRoom() - m.colonists));
     m.colonists += n;
     if (n) bits.push(`👩‍🚀 ${n} colonist${n > 1 ? 's' : ''} landed`);
   }
@@ -369,8 +476,9 @@ function marsCycle() {
   m.rations = short ? m.rations + 1 : 0;
   let mult = m.rations ? 0.5 + rfx('marsRation') : 1;
   if (ev.sick) mult *= 1 - 0.3 * (1 - rfx('marsRation'));
-  const stars = Math.round(m.colonists * (1 + 0.5 * Math.min(1, effMod('station')) * pw.frac) * mult * MARS.starsPerColonist * (1 + rfx('marsOutput')));
-  const metals = Math.round(m.colonists * MARS.metalsPerColonist * mult * (1 + rfx('marsMetals') + rfx('marsOutput')));
+  const workers = m.colonists - shelteringColonists() * (1 - MARS_MAP.shelterOutput); // waiting for a dome: half pace
+  const stars = Math.round(workers * (1 + 0.5 * Math.min(1, effMod('station')) * pw.frac) * mult * MARS.starsPerColonist * (1 + rfx('marsOutput')));
+  const metals = Math.round(workers * MARS.metalsPerColonist * mult * (1 + rfx('marsMetals') + rfx('marsOutput')));
   const gems = Math.floor(m.colonists / 10);
   state.rep += stars;
   state.gems += gems;
@@ -510,16 +618,10 @@ function marsLaunchHTML() {
 function marsBaseHTML() {
   const m = M(), ev = m.events;
   const need = marsNeeds(), pw = marsPower();
-  const plots = Object.entries(MARS_MODULES).map(([k, mm]) => {
-    if (mm.research && !hasResearch(mm.research) && !modCount(k)) return '';
-    const n = modCount(k), dmg = m.damaged[k] || 0, coming = m.flights.filter((f) => f.module === k).length;
-    return `<div class="mars-plot ${n ? 'built' : ''} ${dmg ? 'damaged' : ''}"><div class="mp-ic">${n ? mm.icon : '·'}</div><div class="mp-nm">${mm.name}</div>
-      <div class="mp-lv">${dmg ? '💥 damaged' : n ? (mm.max ? `L${n}/${mm.max}` : `×${n}`) : coming ? '🚀 inbound' : 'not built'}</div></div>`;
-  }).join('');
   const badges = [m.rations ? `<span class="neg">rationing (${m.rations})</span>` : '', ev.dust ? `🌪️ dust storm (${ev.dust})` : '', ev.meteor ? '☄️ meteor damage' : '', ev.sick ? '🦠 sickness' : ''].filter(Boolean).join(' · ');
-  let html = `<div class="mars-scene"><div class="mars-sky"><span class="mars-earth">🌍</span></div>
-    <div class="mars-plots">${plots}</div>
-    <div class="mars-pop">👩‍🚀 <b>${m.colonists}</b> / ${marsCap()} colonists${badges ? ` · ${badges}` : ''}</div></div>`;
+  const shelter = shelteringColonists();
+  let html = `<div class="mars-pop-row">👩‍🚀 <b>${m.colonists}</b> colonists · 🏠 homes for ${marsCap()}${shelter ? ` · <span class="warn">${shelter} sheltering in the Lander (half pace)</span>` : ''}${badges ? ` · ${badges}` : ''}</div>`;
+  html += marsMapHTML();
   html += terraHTML();
   // Active events and what fixes them
   for (const [k, on] of [['dust', ev.dust], ['meteor', ev.meteor], ['sick', ev.sick]]) {
@@ -560,6 +662,89 @@ function marsBaseHTML() {
   }
   html += `<p class="intro small">Colonists use supplies each window and make ⭐, 💎 and Rare Metals. Run short and they ration at half output; after ${MARS.rationsBeforeLeaving} short windows one goes home each window. The 🔴 Colony research branch improves all of this. The colony pauses while you're away.</p>`;
   return html;
+}
+
+function marsMapHTML() {
+  const m = M(), map = m.map;
+  if (ui.marsKit && !(m.kits[ui.marsKit] > 0)) ui.marsKit = null;
+  const sel = ui.marsKit;
+  const dmgLeft = { ...m.damaged };
+  let cells = '';
+  for (let y = 0; y < map.t.length; y++) for (let x = 0; x < map.t[0].length; x++) {
+    const ter = map.t[y][x], q = buildingAt(map, x, y);
+    let inner = '', cls = `mt mt-${ter}`;
+    if (isLander(map, x, y)) { inner = '🛸'; cls += ' lander'; }
+    else if (q) {
+      const mm = MARS_MODULES[q.k];
+      const broken = q.done && dmgLeft[q.k] > 0 && (dmgLeft[q.k]--, true);
+      const off = q.done && needsPower(q.k) && !coversAt(map, x, y);
+      cls += q.done ? ' built' : ' building';
+      inner = `<span class="mt-ic">${mm.icon}</span>${!q.done ? `<span class="mt-bar"><span style="width:${Math.round(q.prog * 100)}%"></span></span>` : ''}${broken ? '<span class="mt-badge">💥</span>' : off ? '<span class="mt-badge">🔌</span>' : ''}`;
+    } else if (ter === 'r') inner = '<span class="mt-rock">🪨</span>';
+    if (sel && !q && !isLander(map, x, y)) {
+      if (!placeProblem(map, sel, x, y)) cls += needsPower(sel) && !coversAt(map, x, y) ? ' can nopow' : ' can';
+    }
+    if (!sel && !q && coversAt(map, x, y) && ter !== 'r' && !isLander(map, x, y)) cls += ' lit';
+    cells += `<button class="${cls}" data-act="marstile" data-id="${x},${y}">${inner}</button>`;
+  }
+  let html = `<div class="mars-map" style="grid-template-columns:repeat(${map.t[0].length},minmax(0,1fr))">${cells}</div>
+    <div class="mars-legend">🧊 ice · 🪨 rock · 🛸 Lander · <span class="lit-key"></span> powered · 🔌 no power · 💥 damaged</div>`;
+  const kits = Object.keys(MARS_MODULES).filter((k) => m.kits[k] > 0);
+  html += `<h3 class="sec">📦 Kits to place</h3>`;
+  if (kits.length) {
+    html += `<div class="choice">${kits.map((k) => `<button class="chip ${sel === k ? 'on' : ''}" data-act="marskit" data-id="${k}">${MARS_MODULES[k].icon} ${MARS_MODULES[k].name} ×${m.kits[k]}</button>`).join('')}
+      <button class="chip" data-act="marsautoplace">✨ Place all for me</button></div>`;
+    html += `<p class="intro small">${sel ? `Tap a <b>green</b> tile to build the ${MARS_MODULES[sel].icon} ${MARS_MODULES[sel].name}.${needsPower(sel) ? ' It needs power: <b>orange</b> tiles are out of reach of a ⚡ Solar Farm or ⚛️ Fusion Reactor.' : ''}${sel === 'icemine' ? ' Ice Mines only go on 🧊 ice.' : ''}${MARS_MAP.powerRange[sel] ? ` It powers everything within ${MARS_MAP.powerRange[sel]} tiles.` : ''}` : 'Pick a kit, then tap where it goes. Colonists build one at a time.'}</p>`;
+  } else html += `<p class="intro small">Nothing waiting. Modules arrive as kits on rockets; place them here and colonists build them.</p>`;
+  html += `<div class="choice"><span class="ctl-lbl">New kits</span>
+    <button class="chip ${!m.autoBuild ? 'on' : ''}" data-act="marsautobuild" data-id="off">👆 I place them</button>
+    <button class="chip ${m.autoBuild ? 'on' : ''}" data-act="marsautobuild" data-id="on">✨ Place automatically</button></div>`;
+  const queue = map.b.filter((q) => !q.done);
+  if (queue.length) {
+    const speed = constructionSpeed();
+    let wait = 0;
+    html += `<h3 class="sec">🏗️ Under construction</h3>` + queue.map((q, i) => {
+      const mm = MARS_MODULES[q.k], left = ((1 - q.prog) * MARS_BUILD[q.k]) / speed;
+      wait += left;
+      return `<div class="truck-row ${i ? '' : 'go'}"><span class="tr-ic">${mm.icon}</span><div class="tr-body">
+        <div class="tr-text">${mm.name} · ${i ? `queued, done in ${fmtSecs(wait)}` : `${Math.round(q.prog * 100)}% · ${fmtSecs(left)} left`}</div>
+        <div class="bar tr-bar"><div style="width:${Math.round(q.prog * 100)}%"></div></div></div></div>`;
+    }).join('') + `<p class="intro small">Builders work at ${speed.toFixed(1)}× (more colonists and 🤖 Repair Drones research build faster). Tap a site that hasn't started to pack it back up.</p>`;
+  }
+  return html;
+}
+
+function handleMarsTile(id) {
+  const m = M(), [x, y] = id.split(',').map(Number), map = m.map;
+  const q = buildingAt(map, x, y);
+  if (ui.marsKit && !q) {
+    const why = placeProblem(map, ui.marsKit, x, y);
+    if (why) { toast(why); return true; }
+    const k = ui.marsKit;
+    placeKit(k, x, y);
+    toast(`🏗️ ${MARS_MODULES[k].icon} ${MARS_MODULES[k].name} site marked${needsPower(k) && !coversAt(map, x, y) ? ' · ⚠️ no power reaches here yet' : ''}`);
+    save();
+    return true;
+  }
+  if (isLander(map, x, y)) { toast(`🛸 The Lander: where rockets set down. Colonists without a finished dome shelter here (${shelteringColonists()} now)`); return true; }
+  if (q) {
+    const mm = MARS_MODULES[q.k];
+    if (!q.done && q.prog === 0) { // not started: pack it back into a kit
+      map.b.splice(map.b.indexOf(q), 1);
+      m.kits[q.k] = (m.kits[q.k] || 0) + 1;
+      ui.marsKit = q.k;
+      toast(`📦 ${mm.name} packed up: tap a new spot`);
+      save();
+      return true;
+    }
+    if (!q.done) { toast(`🏗️ ${mm.icon} ${mm.name}: ${Math.round(q.prog * 100)}% built`); return true; }
+    const off = needsPower(q.k) && !coversAt(map, x, y);
+    toast(`${mm.icon} ${mm.name}: ${mm.desc}${off ? ' · 🔌 offline: no ⚡ power reaches it' : ''}${MARS_MAP.powerRange[q.k] ? ` · powers everything within ${MARS_MAP.powerRange[q.k]} tiles` : ''}`);
+    return true;
+  }
+  const ter = map.t[y][x];
+  toast(ter === 'r' ? '🪨 Solid rock' : ter === 'i' ? '🧊 Ice: the only place an Ice Mine can go' : 'Open ground');
+  return true;
 }
 
 function terraHTML() {
@@ -629,6 +814,10 @@ function handleMarsAct(act, id) {
   if (act === 'newgameplus') { if (confirm('Start New Game+? This world is replaced by a fresh one with your legacy bonus.')) newGamePlus(); return 'stop'; }
   if (act === 'showvictory') { showVictory(); return 'stop'; }
   if (act === 'marstab') { ui.marsTab = id; return true; }
+  if (act === 'marskit') { ui.marsKit = ui.marsKit === id ? null : id; return true; }
+  if (act === 'marstile') return handleMarsTile(id);
+  if (act === 'marsautoplace') { const n = autoPlaceKits(); toast(n ? `✨ ${n} kit${n > 1 ? 's' : ''} placed` : 'No room left for these kits'); ui.marsKit = null; save(); return true; }
+  if (act === 'marsautobuild') { m.autoBuild = id === 'on'; if (m.autoBuild) autoPlaceKits(); save(); return true; }
   if (act === 'marsmod') { m.manifest.module = id || null; save(); return true; }
   if (act === 'marsqty') {
     const [kind, d] = id.split('|');

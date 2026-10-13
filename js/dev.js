@@ -123,6 +123,7 @@ function applyStage(st) {
     const m = M();
     m.colonists = st.mars.colonists || 0;
     m.modules = { ...(st.mars.modules || {}) };
+    m.map = null; m.kits = {}; M(); // lay the stage's modules out on a fresh base map
     Object.assign(m.stock, st.mars.stock || {});
     m.metalsTotal = st.mars.metals || 0;
     for (const n of st.mars.milestones || []) m.milestones[n] = true;

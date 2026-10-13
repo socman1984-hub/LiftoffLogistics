@@ -148,6 +148,12 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   (sold once a Landing Pad flies them home); shortages mean rationing at half output and, after a while, colonists
   going home, never a wipe. Dust storms, colonist requests, population milestones and a 25 💎 emergency supply drop (one per launch window). Mission Control warns when
   terraform parts are starving the rocket (e.g. Turbopumps sent up instead of becoming Engines).
+- **🗺️ Mars base map**: modules land as **kits**. In 🔴 Mars base you pick a kit and tap a tile on a 9×11 map (🛸
+  Lander in the middle, 🪨 rocks you can't build on, two 🧊 ice fields); colonists build one site at a time (4–10 min of
+  work, +4% speed per colonist, +50% with 🤖 Repair Drones). Ice Mines must sit on ice. Greenhouses, Ice Mines, the
+  Research Station and the Landing Pad are offline unless a ⚡ Solar Farm (2 tiles) or ⚛️ Fusion Reactor (3 tiles)
+  covers them. Colonists whose dome isn't finished shelter in the Lander at half output. Untouched sites can be packed
+  back up and moved; ✨ auto-place handles it all for players who'd rather not.
   The colony runs on the game clock, so it pauses while you're away.
   **Later colony stage:** a 🔴 **Colony** research branch (after the first launch: lower needs, bigger habitats,
   heavy-lift rockets, faster transit and pad turnaround, Rare Metal refining, gentler rationing, ⚛️ Fusion Power,
