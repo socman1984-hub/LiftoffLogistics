@@ -50,6 +50,22 @@ function entranceOf(prop, def) {
   const d = entrances(prop, def)[0];
   return { x: d.x, y: d.y };
 }
+// Every tile staff can get to from an open door (wade: count filthy floor, which janitors cross).
+function reachFromDoors(prop, def, wade) {
+  const seen = new Uint8Array(def.cols * def.rows);
+  const q = entrances(prop, def).map((d) => d.y * def.cols + d.x);
+  for (const i of q) seen[i] = 1;
+  for (let i = 0; i < q.length; i++) {
+    const cx = q[i] % def.cols, cy = (q[i] / def.cols) | 0;
+    for (const d of DIRS) {
+      const nx = cx + d.x, ny = cy + d.y;
+      if (!walkable(prop, def, nx, ny, wade) || seen[ny * def.cols + nx]) continue;
+      seen[ny * def.cols + nx] = 1;
+      q.push(ny * def.cols + nx);
+    }
+  }
+  return seen;
+}
 
 // Breadth-first search to the nearest walkable tile that satisfies goal().
 function findPath(prop, def, sx, sy, goal, wade) {
@@ -208,9 +224,11 @@ function stepWorkers(id, prop, def, r, dt) {
   if (r.covT <= 0) { computeCoverage(prop, r); computeMorale(id, prop, r); r.covT = 1; }
   const pace = workPace(id) * (facCount(id, 'maintshop') ? 2 : 1);
 
-  // Workers standing on a tile that just got built over go back to the door.
+  // Workers standing on a tile that just got built over, or cut off from the rest of the
+  // site (boxed in, or at a door that got blocked), walk back in through an open door.
+  const reach = r.covT === 1 ? reachFromDoors(prop, def, true) : null; // checked once a second
   for (const w of r.workers) {
-    if (!walkable(prop, def, w.x, w.y, w.role === 'janitor')) {
+    if (!walkable(prop, def, w.x, w.y, w.role === 'janitor') || (reach && !reach[w.y * def.cols + w.x])) {
       const door = entranceOf(prop, def);
       Object.assign(w, { x: door.x, y: door.y, fx: door.x, fy: door.y, path: [] });
     }
