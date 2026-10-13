@@ -475,10 +475,16 @@ function tryMove(id, prop, def, r, it) {
     // A splitter (or a sorter splitting its cargo) whose exit got blocked may try another.
     const sorterSplitting = t.obj && t.obj.k === 'sorter' && sorterMatches(t.obj, it) && sorterMatchDirs(t.obj).length > 1;
     if (!(t.obj && t.obj.k === 'splitter') && !sorterSplitting) return false;
-    // Keep to the ratio: only reroute once the chosen exit has been jammed a while.
+    // Keep to the ratio: a conveyor that's only busy with the package ahead is worth waiting for
+    // (a while). An exit that refuses outright (assembler that doesn't need it, full rack, jam) is not.
     if (sorterSplitting) {
-      if (it.blockedAt == null) it.blockedAt = r.time;
-      if (r.time - it.blockedAt < SORTER.patience) return false;
+      const nt = tileAt(prop, def, nx, ny);
+      const busy = nt && nt.obj && !nt.obj.jammed && !['assembler', 'buffer', 'rack'].includes(nt.obj.k)
+        && acceptsFrom(prop, def, nx, ny, opposite(outDir)) && r.occ[ny][nx];
+      if (busy) {
+        if (it.blockedAt == null) it.blockedAt = r.time;
+        if (r.time - it.blockedAt < SORTER.patience) return false;
+      }
     }
     const d = sorterSplitting ? chooseSortDir(prop, def, r, it, t.obj, true) : chooseSplitterDir(prop, def, r, it, t.obj);
     if (sorterSplitting && d != null) it.sortDir = d;
