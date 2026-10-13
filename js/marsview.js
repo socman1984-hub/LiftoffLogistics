@@ -3,7 +3,7 @@
 // with its own build bar. Warehouse sites keep running underneath; going to
 // Mars only changes what's shown and what taps do.
 
-const MARS_COLOR = { habitat: '#d9824f', solar: '#3a5a8c', greenhouse: '#3f8f4f', icemine: '#5aa7c8', pad: '#6b6f7a', station: '#7a5cc4', fusion: '#c4a23a' };
+const MARS_COLOR = { habitat: '#d9824f', solar: '#3a5a8c', greenhouse: '#3f8f4f', icemine: '#5aa7c8', pad: '#6b6f7a', station: '#7a5cc4', fusion: '#c4a23a', mine: '#6d4c3d', rec: '#c2557a', workshop: '#8a7a5a' };
 const marsHud = () => (view.w < 520 ? 48 : 30); // px of status above the map (two lines on phones)
 
 function goMars() {
@@ -62,6 +62,14 @@ function renderMars() {
       ctx.fillRect(px, py, s, s);
       if (n > 0.6) { ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.beginPath(); ctx.arc(px + s * (0.25 + n * 0.5), py + s * (0.7 - n * 0.3), s * 0.09, 0, Math.PI * 2); ctx.fill(); }
     }
+    if (ter === 'v') { // metal vein: dark ore with glints
+      ctx.fillStyle = `hsl(${20 + n * 6}, 25%, ${24 + n * 5}%)`;
+      ctx.fillRect(px, py, s, s);
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = `rgba(230, 200, 140, ${0.5 + 0.4 * Math.sin(now * 2 + i + x * 3 + y)})`;
+        ctx.fillRect(px + s * (0.15 + ((i * 37 + x * 13) % 70) / 100), py + s * (0.15 + ((i * 53 + y * 17) % 70) / 100), s * 0.07, s * 0.07);
+      }
+    }
     if (ter === 'r') {
       ctx.fillStyle = '#5a2c1d';
       ctx.beginPath();
@@ -100,6 +108,12 @@ function renderMars() {
     ctx.font = `${Math.floor(s * 0.48)}px system-ui`;
     ctx.fillText(mm.icon, px + s / 2, py + s / 2 + 1);
     ctx.globalAlpha = 1;
+    if (q.k === 'habitat' && q.done && (q.dirt || 0) > 15) { // dust settling on the dome
+      ctx.fillStyle = `rgba(120, 70, 35, ${Math.min(0.55, (q.dirt / 100) * 0.6)})`;
+      roundRect(px + s * 0.08, py + s * 0.08, s * 0.84, s * 0.84, s * 0.16);
+      ctx.fill();
+      if (q.dirt >= 50) { ctx.fillStyle = '#000'; ctx.font = `${Math.floor(s * 0.22)}px system-ui`; ctx.fillText('🟤', px + s * 0.2, py + s * 0.22); }
+    }
     if (!q.done) { // scaffolding + progress
       ctx.strokeStyle = '#f2c94c'; ctx.lineWidth = Math.max(1, s * 0.04); ctx.setLineDash([s * 0.1, s * 0.08]);
       ctx.strokeRect(px + s * 0.1, py + s * 0.1, s * 0.8, s * 0.8); ctx.setLineDash([]);
@@ -112,18 +126,8 @@ function renderMars() {
       ctx.fillStyle = '#000'; ctx.font = `${Math.floor(s * 0.24)}px system-ui`; ctx.fillText(broken ? '💥' : '🔌', px + s * 0.8, py + s * 0.21);
     }
   }
-  // Colonists wandering between the Lander and the buildings.
-  const spots = map.b.filter((q) => q.done || q === map.b.find((b) => !b.done));
-  const walkers = Math.min(m.colonists, 14);
-  ctx.font = `${Math.floor(s * 0.3)}px system-ui`;
-  ctx.fillStyle = '#000';
-  for (let i = 0; i < walkers && spots.length; i++) {
-    const to = spots[(i * 7) % spots.length], from = i % 3 ? spots[(i * 3 + 1) % spots.length] : L;
-    const k = (Math.sin(now * 0.35 + i * 1.7) + 1) / 2;
-    const wx = view.ox + (from.x + (to.x - from.x) * k + 0.5) * s + Math.sin(i * 5.3) * s * 0.2;
-    const wy = view.oy + (from.y + (to.y - from.y) * k + 0.5) * s + Math.cos(i * 3.1) * s * 0.2;
-    ctx.fillText('🧑‍🚀', wx, wy);
-  }
+  // Colonists at work: each job's crew at its buildings, engineers on the build site, laborers about.
+  drawMarsCrew(map, s, now);
   // Where the chosen kit can go.
   if (kit) for (let y = 0; y < map.t.length; y++) for (let x = 0; x < map.t[0].length; x++) {
     if (placeProblem(map, kit, x, y)) continue;
@@ -134,7 +138,7 @@ function renderMars() {
     ctx.strokeRect(view.ox + x * s + 3, view.oy + y * s + 3, s - 6, s - 6);
     ctx.setLineDash([]);
   }
-  if (ui.marsTool === 'move') for (const q of map.b) if (!q.done && q.prog === 0) {
+  if (ui.marsTool === 'move') for (const q of map.b) if (q.done || q.prog === 0) {
     ctx.strokeStyle = '#56ccf2'; ctx.lineWidth = Math.max(2, s * 0.06);
     ctx.strokeRect(view.ox + q.x * s + 3, view.oy + q.y * s + 3, s - 6, s - 6);
   }
@@ -152,7 +156,8 @@ function renderMars() {
   const q = map.b.find((b) => !b.done);
   const kits = Object.values(m.kits).reduce((a, b) => a + b, 0);
   const shelter = shelteringColonists();
-  const parts = [`🧑‍🚀 ${m.colonists} · 🏠 ${marsCap()}${shelter ? ` (${shelter} in Lander)` : ''}`,
+  const mo = m.colonists ? Math.round(marsMorale().value * 100) : null;
+  const parts = [`🧑‍🚀 ${m.colonists} · 🏠 ${marsCap()}${shelter ? ` (${shelter} in Lander)` : ''}${mo != null ? ` · ${mo >= 90 ? '😀' : mo >= 60 ? '🙂' : '😟'} ${mo}%` : ''}`,
     marsWindowOpen() ? '🟢 window open' : `🪐 ${fmtSecs(marsWindowIn())}`,
     q ? `🏗️ ${MARS_MODULES[q.k].name} ${Math.round(q.prog * 100)}%` : '',
     kits ? `📦 ${kits} kit${kits > 1 ? 's' : ''} to place` : ''].filter(Boolean);
@@ -179,14 +184,20 @@ function marsTap(x, y) {
     return;
   }
   if (ui.marsTool === 'move') {
-    if (q && !q.done && q.prog === 0) {
-      map.b.splice(map.b.indexOf(q), 1);
-      m.kits[q.k] = (m.kits[q.k] || 0) + 1;
-      ui.marsTool = 'build'; ui.marsKit = q.k;
-      toast(`📦 ${MARS_MODULES[q.k].name} packed up: tap a new spot`);
-      save();
-      refreshToolbar();
-    } else toast(q ? 'Only sites that haven’t started building can be moved' : 'Tap a site with a blue outline to move it');
+    if (!q) { toast('Tap a building to relocate it'); return; }
+    if (!q.done && q.prog > 0) { toast('Wait until it’s finished, or relocate it before building starts'); return; }
+    if (q.done) {
+      if (m.stock.spares < MARS_MAP.relocateSpares) { toast(`🔧 Relocating takes ${MARS_MAP.relocateSpares} Spares Kits on Mars (${m.stock.spares} there)`); return; }
+      m.stock.spares -= MARS_MAP.relocateSpares;
+      m.kitHead[q.k] = (m.kitHead[q.k] || 0) + 1; // keeps most of the work
+    }
+    map.b.splice(map.b.indexOf(q), 1);
+    syncMods(m);
+    m.kits[q.k] = (m.kits[q.k] || 0) + 1;
+    ui.marsTool = 'build'; ui.marsKit = q.k;
+    toast(`📦 ${MARS_MODULES[q.k].icon} ${MARS_MODULES[q.k].name} packed up${q.done ? ` (−${MARS_MAP.relocateSpares} 🔧, it rebuilds ${Math.round((1 - MARS_MAP.relocateKeep) * 100)}% of the work)` : ''}: tap its new spot`);
+    save();
+    refreshToolbar();
     return;
   }
   handleMarsTile(`${x},${y}`); // inspect
@@ -196,7 +207,7 @@ function marsTap(x, y) {
 const MARS_GROUPS = [
   { id: 'inspect', icon: '🔍', name: 'Inspect' },
   { id: 'build', icon: '🏗️', name: 'Build', tray: true },
-  { id: 'move', icon: '📦', name: 'Move' },
+  { id: 'move', icon: '🚚', name: 'Relocate' },
   { id: 'auto', icon: '✨', name: 'Auto-place' },
   { id: 'colony', icon: '📊', name: 'Colony' },
 ];
@@ -225,7 +236,7 @@ function buildMarsBar() {
 function marsGroupClick(id) {
   if (id === 'inspect') { ui.marsTool = null; ui.marsTray = false; toast('🔍 Tap anything on Mars to see what it is'); }
   else if (id === 'build') ui.marsTray = !ui.marsTray;
-  else if (id === 'move') { ui.marsTool = ui.marsTool === 'move' ? null : 'move'; ui.marsTray = false; if (ui.marsTool) toast('📦 Tap a site that hasn’t started (blue outline) to pack it up and place it again'); }
+  else if (id === 'move') { ui.marsTool = ui.marsTool === 'move' ? null : 'move'; ui.marsTray = false; if (ui.marsTool) toast(`🚚 Relocate: tap a building (blue outline) to pack it up, then tap its new spot. Finished buildings cost ${MARS_MAP.relocateSpares} 🔧 Spares and keep ${Math.round(MARS_MAP.relocateKeep * 100)}% of their build`); }
   else if (id === 'auto') { const n = autoPlaceKits(); toast(n ? `✨ ${n} kit${n > 1 ? 's' : ''} placed` : 'No kits waiting to be placed'); ui.marsTool = null; ui.marsKit = null; save(); }
   else if (id === 'colony') { ui.mapSel = 'launch'; ui.marsTab = 'base'; openPanel('map'); }
   refreshToolbar();
@@ -264,5 +275,42 @@ function refreshMarsBar() {
     b.classList.toggle('active', ui.marsTool === 'build' && ui.marsKit === k);
     b.classList.toggle('locked', !n);
     b.querySelector('.cost').textContent = n ? `×${n}` : '0 kits';
+  }
+}
+
+// Colonist sprites. Up to ~24 drawn; each stands at its job and bobs, with a bubble now and then.
+function drawMarsCrew(map, s, now) {
+  const m = M(), crew = marsCrew();
+  if (!m.colonists) return;
+  const scale = Math.min(1, 24 / m.colonists); // big colonies: show a sample
+  const spots = [];
+  for (const job of MARS_JOB_ORDER) {
+    const j = MARS_JOBS[job];
+    let where = [];
+    if (job === 'engineer') {
+      const site = map.b.find((b) => !b.done) || (m.events.meteor && map.b.find((b) => b.k === m.events.meteor && b.done));
+      where = site ? [site] : [map.lander];
+    } else where = map.b.filter((b) => b.k === j.at && b.done && coversAt(map, b.x, b.y) || (b.k === j.at && b.done && !needsPower(b.k)));
+    const n = Math.round(crew[job] * scale);
+    for (let i = 0; i < n && where.length; i++) spots.push({ at: where[i % where.length], bubble: j.bubble, i: spots.length, work: true });
+  }
+  const others = map.b.filter((b) => b.done);
+  for (let i = 0; i < Math.round(crew.laborer * scale); i++) spots.push({ at: others.length ? others[(i * 5) % others.length] : map.lander, from: map.lander, i: spots.length });
+  ctx.fillStyle = '#000';
+  for (const w of spots) {
+    const k = w.i * 2.399; // golden-angle offsets so crews spread around a building
+    let wx, wy;
+    if (w.from) { // laborers stroll between the Lander and a building
+      const t = (Math.sin(now * 0.3 + w.i * 1.7) + 1) / 2;
+      wx = w.from.x + (w.at.x - w.from.x) * t; wy = w.from.y + (w.at.y - w.from.y) * t;
+    } else { wx = w.at.x + Math.cos(k) * 0.42; wy = w.at.y + Math.sin(k) * 0.42; }
+    const bob = Math.sin(now * 3 + w.i) * s * 0.03;
+    const cx = view.ox + (wx + 0.5) * s, cy = view.oy + (wy + 0.5) * s + bob;
+    ctx.font = `${Math.floor(s * 0.3)}px system-ui`;
+    ctx.fillText('🧑‍🚀', cx, cy);
+    if (w.work && Math.sin(now * 0.8 + w.i * 2.1) > 0.6) { // working: show what they're doing
+      ctx.font = `${Math.floor(s * 0.2)}px system-ui`;
+      ctx.fillText(w.bubble, cx + s * 0.14, cy - s * 0.2);
+    }
   }
 }

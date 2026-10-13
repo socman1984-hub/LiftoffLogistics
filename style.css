@@ -653,7 +653,7 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 
 /* Mars base map */
 .mars-pop-row { font-size: 13px; margin: 2px 0 8px; }
-.mars-pop-row .warn { color: #f2994a; }
+.mars-pop-row .warn-text { color: #f2994a; }
 .mars-map { display: grid; gap: 2px; padding: 6px; border-radius: 12px; background: linear-gradient(#5a2a1c, #3d1d14); margin: 0 auto 6px; max-width: 400px; }
 .mars-map .mt { aspect-ratio: 1; min-width: 0; width: 100%; margin: 0; border: 0; border-radius: 5px; padding: 0; position: relative; font-size: clamp(14px, 4.4vw, 22px); line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; color: inherit; }
 .mars-map .mt-g { background: #b5562f; }
@@ -678,4 +678,4 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 #marsTray { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 6px; background: #2a1712; border-radius: 12px; }
 #marsTray .tool.locked { opacity: 0.45; }
 .mars-btn { width: 100%; margin-bottom: 10px; background: linear-gradient(90deg, #a8452a, #d9824f); }
-.warn { color: #f2994a; }
+.warn-text { color: #f2994a; }

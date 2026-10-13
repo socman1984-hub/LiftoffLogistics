@@ -557,13 +557,34 @@ const LEGACY_BONUS = 0.1; // New Game+: +10% package value per completed game (u
 const PAD_LEVELS = [{ cost: 1000000, cut: 20 }, { cost: 3000000, cut: 20 }, { cost: 8000000, cut: 20 }]; // launch pad upgrades: seconds off the turnaround
 // 🗺️ The Mars base: modules land as kits, you place them on this map and colonists build them.
 const MARS_MAP = {
-  cols: 9, rows: 11, rocks: 10, iceFields: 2, iceSize: 4,
+  cols: 9, rows: 11, rocks: 10, iceFields: 2, iceSize: 4, veins: 2, veinSize: 3, // v = metal vein (Metal Mines)
   powerRange: { solar: 2, fusion: 3 }, // tiles (square) a power source covers
   shelterOutput: 0.5, // colonists still waiting for their dome shelter in the Lander and work at half pace
-  buildPerColonist: 0.04, // each colonist adds 4% to construction speed
+  buildBase: 0.5, buildPerEngineer: 0.25, buildPerLaborer: 0.04, // construction speed: Lander robots + crew
+  relocateSpares: 2, relocateKeep: 0.6, // moving a finished building: Spares it costs, share of the work kept
 };
-const MARS_BUILD = { habitat: 240, solar: 180, greenhouse: 300, icemine: 300, pad: 480, station: 360, fusion: 600 }; // seconds of work
-const MARS_POWERED = ['greenhouse', 'icemine', 'station', 'pad']; // offline unless a power source covers them
+const MARS_BUILD = { habitat: 240, solar: 180, greenhouse: 300, icemine: 300, pad: 480, station: 360, fusion: 600, mine: 360, rec: 300, workshop: 360 }; // seconds of work
+const MARS_POWERED = ['greenhouse', 'icemine', 'station', 'pad', 'mine', 'rec', 'workshop']; // offline unless a power source covers them
+// 👥 Colonist jobs. `at`: the building that has the slots (`per` each). Engineers build and repair; anyone left is a laborer.
+const MARS_JOBS = {
+  engineer: { icon: '🔧', name: 'Engineers', bubble: '🔧', desc: 'Build new sites and repair meteor damage' },
+  farmer: { icon: '🌱', name: 'Farmers', at: 'greenhouse', per: 2, bubble: '🌱', desc: 'Tend the Greenhouses' },
+  iceminer: { icon: '🧊', name: 'Ice crews', at: 'icemine', per: 2, bubble: '⛏️', desc: 'Run the Ice Mines' },
+  caretaker: { icon: '🧹', name: 'Caretakers', at: 'habitat', per: 1, bubble: '🧹', desc: 'Keep the domes clean' },
+  miner: { icon: '⛏️', name: 'Miners', at: 'mine', per: 3, bubble: '⛏️', desc: 'Dig Rare Metals' },
+  mechanic: { icon: '🛠️', name: 'Mechanics', at: 'workshop', per: 2, bubble: '🛠️', desc: 'Make Spares from Rare Metals' },
+  scientist: { icon: '🧪', name: 'Scientists', at: 'station', per: 2, bubble: '🧪', desc: 'Research for ⭐ reputation' },
+};
+const MARS_JOB_ORDER = ['engineer', 'farmer', 'iceminer', 'caretaker', 'miner', 'mechanic', 'scientist']; // auto-assign priority
+const MARS_CREW = {
+  idleOutput: 0.3, // a building with nobody working it runs at 30%
+  metalsBase: 0.5, metalsPerMiner: 8, // Rare Metals per window: everyone scavenges a little, miners dig the rest
+  sparesPerWorkshop: 3, metalsPerSpare: 2, // a fully staffed Workshop turns 6 Rare Metals into 3 Spares a window
+  dirtPerSec: 0.035, cleanPerSec: 0.08, // dome dust (0-100) and how fast one caretaker clears it
+  recRange: 3,
+};
+// 🙂 Colony morale: 0.2 – 1.2. Output scales 0.5 + 0.5 × morale; very low morale sends people home.
+const MARS_MORALE = { base: 0.7, clean: 0.2, rec: 0.2, crowd: 0.3, ration: 0.2, sick: 0.1, stocked: 0.05, leaveBelow: 0.35 };
 const MARS_MODULES = {
   habitat: { name: 'Habitat Dome', icon: '🏠', payload: { fuselage: 4, lifesupport: 2, heatshield: 2 }, desc: 'Room for 5 colonists' },
   solar: { name: 'Solar Farm', icon: '⚡', payload: { solar: 6, wiring: 4 }, desc: `+${3} power for the other modules` },
@@ -572,6 +593,9 @@ const MARS_MODULES = {
   pad: { name: 'Landing Pad', icon: '🛬', payload: { alloy: 6, heatshield: 4, avionics: 2 }, max: 1, desc: 'Return flights: Rare Metals get sold back home' },
   station: { name: 'Research Station', icon: '🔬', payload: { computer: 2, sensor: 4, avionics: 2 }, max: 1, desc: 'Colonists make +50% ⭐ reputation' },
   fusion: { name: 'Fusion Reactor', icon: '⚛️', payload: { fusioncore: 2, alloy: 6, heatshield: 2 }, max: 2, research: 'fusion', desc: '+12 power that dust storms can\'t touch' },
+  mine: { name: 'Metal Mine', icon: '⛏️', payload: { alloy: 8, sensor: 2, heatshield: 2 }, max: 4, desc: 'Miners dig Rare Metals. Must be built on a 🟫 metal vein' },
+  rec: { name: 'Rec Dome', icon: '🎳', payload: { panel: 10, computer: 2, lifesupport: 1 }, max: 3, desc: 'Lifts the morale of everyone living within 3 tiles' },
+  workshop: { name: 'Workshop', icon: '🔧', payload: { alloy: 6, circuit: 4, panel: 6 }, max: 2, desc: 'Mechanics turn Rare Metals into 🔧 Spares on Mars' },
 };
 
 // Total parts per product across all stages.
