@@ -300,7 +300,11 @@ function renderPanel() {
   const panel = PANELS[openPanelName];
   if (!panel) return; // 'message' content is set by showMessage
   $('modalTitle').textContent = panel.title;
-  const html = panel.html();
+  let html;
+  try { html = panel.html(); } catch (err) { // never leave the last panel's content under a new title
+    console.error(err);
+    html = `<p class="warn">Sorry, this panel couldn't load. Close it and try again; if it keeps happening, reload the game.</p><p class="muted small">${String(err && err.message || err).replace(/</g, '&lt;')}</p>`;
+  }
   if ($('modalBody').dataset.html !== html) {
     $('modalBody').innerHTML = html;
     $('modalBody').dataset.html = html;
