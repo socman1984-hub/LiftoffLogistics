@@ -1,9 +1,14 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.10.0';
+const GAME_VERSION = '0.10.1';
 
 const RELEASE_NOTES = [
+  { v: '0.10.1', date: 'Oct 14, 2026', title: 'Forklifts and bridges', notes: [
+    'Forklifts restock assemblers before they run dry, not after they’ve stopped, and only when no conveyor is keeping up.',
+    'Restocking an assembler now jumps ahead of trucks and docks for forklift time. Forklifts take the nearest stock and finish a delivery before going on break.',
+    'Conveyor Bridges carry both lines at the same time. Packages only wait if there’s no room further along.',
+  ] },
   { v: '0.10.0', date: 'Oct 13, 2026', title: 'Zoom', notes: [
     'Zoom in on your sites and Mars: pinch with two fingers, use the ＋ / － buttons (under 🌡️), or the mouse wheel. ⤢ fits everything back on screen.',
     'While zoomed in, move around with two fingers, or with one finger when 🔍 Inspect is selected (on Mars, one finger always moves the view). Building with one finger works as before.',

@@ -271,7 +271,7 @@ function stepWorkers(id, prop, def, r, dt) {
   const racks = tilesOf(prop, 'rack');
   r.racksBlocked = false;
   // Restocking jobs, each taken by one forklift at a time.
-  const jobs = supplyJobs(prop);
+  const jobs = supplyJobs(id, prop);
   const claimed = new Set(r.workers.filter((w) => w.job).map((w) => w.job.key));
   if (jobs.length && !r.workers.some((w) => w.role === 'forklift')) {
     const j = jobs[0];
@@ -281,7 +281,7 @@ function stepWorkers(id, prop, def, r, dt) {
   for (const w of r.workers) {
     // Breaks come first (but never in the middle of a repair).
     w.breakIn -= dt;
-    if (w.mode !== 'break' && w.breakIn <= 0 && !(w.task && w.task.t > 0)) {
+    if (w.mode !== 'break' && w.breakIn <= 0 && !(w.task && w.task.t > 0) && !w.job) { // finish a delivery first
       const kind = facCount(id, 'restroom') && (Math.random() < 0.55 || !facCount(id, 'breakroom')) ? 'restroom'
         : facCount(id, 'breakroom') ? 'breakroom' : null;
       if (kind) { w.mode = 'break'; w.breakKind = kind; w.breakT = 0; w.path = []; } else w.breakIn = 60 + Math.random() * 60;
@@ -325,7 +325,9 @@ function stepWorkers(id, prop, def, r, dt) {
       stepJanitor(id, prop, def, r, w, dt);
     } else if (w.role === 'forklift') {
       if (!w.job && jobs.length) {
-        const j = jobs.find((q) => !claimed.has(q.key));
+        // Feeding a starved assembler comes first; take the nearest open job.
+        const open = jobs.filter((q) => !claimed.has(q.key));
+        const j = open.sort((p, q) => (Math.abs(p.rx - w.x) + Math.abs(p.ry - w.y)) - (Math.abs(q.rx - w.x) + Math.abs(q.ry - w.y)))[0];
         if (j) { w.job = j; claimed.add(j.key); w.path = []; w.wait = 0; }
       }
       if (w.job) { stepSupplyRun(id, prop, def, r, w, dt); continue; }
@@ -354,9 +356,10 @@ function stepWorkers(id, prop, def, r, dt) {
 }
 
 // ---- Forklift restocking ----
-// An assembler that's out of an ingredient gets a forklift load of it from
-// stored stock on the racks: up to FORKLIFT_CARRY per trip, one handling move.
-function supplyJobs(prop) {
+// An assembler about to run out of an ingredient (not enough for the craft after
+// this one, and no conveyor bringing it) gets a forklift load from the nearest
+// rack holding it: up to FORKLIFT_CARRY per trip, one (priority) handling move.
+function supplyJobs(id, prop) {
   const jobs = [];
   if (!Object.values(prop.held).some((n) => n > 0)) return jobs;
   const racks = tilesOf(prop, 'rack');
@@ -365,8 +368,12 @@ function supplyJobs(prop) {
     if (!o || o.k !== 'assembler' || !o.recipe || o.jammed || o.noFeed || assemblerIdle(o)) return;
     const rec = RECIPES[o.recipe];
     for (const [p, n] of Object.entries(rec.in)) {
-      if (((o.buf && o.buf[p]) || 0) >= n || !(prop.held[p] > 0)) continue; // only when it can't make the next one
-      const rack = racks.find((q) => ((prop.tiles[q.y][q.x].obj.stock || {})['stored:' + p] || 0) > 0);
+      const have = (o.buf && o.buf[p]) || 0;
+      if (have >= n * 2 || !(prop.held[p] > 0)) continue;
+      const belted = o.beltT && o.beltT[p] != null && rt(id).time - o.beltT[p] < 10;
+      if (have >= n && belted) continue; // the conveyor is keeping up
+      const rack = racks.filter((q) => ((prop.tiles[q.y][q.x].obj.stock || {})['stored:' + p] || 0) > 0)
+        .sort((a, b) => (Math.abs(a.x - ax) + Math.abs(a.y - ay)) - (Math.abs(b.x - ax) + Math.abs(b.y - ay)))[0];
       if (rack) jobs.push({ ax, ay, key: ax + ',' + ay + ':' + p, p, rx: rack.x, ry: rack.y });
     }
   }));
@@ -393,7 +400,7 @@ function stepSupplyRun(id, prop, def, r, w, dt) {
     if (!walkTo(prop, def, r, w, nextTo(j.rx, j.ry), dt, '🚜 Forklift can\'t reach the rack with the stock. Repair the floor around it.', j.rx, j.ry)) { w.mode = 'walk'; return; }
     w.mode = 'work';
     w.wait += dt;
-    if (w.wait < 1 || !takeMove(id)) return; // loading the forks
+    if (w.wait < 1 || !takeMove(id, true)) return; // loading the forks
     w.wait = 0;
     const cap = Math.max(RECIPES[a.recipe].in[j.p] * ASSEMBLER.bufferRecipes, FORKLIFT_CARRY);
     const n = Math.max(1, Math.min(FORKLIFT_CARRY, there, prop.held[j.p], cap - ((a.buf && a.buf[j.p]) || 0)));

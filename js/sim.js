@@ -66,8 +66,22 @@ function canEnter(prop, def, r, x, y, side, it) {
   if (t.obj.jammed) return false;
   if (t.obj.k === 'assembler') return assemblerWants(t.obj, it);
   if (t.obj.k === 'buffer') return (t.obj.q || []).length < BUFFER.cap;
+  if (t.obj.k === 'bridge') return !occAt(r, x, y, side);
   if (t.obj.k === 'rack') return !it || (rackAllows(t.obj, it.product) && storageRoomFor(def.id, it.product) > 0); // racks absorb into storage
   return !r.occ[y][x];
+}
+
+// Bridges carry two lanes at once: north-south packages use occV, east-west ones occ.
+const vLane = (side) => side % 2 === 0;
+function occAt(r, x, y, side) { return side != null && vLane(side) && r.occV ? r.occV[y][x] : r.occ[y][x]; }
+function setOcc(prop, r, it) {
+  const o = prop.tiles[it.y][it.x].obj;
+  it.vlane = !!(o && o.k === 'bridge' && vLane(it.fromDir));
+  if (it.vlane) r.occV[it.y][it.x] = it; else r.occ[it.y][it.x] = it;
+}
+function freeOcc(r, it) {
+  const grid = it.vlane ? r.occV : r.occ;
+  if (grid[it.y][it.x] === it) grid[it.y][it.x] = null;
 }
 
 const sorterMatches = (o, it) => o.filter === it.product || o.filter === it.type;
@@ -169,9 +183,11 @@ function storageUsed(id) {
 // ---- Rack handling: a bank of moves refilled at the crew's rate ----
 const movesReady = (id) => (rt(id).moves || 0) >= 1;
 
-function takeMove(id) {
+// `urgent` (restocking a starved assembler) may borrow a few moves ahead, so the
+// docks and trucks wait instead of the production line.
+function takeMove(id, urgent) {
   const r = rt(id);
-  if ((r.moves || 0) < 1) return false;
+  if ((r.moves || 0) < (urgent ? -2 : 1)) return false;
   r.moves -= 1;
   (r.moveLog || (r.moveLog = [])).push(r.time);
   return true;
@@ -502,7 +518,7 @@ function tryMove(id, prop, def, r, it) {
     if (sorterSplitting) {
       const nt = tileAt(prop, def, nx, ny);
       const busy = nt && nt.obj && !nt.obj.jammed && !['assembler', 'buffer', 'rack'].includes(nt.obj.k)
-        && acceptsFrom(prop, def, nx, ny, opposite(outDir)) && r.occ[ny][nx];
+        && acceptsFrom(prop, def, nx, ny, opposite(outDir)) && occAt(r, nx, ny, opposite(outDir));
       if (busy) {
         if (it.blockedAt == null) it.blockedAt = r.time;
         if (r.time - it.blockedAt < SORTER.patience) return false;
@@ -516,7 +532,7 @@ function tryMove(id, prop, def, r, it) {
     ny = it.y + DIRS[d].y;
   }
 
-  r.occ[it.y][it.x] = null;
+  freeOcc(r, it);
   const nt = prop.tiles[ny][nx];
   if (nt.base === 'out') {
     shipOut(id, prop, r, it, nx, ny);
@@ -542,6 +558,7 @@ function tryMove(id, prop, def, r, it) {
   if (nt.obj && nt.obj.k === 'assembler') {
     const buf = nt.obj.buf || (nt.obj.buf = {});
     buf[it.product] = (buf[it.product] || 0) + 1;
+    (nt.obj.beltT || (nt.obj.beltT = {}))[it.product] = r.time; // fed by conveyor (forklifts needn't)
     it.dead = true;
     return true;
   }
@@ -561,7 +578,7 @@ function tryMove(id, prop, def, r, it) {
   it.proc = 0;
   it.processed = false;
   it.wait = 0;
-  r.occ[ny][nx] = it;
+  setOcc(prop, r, it);
   if (nt.obj && !MACHINES[nt.obj.k]) wearOut(id, prop, def, nt.obj);
   return true;
 }
@@ -661,7 +678,8 @@ function stepProperty(id, dt) {
     const claimed = new Set(); // targets a longer-waiting package is queued for
     waiting = waiting.filter((it) => {
       const tx = it.x + DIRS[it.outDir].x, ty = it.y + DIRS[it.outDir].y;
-      const key = tx + ',' + ty;
+      const tt = tileAt(prop, def, tx, ty);
+      const key = tx + ',' + ty + (tt && tt.obj && tt.obj.k === 'bridge' && vLane(it.outDir) ? 'v' : '');
       if (!claimed.has(key) && tryMove(id, prop, def, r, it)) { moved = true; return false; }
       // Assemblers absorb by ingredient, so one blocked ingredient mustn't
       // hold the tile for another that the assembler still needs.
@@ -674,7 +692,7 @@ function stepProperty(id, dt) {
 
   if (r.items.some((i) => i.dead)) {
     for (const it of r.items) {
-      if (it.dead && r.occ[it.y][it.x] === it) r.occ[it.y][it.x] = null;
+      if (it.dead) freeOcc(r, it);
     }
     r.items = r.items.filter((i) => !i.dead);
   }
@@ -972,10 +990,11 @@ function stepWorld(dt) {
 // Remove any package sitting on a tile (used when the tile's contents change).
 function clearItemAt(id, x, y) {
   const r = rt(id);
-  const it = r.occ[y][x];
-  if (it) {
+  for (const grid of [r.occ, r.occV]) {
+    const it = grid && grid[y][x];
+    if (!it) continue;
     it.dead = true;
-    r.occ[y][x] = null;
+    grid[y][x] = null;
     r.items = r.items.filter((i) => i !== it);
   }
 }

@@ -170,8 +170,9 @@ function initRuntime(id) {
   const def = PROP_BY_ID[id];
   const occ = [];
   for (let y = 0; y < def.rows; y++) occ.push(new Array(def.cols).fill(null));
+  const occV = occ.map((row) => row.slice()); // bridges' second (north-south) lane
   runtime[id] = {
-    items: [], occ, timers: {}, sales: [], costs: [], floaters: [], time: 0, unpaid: false,
+    items: [], occ, occV, timers: {}, sales: [], costs: [], floaters: [], time: 0, unpaid: false,
     workers: [], // staff walking the floor (see workers.js)
     alerts: {}, // problems to show the player: key -> { text, x, y, t }
     crewed: new Map(), // assembler 'x,y' -> operators working at it
@@ -238,12 +239,12 @@ function restoreRuntime(snap) {
     for (const [product, x, y, p, fromDir, outDir, value, fresh, tags, processed] of s.items || []) {
       const t = prop.tiles[y] && prop.tiles[y][x];
       // Only put packages back where the layout still carries them.
-      if (!PRODUCTS[product] || !t || r.occ[y][x] || !(t.obj || t.base === 'in')) continue;
+      if (!PRODUCTS[product] || !t || occAt(r, x, y, t.obj && t.obj.k === 'bridge' ? fromDir : null) || !(t.obj || t.base === 'in')) continue;
       if (t.obj && (t.obj.k === 'assembler' || t.obj.k === 'rack' || FACILITIES[t.obj.k])) continue;
       const it = makeItem(product, x, y, p, fromDir, outDir);
       it.value = value; it.fresh = fresh; it.tags = tags ? tags.split(',') : []; it.processed = !!processed;
       r.items.push(it);
-      r.occ[y][x] = it;
+      setOcc(prop, r, it);
     }
   }
   for (const s of snap.shipLog || []) shipLog.push(s);

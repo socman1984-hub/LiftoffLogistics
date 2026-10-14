@@ -1275,8 +1275,8 @@ function rotateTile(x, y) {
 
 // A package mid-turn on a re-aimed tile would draw oddly; let it re-path.
 function clearStuckItem(x, y) {
-  const it = rt(state.current).occ[y][x];
-  if (it) it.outDir = null;
+  const r = rt(state.current);
+  for (const it of [r.occ[y][x], r.occV && r.occV[y][x]]) if (it) it.outDir = null;
 }
 
 function tryBuyDock(x, y) {
