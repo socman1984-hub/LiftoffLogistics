@@ -1,6 +1,8 @@
 # Liftoff Logistics (prototype)
 
-**Version:** see `GAME_VERSION` in `js/releases.js` (also shown in Help, with release notes).
+**Version:** see `GAME_VERSION` in `js/releases.js` (also shown at the top of ❓ Help, with release notes).
+
+**Play online:** https://socman1984-hub.github.io/LiftoffLogistics/ (GitHub Pages, updated on every push to `main`).
 
 Buy run-down warehouses, repair them, and build conveyor systems that move packages
 from truck docks to shipping docks. More throughput means more money. Upgrade the line
@@ -28,8 +30,16 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 
 - **Toolbar**: one row of groups: 🔍 Inspect · ➡️ Conveyors · 🏭 Machines · 🧱 Structures · ✋ Edit. Tap a
   group to open its tools; tap a selected tool again to put it away.
-- **🎓 Tutorial**: new games start with a guided walkthrough (+3 💎 per step, +10 💎 to finish); restart
-  it from ❓ Help. The card can be minimized.
+- **🎓 Tutorial**: new games start with a guided walkthrough (+3 💎 per step, +10 💎 to finish). The card's
+  **Hide** and **Skip** buttons tuck it away; ❓ Help → **🎓 Tutorial & tips** resumes it where you left off, starts
+  it over, or shows a hidden card.
+- **💡 Lessons**: after the basics, a short lesson pops up the first time each feature unlocks (contracts,
+  research, suppliers & haggling, trucks between sites, specialists, the Launch Site, Mars, colonists at work,
+  Mastery), highlighting what to press; +2 💎 each the first time. Turn them off, or replay any one, in
+  Help → Tutorial & tips. Help sections for later parts of the game stay 🔒 until you get there.
+- **🔍 Zoom**: pinch with two fingers (up to 4×), the ＋ / － buttons under 🌡️, or the mouse wheel; ⤢ fits it all
+  back. While zoomed, pan with two fingers, or one finger with 🔍 Inspect selected (one finger always pans on
+  Mars). One-finger building works as normal; a second finger cancels it, so pinching never lays conveyors.
 - **Building**: valid spots are outlined whenever a tool is selected (green = build, orange = repair first,
   yellow = replaces what's there). Tap to place one piece; drag a conveyor line to preview it, then
   **✅ Place** or **✖ Cancel**. Building something different on top of an existing piece asks to
@@ -53,6 +63,10 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **🌡️ Overlays** (top-right of the warehouse): heatmaps for wear & breakdowns, floor condition, worker
   access, congestion, and facility coverage. Equipment over 75% worn always shows a small 🔧.
 - **⚠️ Problems** pill: stuck workers, unreachable buildings and uncrewed assemblers; tap to jump there.
+  Staff come in through any unlocked door with open floor just inside (a machine parked in front of one door
+  doesn't lock them out), and anyone cut off (boxed in, or at a blocked door) walks back in by another door.
+- **🔄 Updates**: the game checks for a newer version a few seconds after loading and every 10 minutes, and
+  offers **Update now** (saves, then reloads at a fresh URL so phones don't keep a cached old copy).
 
 ## How it plays
 
@@ -196,7 +210,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **💎 Gems & boosts**: earnable premium currency for time-saving boosts. See
   [docs/MONETIZATION.md](docs/MONETIZATION.md).
 - Test mode (`?dev=1`) can **🎬 jump to a stage**: new game, Shed, Mill, Foundry, Depot, Refinery, Lab, rocket ready to
-  launch, Mars begins, growing colony and late colony, each with typical money, ⭐, gems, research, sites and upgrades.
+  launch, Mars begins, growing colony and late colony, each with typical money, ⭐, gems, research, sites and upgrades,
+  and every site built the way the playtest bot would have it by then (conveyor trunk, assemblers with recipes,
+  sorters, racks, facilities, staff, value machines, distribution plans and trucks; `js/devlayout.js`).
   Use it with `?slot=test&dev=1` so your main save is safe.
 - Add `?slot=name` to the URL (for example `?slot=test`) to play a separate save without touching your main one.
 - Progress autosaves to localStorage, including a snapshot of the live floor (workers, packages on belts, recent
@@ -206,23 +222,36 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 
 | File | Purpose |
 | --- | --- |
-| `js/data.js` | Tunable data: properties, machines, belt tiers, upgrades, number formatting |
-| `js/state.js` | Game state, layout generation, save/load, cost helpers |
-| `js/sim.js` | Simulation: spawning, assemblers, cargo rules, breakdowns, routing, trucking, selling |
-| `js/workers.js` | Walking workers: path-finding, roles, breaks, alerts |
+| `js/data.js` | Tunable data: properties, machines, belt tiers, upgrades, research, Mars modules/jobs, number formatting |
+| `js/releases.js` | `GAME_VERSION`, release notes (Help), and the update check |
+| `js/state.js` | Game state, layout generation, save/load, cost helpers, theft/accident/neglect rules |
+| `js/sim.js` | Simulation: spawning, assemblers, sorters, cargo rules, breakdowns, routing, trucking, selling |
+| `js/workers.js` | Walking workers: doors, path-finding, roles, breaks, morale, alerts |
 | `js/heat.js` | Heatmap overlays |
-| `js/tutorial.js` | Guided tutorial for new players |
-| `js/finance.js` | Finances panel (money ledger by category) |
-| `js/contracts.js` | Contract offers, deadlines, rewards |
+| `js/contracts.js` | Contract offers, confidence, deadlines, rewards |
+| `js/render.js` | Canvas drawing for warehouse sites |
+| `js/ui.js` | Toolbar, panels, Help, objectives, touch input |
+| `js/zoom.js` | Zoom & pan (pinch, buttons, wheel) and grid layout |
 | `js/enterprise.js` | Map view, logistics (distribution plans + fleet), launch site, assembler recipes |
 | `js/economy.js` | Market prices panel, 💎 boost shop, daily bonus |
-| `js/dev.js` | Test mode (`?dev=1`): cheats and game speed for playtesting |
-| `js/render.js` | Canvas drawing |
-| `js/ui.js` | Toolbar, panels, objectives, touch input |
+| `js/research.js` | Research tree, lab, Mastery and Megaprojects |
+| `js/suppliers.js` | Supplier tiers, negotiation, purchasing agents |
+| `js/launchfx.js` / `js/endingfx.js` | First-launch and victory cinematics |
+| `js/mars.js` | Mars colony: windows, cargo, base map, construction, supplies, events, ore, Terraform |
+| `js/marscrew.js` | Colonist jobs, dusty domes, morale, Crew panel |
+| `js/marsview.js` | The Mars screen: canvas drawing, build bar, taps |
+| `js/marsinfo.js` | Tap details for Mars buildings, the Lander and colonists |
+| `js/tutorial.js` | Basics tutorial, feature lessons, Tutorial & tips in Help |
+| `js/finance.js` | Finances panel (money ledger by category) |
+| `js/dev.js` / `js/devlayout.js` | Test mode (`?dev=1`): cheats, game speed, stage jumps with built layouts |
 | `js/main.js` | Boot, fixed-step game loop, autosave, offline earnings |
 
-Balance lives almost entirely in `js/data.js`. Bump the `?v=` number in `index.html`
-after changing files so browsers don't serve stale copies.
+Balance lives almost entirely in `js/data.js`. When shipping a change:
+
+- bump the `?v=` number in `index.html` so browsers don't serve stale copies;
+- for anything players notice, bump `GAME_VERSION` and add a note to the top of `RELEASE_NOTES` in
+  `js/releases.js` (notes are single-quoted strings: write apostrophes as ’);
+- a local git pre-commit hook refuses to commit if any `js/*.js` file has a syntax error.
 
 ## Path to app stores
 
