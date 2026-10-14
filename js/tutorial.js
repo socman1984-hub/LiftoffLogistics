@@ -192,7 +192,7 @@ function refreshTutorial() {
   card.classList.toggle('min', !!ui.tutMin);
   const html = ui.tutMin
     ? `<button class="tut-pill" data-tut="expand">${head.split(' ').slice(0, 2).join(' ')} ▾</button>`
-    : `<div class="tut-head">${head}<span><button class="tut-skip" data-tut="min">– hide</button><button class="tut-skip" data-tut="skip">Skip</button></span></div>
+    : `<div class="tut-head">${head}<span><button class="tut-skip" data-tut="min">Hide</button><button class="tut-skip" data-tut="skip">Skip</button></span></div>
     <div class="tut-text">${step.text}</div>${body}`;
   if (card.dataset.html !== html) { card.innerHTML = html; card.dataset.html = html; }
   const sel = typeof step.target === 'function' ? step.target() : step.target;

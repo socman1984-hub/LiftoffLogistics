@@ -1,9 +1,12 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.9.2';
+const GAME_VERSION = '0.9.3';
 
 const RELEASE_NOTES = [
+  { v: '0.9.3', date: 'Oct 13, 2026', title: 'Easier taps', notes: [
+    'The tutorial card’s Hide and Skip are now proper buttons, spaced apart and easier to tap on a phone.',
+  ] },
   { v: '0.9.2', date: 'Oct 13, 2026', title: 'Updates', notes: [
     'The game now checks for new versions and offers to update, so phones stop getting stuck on an old cached copy.',
     'Fixed How to Play showing blank, or showing the last screen you were on.',
