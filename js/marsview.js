@@ -13,6 +13,7 @@ function goMars() {
   state.inMars = true;
   ui.tool = null;
   ui.marsTool = null;
+  ui.pan = { x: 0, y: 0 };
   closePanel();
   layoutView();
   refreshTopbar();
@@ -26,10 +27,7 @@ function leaveMars() {
 }
 
 function layoutMars() {
-  const { cols, rows } = MARS_MAP, pad = 8;
-  view.ts = Math.floor(Math.min((view.w - pad * 2) / cols, (view.h - pad * 2 - marsHud()) / rows));
-  view.ox = Math.floor((view.w - view.ts * cols) / 2);
-  view.oy = marsHud() + Math.floor((view.h - marsHud() - view.ts * rows) / 2);
+  layoutGrid(MARS_MAP.cols, MARS_MAP.rows, marsHud());
 }
 
 function marsScreenToTile(px, py) {
@@ -168,6 +166,8 @@ function renderMars() {
     `🪨 ${m.ore}/${oreCap()}`,
     kits ? `📦 ${kits} kit${kits > 1 ? 's' : ''} to place` : '',
     (() => { const n = map.b.filter((b) => b.done && needsPower(b.k) && !coversAt(map, b.x, b.y)).length; return n ? `🔌 ${n} without power` : ''; })()].filter(Boolean);
+  ctx.fillStyle = 'rgba(29,16,22,0.92)';
+  ctx.fillRect(0, 0, view.w, marsHud());
   ctx.font = '600 13px system-ui';
   ctx.textAlign = 'left';
   ctx.fillStyle = '#f3d9c7';

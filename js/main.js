@@ -116,6 +116,7 @@ function boot() {
   if (state.inMars && state.launch.count >= 1) ui.marsView = true; // reopen where you left off
   buildToolbar();
   initInput();
+  initZoom();
   new ResizeObserver(resizeCanvas).observe(canvas);
   resizeCanvas();
   initDev();

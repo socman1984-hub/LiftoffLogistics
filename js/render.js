@@ -19,10 +19,7 @@ function layoutView() {
   if (ui.marsView) { layoutMars(); return; }
   const def = curDef();
   if (!def) return;
-  const pad = 8;
-  view.ts = Math.floor(Math.min((view.w - pad * 2) / def.cols, (view.h - pad * 2) / def.rows));
-  view.ox = Math.floor((view.w - view.ts * def.cols) / 2);
-  view.oy = Math.floor((view.h - view.ts * def.rows) / 2);
+  layoutGrid(def.cols, def.rows); // fit, then zoom and pan (zoom.js)
 }
 
 function screenToTile(px, py) {

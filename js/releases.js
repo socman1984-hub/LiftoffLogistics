@@ -1,9 +1,13 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.9.3';
+const GAME_VERSION = '0.10.0';
 
 const RELEASE_NOTES = [
+  { v: '0.10.0', date: 'Oct 13, 2026', title: 'Zoom', notes: [
+    'Zoom in on your sites and Mars: pinch with two fingers, use the ＋ / － buttons (under 🌡️), or the mouse wheel. ⤢ fits everything back on screen.',
+    'While zoomed in, move around with two fingers, or with one finger when 🔍 Inspect is selected (on Mars, one finger always moves the view). Building with one finger works as before.',
+  ] },
   { v: '0.9.3', date: 'Oct 13, 2026', title: 'Easier taps', notes: [
     'The tutorial card’s Hide and Skip are now proper buttons, spaced apart and easier to tap on a phone.',
   ] },

@@ -695,3 +695,8 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .help-version a { color: var(--accent); text-decoration: none; margin-left: 4px; }
 
 .help-sec.locked { padding: 11px 12px; font-weight: 700; opacity: 0.55; }
+
+#zoomCtl { position: absolute; right: 8px; top: 56px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
+#zoomCtl button { width: 40px; height: 40px; border-radius: 12px; background: rgba(40,45,54,0.92); border: 2px solid #4a5263; font-size: 20px; font-weight: 800; color: #e8ecf3; padding: 0; }
+#zoomCtl button:disabled { opacity: 0.35; }
+#zoomCtl button.hidden { display: none; }

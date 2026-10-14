@@ -738,6 +738,7 @@ function helpHTML() {
       '<b>🔀 Splitters</b> deal packages out; <b>🚦 Sorters</b> pull one product out, and can split it by ratio across exits.',
       'New sites unlock new pieces everywhere: 🌉 <b>Bridge</b> (lines cross), 🧺 <b>Accumulator</b> (holds 20), 🫙 <b>Silo</b>, 🏗️ Loading Crane, 🧪 Research Bench, 🦾 Cobot Station.',
       '🌡️ <b>Heatmaps</b> (top right) show traffic, wear, dirt and more.',
+      '🔍 <b>Zoom</b>: pinch with two fingers, or use ＋ / － under 🌡️ (mouse wheel on a computer); ⤢ fits it all back. While zoomed, move around with two fingers, or one finger with 🔍 Inspect selected.',
     ], true)}
     ${sec('🏭', 'Assemblers and machines', [
       'Tap an assembler to pick a recipe. Feed each ingredient from a different side so one cannot block another.',
@@ -1073,6 +1074,7 @@ function onPanelClick(e) {
 
 function switchProperty(id) {
   if (ui.marsView) leaveMars();
+  if (state.current !== id) ui.pan = { x: 0, y: 0 };
   state.current = id;
   rt(id);
   layoutView();
@@ -1526,10 +1528,17 @@ function dragStep(a, b) {
 function onPointerDown(e) {
   if (!state.current) return;
   const p = pointerPos(e);
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ }
+  if (pinchDown(e, p)) return; // two fingers: zoom / pan
+  drag.lastPx = p;
+  drag.panning = false;
   const tile = screenToTile(p.x, p.y);
-  if (!tile) return;
-  if (ui.marsView) { marsTap(tile.x, tile.y, p); return; }
-  canvas.setPointerCapture(e.pointerId);
+  if (!tile && !(ui.zoom > 1)) return;
+  if (ui.marsView || !tile) { // Mars (and the margin when zoomed): tap on release, drag to pan
+    Object.assign(drag, { active: true, mars: true, start: tile, moved: false, px: p, plan: [] });
+    return;
+  }
+  drag.mars = false;
   drag.active = true;
   drag.start = tile;
   drag.last = tile;
@@ -1542,8 +1551,19 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
+  if (pinchMove(e, pointerPos(e))) return;
   if (!drag.active) return;
   const p = pointerPos(e);
+  // Panning: one finger on Mars, with 🔍 Inspect, or off the grid, while zoomed in.
+  if (ui.zoom > 1 && (drag.mars || !ui.tool)) {
+    if (!drag.panning && Math.hypot(p.x - drag.px.x, p.y - drag.px.y) < 8) return;
+    if (!drag.panning) drag.lastPx = drag.px;
+    drag.panning = true; drag.moved = true;
+    panBy(p.x - drag.lastPx.x, p.y - drag.lastPx.y);
+    drag.lastPx = p;
+    return;
+  }
+  if (drag.mars) { if (Math.hypot(p.x - drag.px.x, p.y - drag.px.y) > 8) drag.moved = true; return; }
   const tile = screenToTile(p.x, p.y);
   if (!tile) return;
   // Walk one tile at a time so fast swipes don't skip tiles.
@@ -1558,9 +1578,12 @@ function onPointerMove(e) {
   }
 }
 
-function onPointerUp() {
+function onPointerUp(e) {
+  if (e && pinchUp(e)) { drag.active = false; return; }
   if (!drag.active) return;
   drag.active = false;
+  if (drag.panning) return;
+  if (drag.mars) { if (!drag.moved && drag.start) marsTap(drag.start.x, drag.start.y, drag.px); return; }
   const person = !drag.moved && (!ui.tool || ui.tool === 'rotate') ? workerAt(drag.px.x, drag.px.y) : null;
   if (person) { ui.workerSel = person.id; openPanel('worker'); } else if (!drag.moved) tapOrDoubleTap(drag.start.x, drag.start.y);
   else if (ui.tool === 'belt' && drag.plan.length > 1) {
@@ -1672,7 +1695,7 @@ function initInput() {
   canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
-  canvas.addEventListener('pointercancel', () => { drag.active = false; });
+  canvas.addEventListener('pointercancel', (e) => { pinchUp(e); drag.active = false; });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   for (const b of document.querySelectorAll('#actions button')) {
