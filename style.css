@@ -701,6 +701,12 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 #zoomCtl button:disabled { opacity: 0.35; }
 #zoomCtl button.hidden { display: none; }
 /* 🔗 Supply network rows */
+.net-site { background: var(--panel-2); border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid var(--accent); border-radius: 12px; padding: 8px 12px 4px; margin: 12px 0; }
+.net-site.launch { border-left-color: #eb5757; }
+.net-site-head { display: flex; align-items: center; gap: 10px; padding-bottom: 6px; margin-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.net-site-head b { font-size: 16px; }
+.net-site-ic { font-size: 26px; line-height: 1; }
+.net-site .net-row:last-child { border-bottom: 0; }
 .net-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .net-prod { flex: 1 1 160px; min-width: 0; }
 .net-from { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }

@@ -162,7 +162,9 @@ function networkHTML() {
     const missing = unmet.filter((u) => u.to === to);
     if (!mine.length && !missing.length) continue;
     any = true;
-    html += `<h3 class="sec">${siteEmoji(to)} ${siteName(to)} gets</h3>`;
+    const n = new Set(mine.map((l) => l.p)).size + missing.length;
+    html += `<div class="net-site ${to === 'launch' ? 'launch' : ''}"><div class="net-site-head"><span class="net-site-ic">${siteEmoji(to)}</span>
+      <div><b>${siteName(to)}</b><div class="muted small">receives ${n} product${n === 1 ? '' : 's'}</div></div></div>`;
     const byP = {};
     for (const l of mine) (byP[l.p] || (byP[l.p] = [])).push(l);
     for (const [p, ls] of Object.entries(byP)) {
@@ -173,6 +175,7 @@ function networkHTML() {
         <span class="net-from">${ls.map((l) => `<button class="chip small ${l.on ? 'on' : 'faint'}" data-act="netlink" data-id="${linkKey(l.from, l.to, l.p)}" title="${l.on ? 'Tap to stop sending' : 'Tap to send again'}">${l.on ? '' : '⏸ '}from ${siteEmoji(l.from)} ${siteName(l.from)}</button>`).join('')}</span></div>`;
     }
     for (const u of missing) html += `<div class="net-row"><span class="net-prod">${PRODUCTS[u.p].icon} ${PRODUCTS[u.p].name}</span><span class="muted small warn-text">none of your sites ship it</span></div>`;
+    html += '</div>';
   }
   if (!any) html += `<p class="intro">Nothing to send yet. Set an assembler's recipe at one site, and the site that makes its ingredients starts trucking them over.</p>`;
   return html;
