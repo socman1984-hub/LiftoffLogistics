@@ -40,8 +40,18 @@ function siteUses(id) {
   return out;
 }
 const launchTakes = (p) => state.launch.owned && (marsOn() ? marsAccepts(p) : !!LAUNCH.needs[p]);
-// How much a site likes to have in hand or on the way (the Launch Site asks for exactly what the next rocket needs).
-const netTarget = (to, p, uses) => (to === 'launch' ? 0 : Math.max(truckCap(), Math.ceil(uses * NETWORK.stockPerInput)));
+// How much a site likes to have in hand or on the way: a few crafts' worth of each ingredient, all of
+// them together fitting in part of its racks (so there's always room left for what it ships out).
+// The Launch Site asks for exactly what the next rocket needs, so it has no target here.
+function netTargets(to, uses) {
+  const raw = {};
+  for (const [p, n] of Object.entries(uses)) raw[p] = Math.max(NETWORK.minStock, Math.ceil(n * NETWORK.stockPerInput));
+  const total = Object.values(raw).reduce((a, b) => a + b, 0);
+  const budget = storageCap(to) * NETWORK.rackShare;
+  const k = total > budget ? budget / total : 1;
+  for (const p of Object.keys(raw)) raw[p] = Math.max(NETWORK.minStock, Math.floor(raw[p] * k));
+  return raw;
+}
 
 // Every link: who makes it → who needs it. Rebuilt about once a second.
 let netMemo = { at: -1, v: null };
@@ -54,12 +64,13 @@ function netLinks() {
   const links = [], unmet = [];
   for (const to of owned) {
     if (!hasReceiveDock(PROP_BY_ID[to])) continue;
-    for (const [p, n] of Object.entries(uses[to])) {
+    const target = netTargets(to, Object.fromEntries(Object.entries(uses[to]).filter(([p]) => !buys[to].has(p))));
+    for (const p of Object.keys(uses[to])) {
       if (buys[to].has(p)) continue; // its own supplier brings it
       // Sites that make it. When two sites both make and use it, only the earlier one sends, so nothing ping-pongs.
       const from = owned.filter((s) => s !== to && makes[s].has(p) && !(uses[s][p] && makes[to].has(p) && owned.indexOf(s) > owned.indexOf(to)));
       if (!from.length) { if (!makes[to].has(p)) unmet.push({ to, p }); continue; }
-      for (const f of from) links.push({ from: f, to, p, cap: netTarget(to, p, n), on: linkOn(f, to, p) });
+      for (const f of from) links.push({ from: f, to, p, cap: target[p], on: linkOn(f, to, p) });
     }
   }
   if (state.launch.owned) {
@@ -108,7 +119,9 @@ function stepDispatch() {
     let best = null, top = 0;
     for (const r of live) {
       const busy = r.f.units.filter((u) => u.phase !== 'load' || u.n).length; // trucks already working this route
-      const room = r.f.units.filter((u) => u.phase === 'load' && u.n).reduce((a, u) => a + cap - u.n, 0) + Math.max(0, r.f.trucks - busy) * cap;
+      // Room coming: trucks loading here, trucks driving back here empty, and ones just handed out.
+      const room = r.f.units.filter((u) => u.phase === 'load' && u.n).reduce((a, u) => a + cap - u.n, 0)
+        + r.f.units.filter((u) => u.phase === 'back').length * cap + Math.max(0, r.f.trucks - busy) * cap;
       const short = r.waiting - room;
       if (short <= 0) continue;
       const score = short * (r.to === 'launch' ? 2 : 1) * (r.f.trucks ? 1 : 2);
@@ -118,14 +131,16 @@ function stepDispatch() {
     best.f.trucks++;
     free--;
   }
+  // How long each route's cargo has sat with no truck coming for it.
+  for (const r of live) r.f.dry = r.waiting > 0 && !r.f.trucks && !r.f.units.length ? (r.f.dry || 0) + 1 : 0;
 }
-// Cargo on routes with no truck at all, and none free in the garage (shown as "buy more trucks").
+// Cargo that has sat a while with no truck to take it (shown as "buy more trucks"). Brief
+// waits while every truck is out are normal: a truck frees up within a trip or two.
 function cargoStranded() {
-  if (idleTrucks() > 0) return 0;
   let n = 0;
   for (const [key, f] of Object.entries(state.fleet)) {
     const [from, to] = key.split('>');
-    if (!state.props[from] || !state.props[from].owned || f.units.length) continue;
+    if (!state.props[from] || !state.props[from].owned || (f.dry || 0) < NETWORK.strandedAfter) continue;
     n += Object.values(state.props[from].outbox[to] || {}).reduce((a, b) => a + b, 0);
   }
   return n;

@@ -239,8 +239,7 @@ function refreshTopbar() {
   const free = contractSlots() - c.active.length;
   setBadge('contracts', free > 0 && c.offers.length ? c.offers.length : '');
   setBadge('research', state.lab ? '⏳' : researchReady() ? '!' : '');
-  const stalled = Object.entries(state.fleet).some(([k, f]) => !f.trucks
-    && Object.values(state.props[k.split('>')[0]].outbox[k.split('>')[1]] || {}).some((n) => n > 0));
+  const stalled = cargoStranded() > 0;
   const rocketWaiting = state.launch.owned && launchReady() && !(state.launch.count >= 1 && state.launch.auto);
   // (After the first launch, launchReady() means a Mars window is open and the rocket is built.)
   setBadge('map', rocketWaiting ? '🚀' : stalled ? '!' : '');

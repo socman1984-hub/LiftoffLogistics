@@ -156,7 +156,7 @@ function siteDetailHTML(id) {
   const routes = Object.keys(state.fleet).filter((k) => k.startsWith(id + '>'));
   for (const key of routes) {
     const st = routeStats(key);
-    if (!st.f.units.length && st.waiting) html += `<p class="warn">⚠️ ${st.waiting} waiting for a truck to ${siteName(st.to)}: buy another truck.</p>`;
+    if ((st.f.dry || 0) >= NETWORK.strandedAfter) html += `<p class="warn">⚠️ ${st.waiting} waiting for a truck to ${siteName(st.to)}: buy another truck.</p>`;
   }
   return html;
 }
@@ -356,7 +356,11 @@ function routeLiveHTML(key) {
   const f = st.f;
   const stuck = f.units.some((u) => u.phase === 'unload' && u.t > 4);
   let advice, tone = '';
-  if (!f.units.length && st.waiting) { advice = `${st.waiting} packages waiting for a free truck. Buy another truck.`; tone = 'neg'; }
+  if (!f.units.length && st.waiting) {
+    const long = (f.dry || 0) >= NETWORK.strandedAfter;
+    advice = long ? `${st.waiting} packages have waited ${fmtSecs(f.dry)} for a truck. Buy another truck.` : `${st.waiting} packages waiting for the next free truck.`;
+    tone = long ? 'neg' : 'gold';
+  }
   else if (stuck) { advice = `Trucks can't unload at ${siteName(st.to)}: add racks or forklift operators there.`; tone = 'neg'; }
   else if (st.waiting > truckCap() * Math.max(1, f.trucks) && !idleTrucks()) { advice = `Cargo is piling up (${st.waiting} waiting). Buy another truck.`; tone = 'neg'; }
   else if (!st.waiting && !f.units.some((u) => u.n)) advice = 'Nothing to carry right now.';
@@ -381,7 +385,7 @@ function routeCargoHTML(key) {
   const on = namedList(aboard), wait = namedList(state.props[st.from].outbox[st.to]);
   if (!on && !wait) return '<div class="rc-line muted">Empty: nothing on board or waiting</div>';
   return (on ? `<div class="rc-line"><span class="rc-lbl">🚚 On board</span>${on}</div>` : '')
-    + (wait ? `<div class="rc-line ${!st.f.units.length ? 'neg' : ''}"><span class="rc-lbl">📦 Waiting</span>${wait}</div>` : '');
+    + (wait ? `<div class="rc-line ${(st.f.dry || 0) >= NETWORK.strandedAfter ? 'neg' : ''}"><span class="rc-lbl">📦 Waiting</span>${wait}</div>` : '');
 }
 
 // One route's card: live trucks, what's waiting, and the controls.
@@ -389,7 +393,7 @@ function routeCardHTML(key) {
   const st = routeStats(key);
   const f = st.f;
   const open = ui.routeOpen && key in ui.routeOpen ? ui.routeOpen[key] : Object.keys(state.fleet).length <= 3;
-  const alert = (!f.units.length && st.waiting) || f.units.some((u) => u.phase === 'unload' && u.t > 4);
+  const alert = (f.dry || 0) >= NETWORK.strandedAfter || f.units.some((u) => u.phase === 'unload' && u.t > 4);
   let html = `<div class="plan route-card ${alert ? 'alert' : ''}">
     <button class="route-head" data-act="rtoggle" data-id="${key}">
       <span class="rh-name">${siteEmoji(st.from)} ${siteName(st.from)} → ${siteEmoji(st.to)} <b>${siteName(st.to)}</b></span>
@@ -399,7 +403,7 @@ function routeCardHTML(key) {
   const canSend = f.units.some((u) => u.phase === 'load' && u.n > 0);
   html += `<div data-route-live="${key}">${routeLiveHTML(key)}</div>
     <div class="truck-list" data-truck-list="${key}">${truckListHTML(key)}</div>
-    <div class="dest-ctl route-ctl"><span class="muted small">A part-loaded truck leaves after 10 s.</span>
+    <div class="dest-ctl route-ctl"><span class="muted small">A part-loaded truck leaves after 10 s once it’s a third full, otherwise after 30 s.</span>
       <button class="btn small secondary send-now" data-act="tsend" data-id="${key}" ${canSend ? '' : 'disabled'}>🚀 Send now</button></div>
   </div>`;
   return html;

@@ -420,8 +420,8 @@ const TRUCK_WAITS = [
 ];
 const CAP_STEPS = [0, 10, 25, 50, 100, 250, 500, 1000]; // 0 = no cap
 // 🔗 Supply network: a site keeps this many of an ingredient per unit its assemblers use per craft
-// (at least a truckload) in hand or on the way.
-const NETWORK = { stockPerInput: 8 };
+// (at least minStock) in hand or on the way, all together using at most rackShare of its racks...
+const NETWORK = { stockPerInput: 8, minStock: 6, rackShare: 0.5, strandedAfter: 60, lightLoad: 1 / 3, lightWait: 30 }; // ...cargo left this many seconds with no truck means "buy another"; a truck under a third full waits up to 30 s
 // Storage: products waiting for a truck (or held for a full destination)
 // sit on racks. When the racks are full, the SHIP doors stop taking them.
 // Incoming goods (waiting at a receiving dock) use the racks too.
@@ -648,8 +648,8 @@ const MARS_SKILLS = {
 };
 const MARS_EXPLORE = {
   groupPower: 0.85, // haul grows with party size, a little less than 1:1
-  supplyPer: 3, // each 🍞 and 💧 taken covers this many explorers
-  samplesStars: 4, // ⭐ per sample brought home (+50% with a working Research Station)
+  tripRations: 3, // explorers eat and drink this many times what they would at home, for the length of the trip (at least 1 🍞 and 1 💧)
+  samplesStars: 3, // ⭐ per sample brought home (+50% with a working Research Station)
   artifactGems: 10, artifactStars: 25,
   maxParty: [4, 7, 10], // on foot, Rover, Heavy Rover
   roverSpeed: [0, 0.2, 0.35], // trips this much shorter
@@ -657,8 +657,8 @@ const MARS_EXPLORE = {
 };
 // 🛠️ Made on Mars from expedition finds. `stock`: a supply it adds to; `rover`: the rover level it gives; `module`: a kit.
 const MARS_FAB = [
-  { id: 'spares', icon: '🔧', name: 'Spares Kit', cost: { salvage: 4, regolith: 2 }, stock: 'spares' },
-  { id: 'water', icon: '💧', name: 'Water/O₂ Canister', cost: { ice: 3 }, stock: 'water' },
+  { id: 'spares', icon: '🔧', name: 'Spares Kit', cost: { salvage: 5, regolith: 2 }, stock: 'spares' },
+  { id: 'water', icon: '💧', name: 'Water/O₂ Canister', cost: { ice: 5 }, stock: 'water' },
   { id: 'power', icon: '🔋', name: 'Power Cell', cost: { crystal: 3, salvage: 2 }, stock: 'power' },
   { id: 'rover1', icon: '🚙', name: 'Rover', cost: { salvage: 25, regolith: 15 }, rover: 1, desc: 'Reaches the Ice Shelf and Lava Tubes; parties up to 7, trips 20% shorter' },
   { id: 'rover2', icon: '🚜', name: 'Heavy Rover', cost: { salvage: 40, crystal: 12, ice: 10 }, rover: 2, desc: 'Reaches Valles Marineris; parties up to 10, trips 35% shorter' },

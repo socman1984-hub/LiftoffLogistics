@@ -25,7 +25,7 @@ const DEV_ACTIONS = {
   trucks5: () => { state.garage.trucks += 5; },
   // Fixes & progress
   fixAll: () => {
-    for (const def of PROPERTIES) for (const row of state.props[def.id].tiles) for (const t of row) if (t.obj) unjam(t.obj);
+    for (const def of PROPERTIES) for (const row of state.props[def.id].tiles) for (const t of row) if (t.obj && t.obj.life) unjam(t.obj); // only things that wear out
   },
   noBreakdowns: () => { ui.devNoWear = !ui.devNoWear; },
   contracts: () => {

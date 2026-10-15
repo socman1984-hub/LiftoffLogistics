@@ -107,8 +107,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   | 🌀 Turbopump | 2 🟦 + 🚰 | ☀️ Solar Array 🚀 | 2 💿 + 🧵 + 🟦 |
 
 - **🚚 Logistics → 🔗 Network** (automatic supply, `js/network.js`): when a site's running assemblers use a product
-  another site ships, it is trucked over until the site has ~8 per unit its recipes use (at least a truckload) in hand
-  or on the way; the 🚀 Launch Site gets exactly what the next rocket needs. Sites that buy a raw material from their own
+  another site ships, it is trucked over until the site has ~8 per unit its recipes use (at least 6) in hand or on the
+  way, all of a site's targets together using at most half its racks (so finished goods always have room to ship); the 🚀 Launch Site gets exactly what the next rocket needs. Sites that buy a raw material from their own
   supplier aren't sent it, and when two sites both make and use a product only the earlier one sends (no ping-pong).
   Tap a link to switch it off. **🏭 Sites**: per product, extras are 💰 sold or 🗄️ kept on the racks (kept stock goes out
   when a site needs it, and is sold once the racks are full). **⚙️ Advanced** gives one product a hand-made plan (weights,
@@ -144,9 +144,9 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   10 moves/min alone; each Forklift Operator adds 30, Operations Managers add 15% each. Goods sold
   straight to vendors skip the racks.
 - **🚚 Logistics → Trucks**: one shared fleet. Each second every empty truck at a dock (and every truck in the garage)
-  goes to the route with the most cargo nobody is loading yet, with rocket parts and truckless routes first. Part-loaded
-  trucks leave after 10 s (or 🚀 Send now). Each route lists its trucks live; cargo with no truck to take it shows
-  "buy another truck". New sites come with a truck; each truck you own makes the next 25% dearer.
+  goes to the route with the most cargo nobody is loading or returning for yet, with rocket parts and truckless routes
+  first. Part-loaded trucks leave after 10 s once a third full, otherwise after 30 s (or 🚀 Send now). Each route lists
+  its trucks live; cargo left a minute with no truck shows "buy another truck". New sites come with a truck; each truck you own makes the next 25% dearer.
 - **⏫ Machine upgrades**: the Upgrade tool also works on value machines (Scanner, Labeler, Wrapper, Chiller):
   Mk II works 1.75× as fast (3× its build price), Mk III 3× as fast (8×, after 🔬 Quality Control), so they stop
   capping a busy line. Upgraded machines show a II / III badge.
@@ -208,7 +208,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   Plains or a 🛰️ Probe Crash Site, and with a 🚙 Rover to the 🧊 Polar Ice Shelf and 🌋 Lava Tubes (🚜 Heavy Rover: 🏔️ Valles
   Marineris). The haul grows with party size (effort^0.85), and each job adds its specialty: ⛏️ miners ore and crystals,
   🔧 engineers salvage and fewer mishaps, 🧪 scientists samples (⭐) and rare finds (💎), 🧊 ice crews ice, 🛠️ mechanics salvage.
-  Explorers leave their jobs while away and take 1 🍞 + 1 💧 per 3 of them; 2 colonists always stay; trouble halves the haul.
+  Explorers leave their jobs while away and take food and water for the trip (about 3× what they'd use at home in that time), and won't leave if the colony would be short for the next window; 2 colonists always stay; trouble halves the haul.
   Finds (🟤 Regolith, ⚙️ Salvage, ❄️ Ice, 🔮 Crystals) are made on Mars into Spares Kits, Water/O₂, Power Cells, Rovers and
   module kits (Ore Silo, Solar Farm, Greenhouse, Workshop, Rec Dome, Habitat) that skip the rocket. Tunables: `MARS_ZONES`,
   `MARS_SKILLS`, `MARS_EXPLORE` and `MARS_FAB` in `js/data.js`.

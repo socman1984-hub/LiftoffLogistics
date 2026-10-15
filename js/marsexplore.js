@@ -9,7 +9,8 @@ const awayCount = () => (state.mars && state.mars.exp ? state.mars.exp.n : 0);
 const partySize = (party) => Object.values(party || {}).reduce((a, n) => a + n, 0);
 const maxParty = () => MARS_EXPLORE.maxParty[M().rover] || MARS_EXPLORE.maxParty[0];
 const tripTime = (z) => Math.round(z.time * (1 - (MARS_EXPLORE.roverSpeed[M().rover] || 0)));
-const tripSupplies = (n) => Math.ceil(n / MARS_EXPLORE.supplyPer); // 🍞 and 💧 each
+// 🍞 and 💧 each for a trip: what the party would use at home in that time, times tripRations.
+const tripSupplies = (n, z) => Math.max(1, Math.round(n * (tripTime(z) / MARS.windowEvery) * MARS.foodPerColonist * MARS_EXPLORE.tripRations));
 const zoneOpen = (z) => M().rover >= z.rover;
 const ROVER_NAME = ['on foot', '🚙 Rover', '🚜 Heavy Rover'];
 
@@ -63,15 +64,18 @@ function expProblem(plan) {
   if (m.exp) return 'A party is already out';
   if (!zoneOpen(z)) return `${z.name} needs a ${ROVER_NAME[z.rover]}`;
   if (!plan.n) return 'Pick who goes';
-  const need = tripSupplies(plan.n);
+  const need = tripSupplies(plan.n, z);
   if (m.stock.food < need || m.stock.water < need) return `Needs ${need} 🍞 and ${need} 💧 from the colony’s stock`;
+  // Never take what the colony needs at home for the next window.
+  const home = marsNeeds();
+  if (m.stock.food - need < home.food || m.stock.water - need < home.water) return `The colony needs its 🍞 and 💧 for the next window (keeps ${home.food} 🍞 · ${home.water} 💧)`;
   return null;
 }
 
 function sendExpedition(quiet) {
   const m = M(), plan = explorePlan(), why = expProblem(plan);
   if (why) { if (!quiet) toast(`🧭 ${why}`); return false; }
-  const z = ZONE_BY_ID[plan.zone], need = tripSupplies(plan.n);
+  const z = ZONE_BY_ID[plan.zone], need = tripSupplies(plan.n, z);
   m.stock.food -= need; m.stock.water -= need;
   if (m.crewMode === 'manual') for (const [job, n] of Object.entries(plan.party)) if (m.crewSet[job]) m.crewSet[job] = Math.max(0, m.crewSet[job] - n);
   m.exp = { zone: z.id, party: plan.party, n: plan.n, startAt: state.clock, backAt: state.clock + tripTime(z) };
@@ -175,7 +179,7 @@ function exploreHTML() {
       <button class="step" data-act="expparty" data-id="${job}|1" ${n < avail[job] && plan.n < room ? '' : 'disabled'}>+</button></span></div>`;
   }
   // What to expect
-  const need = tripSupplies(plan.n), risk = expRisk(z, plan.party), art = expArtifact(z, plan.party);
+  const need = tripSupplies(plan.n, z), risk = expRisk(z, plan.party), art = expArtifact(z, plan.party);
   const est = expHaul(z, plan.party);
   html += `<div class="stats risk">
     <div class="stat-row"><span>Expected haul</span><b>${plan.n ? haulText(est, true) : '—'}</b></div>
@@ -188,7 +192,7 @@ function exploreHTML() {
   html += `<div class="choice"><span class="ctl-lbl">When they’re back</span>
     <button class="chip ${!m.expRepeat ? 'on' : ''}" data-act="exprepeat" data-id="off">✋ Stay home</button>
     <button class="chip ${m.expRepeat ? 'on' : ''}" data-act="exprepeat" data-id="on">🔁 Head out again</button></div>`;
-  html += `<p class="intro small">Explorers leave their jobs while they’re away (jobs refill from the rest of the colony) and take 1 🍞 and 1 💧 per ${MARS_EXPLORE.supplyPer} explorers. ${MARS_EXPLORE.stayBehind} colonists always stay behind.</p>`;
+  html += `<p class="intro small">Explorers leave their jobs while they’re away (jobs refill from the rest of the colony) and take food and water for the trip (bigger parties and longer trips take more). ${MARS_EXPLORE.stayBehind} colonists always stay behind.</p>`;
 
   // Make things
   html += '<h3 class="sec">🛠️ Make on Mars</h3>';

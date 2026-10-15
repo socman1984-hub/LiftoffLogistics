@@ -1,9 +1,16 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.12.0';
+const GAME_VERSION = '0.12.1';
 
 const RELEASE_NOTES = [
+  { v: '0.12.1', date: 'Oct 14, 2026', title: 'Balance from a playthrough', notes: [
+    'Sites no longer stock so many incoming ingredients that their racks fill up. A full rack used to mean finished rocket parts got sold instead of sent to the rocket.',
+    'Trucks carry fuller loads: a lightly loaded truck waits a little longer for more cargo, and a truck already heading back to a site counts before another one is sent.',
+    '“Buy another truck” only shows up when cargo has really been stuck for a minute, not every time all trucks are briefly busy.',
+    'Expeditions take food and water for the length of the trip (about a sixth of before on a typical trip) and won’t leave if the colony would be short for the next window.',
+    'Expedition rewards trimmed a little: Spares Kits need 5 ⚙️ Salvage, Water/O₂ Canisters need 5 ❄️ Ice, and samples are worth 3 ⭐.',
+  ] },
   { v: '0.12.0', date: 'Oct 14, 2026', title: 'Simpler logistics', notes: [
     'Your sites now supply each other by themselves: when a site’s assemblers need something another site makes, it’s trucked over, and the Launch Site gets the parts the next rocket needs. No more weights, caps or routes to set up.',
     'Trucks are one shared fleet: just buy them, and free trucks go wherever cargo is waiting. If cargo sits waiting, the game tells you to buy another.',
