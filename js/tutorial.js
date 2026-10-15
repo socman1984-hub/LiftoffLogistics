@@ -73,7 +73,7 @@ const LESSONS = [
   ] },
   { id: 'trucks', icon: '🚚', title: 'Trucks between sites', when: () => owned() >= 2, steps: [
     { text: 'Your sites can supply each other. Open <b>🗺️ Map → 🚚 Logistics</b>.', target: '[data-panel="map"]', done: () => openPanelName === 'logistics' },
-    { text: 'In <b>Distribution</b>, give a product a destination (another site); anything extra is sold. In <b>Fleet</b>, make sure the route has a 🚚 truck. Trucked-in goods arrive at the purple 📥 receiving door.', manual: true },
+    { text: 'It works by itself: when a site\'s assemblers need something another site makes, it\'s trucked over, and extras are sold. <b>🔗 Network</b> shows every link; buy 🚚 trucks if cargo is waiting. Goods arrive at the purple 📥 receiving door.', manual: true },
   ] },
   { id: 'specialists', icon: '⚠️', title: 'Specialists a big site needs', when: () => PROPERTIES.some((d) => state.props[d.id].owned && Object.keys(STAFF_NEEDS).some((r) => staffNeedOpen(state.props[d.id], r) && !staffNeedMet(d.id, state.props[d.id], r))), steps: [
     { text: 'One of your sites is big enough to need a specialist: a 🛡️ Security Guard, ⛑️ Safety Officer or 🗂️ HR Manager. Open <b>🏗️ Manage → Staff</b> and look for <b>⚠️ needed</b>.', target: '[data-panel="building"]', done: () => openPanelName === 'building' },
@@ -81,7 +81,7 @@ const LESSONS = [
   ] },
   { id: 'launch', icon: '🚀', title: 'The Launch Site', when: () => state.launch.owned && state.launch.count < 1, steps: [
     { text: 'The 🚀 Launch Site is yours! Open the <b>🗺️ Map</b> and tap it to see the parts each rocket stage needs.', target: '[data-panel="map"]', done: () => openPanelName === 'map' && ui.mapSel === 'launch' },
-    { text: 'Send rocket parts there with <b>🚚 Logistics</b> (add 🚀 Launch Site as a destination). When all three stages are full, press <b>LAUNCH</b>!', manual: true },
+    { text: 'Rocket parts are trucked there automatically from the sites that make them (see <b>🚚 Logistics → Network</b>). When all three stages are full, press <b>LAUNCH</b>!', manual: true },
   ] },
   { id: 'mars', icon: '🔴', title: 'Mars', when: () => state.launch.count >= 1, steps: [
     { text: 'Next stop: Mars! In <b>🚀 Launch Site → Mission Control</b>, plan each rocket\'s cargo: a base module, colonists and supply crates. Rockets fly during launch windows.', manual: true },

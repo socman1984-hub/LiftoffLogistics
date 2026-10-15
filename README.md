@@ -106,9 +106,13 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   | 💻 Flight Computer | 2 📟 + 📡 | 🫁 Life Support 🚀 | 🧊 + 💻 + 🧵 |
   | 🌀 Turbopump | 2 🟦 + 🚰 | ☀️ Solar Array 🚀 | 2 💿 + 🧵 + 🟦 |
 
-- **🚚 Logistics → Distribution**: for every product a site ships, set a plan: any mix of destinations
-  (💰 sell, 🗄️ store here, another site's 📥 receiving dock, or the 🚀 Launch Site) with **weights** (exact
-  weighted split) and optional **stock caps**, plus an overflow rule for when all are full (sell, or back up).
+- **🚚 Logistics → 🔗 Network** (automatic supply, `js/network.js`): when a site's running assemblers use a product
+  another site ships, it is trucked over until the site has ~8 per unit its recipes use (at least a truckload) in hand
+  or on the way; the 🚀 Launch Site gets exactly what the next rocket needs. Sites that buy a raw material from their own
+  supplier aren't sent it, and when two sites both make and use a product only the earlier one sends (no ping-pong).
+  Tap a link to switch it off. **🏭 Sites**: per product, extras are 💰 sold or 🗄️ kept on the racks (kept stock goes out
+  when a site needs it, and is sold once the racks are full). **⚙️ Advanced** gives one product a hand-made plan (weights,
+  caps, overflow), starting from what automatic was doing; ↩ Automatic undoes it.
 - **🗄️ Racks** are tiles you build with the Rack tool (drag to paint). Each holds 15 products and can
   be upgraded on its own (tap it) to 25 / 35 / 50, plus 10 slots of dock staging. Racks hold goods waiting for an outgoing truck,
   goods trucked in (waiting at the 📥 dock), and anything sent to **🗄️ Store here**. The bar on each SHIP
@@ -139,9 +143,10 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 - **🚜 Rack handling**: every put-away, truck load, truck unload and pick is one *move*. A site manages
   10 moves/min alone; each Forklift Operator adds 30, Operations Managers add 15% each. Goods sold
   straight to vendors skip the racks.
-- **🚚 Logistics → Fleet**: each route lists its trucks live (loading n/cap with a departure countdown, idle time,
-  arrival time, stuck unloading and why), with advice, Send now and Assign idle trucks. Buy trucks into your garage and assign them to routes; set each route's
-  departure rule (ASAP / 10s / 30s / when full). Routes with no trucks pile up. New sites come with a truck; each truck you own makes the next 25% dearer.
+- **🚚 Logistics → Trucks**: one shared fleet. Each second every empty truck at a dock (and every truck in the garage)
+  goes to the route with the most cargo nobody is loading yet, with rocket parts and truckless routes first. Part-loaded
+  trucks leave after 10 s (or 🚀 Send now). Each route lists its trucks live; cargo with no truck to take it shows
+  "buy another truck". New sites come with a truck; each truck you own makes the next 25% dearer.
 - **⏫ Machine upgrades**: the Upgrade tool also works on value machines (Scanner, Labeler, Wrapper, Chiller):
   Mk II works 1.75× as fast (3× its build price), Mk III 3× as fast (8×, after 🔬 Quality Control), so they stop
   capping a busy line. Upgraded machines show a II / III badge.
@@ -244,7 +249,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 | `js/render.js` | Canvas drawing for warehouse sites |
 | `js/ui.js` | Toolbar, panels, Help, objectives, touch input |
 | `js/zoom.js` | Zoom & pan (pinch, buttons, wheel) and grid layout |
-| `js/enterprise.js` | Map view, logistics (distribution plans + fleet), launch site, assembler recipes |
+| `js/enterprise.js` | Map view, logistics panels, launch site, assembler recipes |
+| `js/network.js` | Automatic supply network (links, auto plans) and the shared truck dispatcher |
 | `js/economy.js` | Market prices panel, 💎 boost shop, daily bonus |
 | `js/research.js` | Research tree, lab, Mastery and Megaprojects |
 | `js/suppliers.js` | Supplier tiers, negotiation, purchasing agents |

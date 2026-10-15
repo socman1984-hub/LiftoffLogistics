@@ -142,7 +142,8 @@ function addFloater(id, r, x, y, text, color) {
 // Each product leaving a site follows its plan: a weighted list of
 // destinations (sell, or another site), each with an optional stock cap.
 const DEFAULT_PLAN = { dests: [{ to: 'sell', w: 1, cap: 0 }], overflow: 'sell' };
-const planOf = (prop, p) => prop.plans[p] || DEFAULT_PLAN;
+// Products follow the automatic supply network (network.js) unless the player gave them their own plan.
+const planOf = (prop, p) => (prop.plans[p] && prop.plans[p].manual ? prop.plans[p] : autoPlan(idOfProp(prop), p));
 
 function destValid(from, to, p) {
   if (to === 'sell' || to === 'store') return true;
@@ -354,6 +355,7 @@ function chooseDest(id, prop, r, p, fromStorage) {
   const open = plan.dests.filter((d) => destOpen(id, d, p, fromStorage));
   if (!open.length) {
     if (fromStorage) return null;
+    if (plan.overflow === 'keep') return storageRoomFor(id, p) > 0 && movesReady(id) ? 'store' : 'sell'; // keep extras while there's room
     if (plan.overflow !== 'hold') return 'sell';
     return storageRoomFor(id, p) > 0 && movesReady(id) ? 'store' : null;
   }
@@ -918,7 +920,8 @@ function stepFleet(dt) {
     while (f.units.length < f.trucks) f.units.push({ phase: 'load', t: 0, load: {}, n: 0 });
     // Unassigned trucks leave once they're back at the loading dock.
     while (f.units.length > f.trucks) {
-      const i = f.units.findIndex((u) => u.phase === 'load');
+      let i = f.units.findIndex((u) => u.phase === 'load' && !u.n); // empty ones first
+      if (i < 0) i = f.units.findIndex((u) => u.phase === 'load');
       if (i < 0) break;
       const box = src.outbox[to] || (src.outbox[to] = {});
       for (const [p, n] of Object.entries(f.units[i].load)) box[p] = (box[p] || 0) + n;
@@ -977,7 +980,7 @@ let supplierTick = 0;
 function stepWorld(dt) {
   state.clock += dt;
   stepLab(dt);
-  if ((supplierTick += dt) >= 1) { supplierTick = 0; stepSuppliers(); sampleRates(); checkLaunch(); stepMars(); }
+  if ((supplierTick += dt) >= 1) { supplierTick = 0; stepSuppliers(); sampleRates(); checkLaunch(); stepMars(); stepDispatch(); }
   for (const def of PROPERTIES) {
     if (state.props[def.id].owned) stepProperty(def.id, dt);
   }

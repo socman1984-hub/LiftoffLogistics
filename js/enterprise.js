@@ -35,10 +35,15 @@ function truckCost() {
 const destLabel = (to) => (to === 'sell' ? '💰 Sell' : to === 'store' ? '🗄️ Store here' : `🚚 ${siteEmoji(to)} ${siteName(to)}`);
 
 function planSummary(id, p) {
-  const plan = planOf(state.props[id], p);
+  const prop = state.props[id];
+  if (!isManual(prop, p)) {
+    const to = autoPlan(id, p).dests.map((d) => siteName(d.to)).join(', ');
+    return `${to ? `→ ${to} · extras ` : ''}${extraOf(id, p) === 'keep' ? 'kept' : 'sold'}`;
+  }
+  const plan = planOf(prop, p);
   const live = plan.dests.filter((d) => d.w > 0);
   const total = live.reduce((n, d) => n + d.w, 0) || 1;
-  return live.map((d) => `${Math.round((d.w / total) * 100)}% ${d.to === 'sell' ? 'sell' : d.to === 'store' ? 'store' : siteName(d.to)}${d.cap ? ` (≤${d.cap})` : ''}`).join(' · ')
+  return '⚙️ ' + live.map((d) => `${Math.round((d.w / total) * 100)}% ${d.to === 'sell' ? 'sell' : d.to === 'store' ? 'store' : siteName(d.to)}${d.cap ? ` (≤${d.cap})` : ''}`).join(' · ')
     + (plan.overflow === 'hold' ? ' · hold when full' : '');
 }
 
@@ -85,8 +90,8 @@ function mapHTML() {
   }
   if (state.current) html += victoryTrackerHTML();
   if (state.current) {
-    const idle = idleTrucks();
-    html += `<button class="btn log-btn" data-act="openlog" data-id="${ui.mapSel === 'launch' ? state.current : ui.mapSel}">🚚 Logistics: distribution &amp; trucks${idle > 0 ? ` · ${idle} idle truck${idle > 1 ? 's' : ''}` : ''}</button>`;
+    const stranded = cargoStranded();
+    html += `<button class="btn log-btn" data-act="opennet">🚚 Logistics: network &amp; trucks${stranded ? ' · ⚠️ cargo waiting' : ''}</button>`;
     if (marsOn()) html += marsGoButton();
   }
   html += `<svg class="map" viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">`;
@@ -142,7 +147,7 @@ function siteDetailHTML(id) {
   if (countList(prop.inbox)) html += `<p class="intro">📥 Waiting to unload: ${countList(prop.inbox)}</p>`;
   html += `<p class="intro">🗄️ Racks ${storageUsed(id)} / ${storageCap(id)} · 🚜 ${Math.round(handlingRate(id))} moves/min</p>`;
 
-  html += `<div class="sec-row"><h3 class="sec">Distribution</h3><button class="btn small" data-act="openlog" data-id="${id}">🚚 Logistics ›</button></div>`;
+  html += `<div class="sec-row"><h3 class="sec">Where products go</h3><button class="btn small" data-act="openlog" data-id="${id}">🚚 Logistics ›</button></div>`;
   const products = relevantProducts(id);
   if (!products.length) html += '<p class="intro">Nothing ships from here yet.</p>';
   for (const p of products) {
@@ -151,78 +156,62 @@ function siteDetailHTML(id) {
   const routes = Object.keys(state.fleet).filter((k) => k.startsWith(id + '>'));
   for (const key of routes) {
     const st = routeStats(key);
-    if (!st.f.trucks && st.waiting) html += `<p class="warn">⚠️ ${st.waiting} waiting for ${siteName(st.to)} but no trucks are assigned to that route.</p>`;
+    if (!st.f.units.length && st.waiting) html += `<p class="warn">⚠️ ${st.waiting} waiting for a truck to ${siteName(st.to)}: buy another truck.</p>`;
   }
   return html;
 }
 
 // ---------------- Logistics panel ----------------
 function logisticsHTML() {
-  if (!ui.logTab) ui.logTab = 'dist';
+  if (!ui.logTab) ui.logTab = 'net';
   const owned = PROPERTIES.filter((d) => state.props[d.id].owned);
   if (!owned.length) return '<p class="intro">Buy a warehouse first.</p>';
   if (!ui.logSite || !state.props[ui.logSite].owned) ui.logSite = state.current || owned[0].id;
-  const idle = idleTrucks();
-  let html = `<div class="tabs">
-    <button class="tab ${ui.logTab === 'dist' ? 'on' : ''}" data-act="logtab" data-id="dist">📦 Distribution</button>
-    <button class="tab ${ui.logTab === 'fleet' ? 'on' : ''}" data-act="logtab" data-id="fleet">🚚 Fleet${idle > 0 ? ` (${idle} idle)` : ''}</button></div>`;
-  return html + (ui.logTab === 'dist' ? distributionHTML(owned) : fleetHTML());
+  const stranded = cargoStranded();
+  const tab = (id, label) => `<button class="tab ${ui.logTab === id ? 'on' : ''}" data-act="logtab" data-id="${id}">${label}</button>`;
+  const html = `<div class="tabs">${tab('net', '🔗 Network')}${tab('dist', '🏭 Sites')}${tab('fleet', `🚚 Trucks${stranded ? ' ⚠️' : ''}`)}</div>`;
+  return html + (ui.logTab === 'dist' ? distributionHTML(owned) : ui.logTab === 'fleet' ? fleetHTML() : networkHTML());
 }
 
 function distributionHTML(owned) {
   const id = ui.logSite;
-  const prop = state.props[id];
   let html = '<div class="choice site-pick">';
   for (const d of owned) html += `<button class="chip ${d.id === id ? 'on' : ''}" data-act="logsite" data-id="${d.id}">${d.emoji} ${d.name}</button>`;
   html += '</div>';
-  html += storageBoxHTML(id);
-  html += `<p class="intro small">For each product leaving ${PROP_BY_ID[id].name}'s SHIP doors, choose where it goes.
-    <b>Weights</b> split the flow (3 + 1 = 75% / 25%). A <b>cap</b> stops sending once that much is stocked or on the way there. Tap a product to open its plan.</p>`;
-  const products = relevantProducts(id);
-  if (!products.length) html += '<p class="intro">Nothing ships from here yet. Open a supplier dock or set an assembler recipe.</p>';
-  for (const p of products) {
-    const plan = planOf(prop, p);
-    const total = plan.dests.reduce((n, d) => n + d.w, 0) || 1;
-    // Cards start collapsed to a one-line summary; tap the header to expand.
-    const key = `${id}|${p}`;
-    const open = (ui.planOpen || (ui.planOpen = new Set())).has(key);
-    html += `<div class="plan ${open ? 'open' : 'closed'}"><button class="plan-head plan-toggle" data-act="ptoggle" data-id="${key}">
-      <span>${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b><span class="muted"> · sells ${fmt(marketPrice(p))}</span></span>
-      <span class="plan-caret">${open ? '▾' : '▸'}</span></button>`;
-    if (!open) {
-      html += `<div class="plan-sum-line">${planSummary(id, p)}${prop.held[p] ? ` · 🗄️ ${prop.held[p]} stored` : ''}</div></div>`;
-      continue;
-    }
-    plan.dests.forEach((d, i) => {
-      const k = `${id}|${p}|${i}`;
-      const valid = destValid(id, d.to, p);
-      const stock = d.to === 'sell' ? '' : d.to === 'store' ? ` · ${prop.held[p] || 0} on racks` : ` · ${stockAt(id, d.to, p)} there/en route`;
-      const route = d.to !== 'sell' && d.to !== 'store' ? state.fleet[routeKey(id, d.to)] : null;
-      const noTrucks = route && !route.trucks;
-      html += `<div class="dest ${valid ? '' : 'invalid'}">
-        <div class="dest-name">${destLabel(d.to)}<span class="muted">${d.w ? ` · ${Math.round((d.w / total) * 100)}%` : ' · off'}${stock}</span>
-          ${noTrucks ? '<span class="neg"> · no trucks!</span>' : ''}${valid ? '' : '<span class="neg"> · unavailable</span>'}</div>
-        <div class="dest-ctl">
-          <span class="ctl-lbl">Weight</span>
-          <button class="step" data-act="pw" data-id="${k}|-1">−</button><b>${d.w}</b><button class="step" data-act="pw" data-id="${k}|1">+</button>
-          ${d.to === 'sell' || d.to === 'store' ? '' : `<span class="ctl-lbl">Cap</span>
-          <button class="step" data-act="pcap" data-id="${k}|-1">−</button><b>${d.cap || '∞'}</b><button class="step" data-act="pcap" data-id="${k}|1">+</button>`}
-          ${plan.dests.length > 1 ? `<button class="step x" data-act="pdel" data-id="${k}">✕</button>` : ''}
-        </div></div>`;
-    });
-    const options = ['sell', 'store', ...routeTargets(id, p)].filter((to) => !plan.dests.some((d) => d.to === to));
-    if (options.length) {
-      html += `<div class="choice add">${options.map((to) => `<button class="chip small" data-act="padd" data-id="${id}|${p}|${to}">+ ${destLabel(to)}</button>`).join('')}</div>`;
-    }
-    const sells = plan.dests.some((d) => d.to === 'sell' && d.w > 0);
-    html += `<div class="overflow"><span class="ctl-lbl">If every destination above is full (capped or out of rack space):</span>
-      <button class="chip small ${plan.overflow !== 'hold' ? 'on' : ''}" data-act="pover" data-id="${id}|${p}|sell">💰 Sell it</button>
-      <button class="chip small ${plan.overflow === 'hold' ? 'on' : ''}" data-act="pover" data-id="${id}|${p}|hold">✋ Back up the line</button>
-      ${sells ? '<div class="muted">💡 Sell never fills up, so this only matters if you remove 💰 Sell. To keep products, add 🗄️ Store here.</div>' : ''}</div>`;
-    if (prop.held[p]) html += `<div class="muted">🗄️ ${prop.held[p]} on the racks. They leave on a truck when a destination above has room.</div>`;
-    html += '</div>';
-  }
+  html += siteProductsHTML(id);
+  html += '<h3 class="sec">🗄️ Racks &amp; handling</h3>' + storageBoxHTML(id);
   return html;
+}
+
+// ⚙️ Advanced: a hand-made plan for one product (weights, caps, overflow).
+function manualPlanHTML(id, p) {
+  const prop = state.props[id], plan = planOf(prop, p);
+  const total = plan.dests.reduce((n, d) => n + d.w, 0) || 1;
+  let html = `<div class="plan open"><div class="plan-head"><span>${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b><span class="muted"> · ⚙️ your own plan</span></span>
+    <button class="link-btn" data-act="pauto" data-id="${id}|${p}">↩ Automatic</button></div>
+    <div class="muted small"><b>Weights</b> split the flow (3 + 1 = 75% / 25%). A <b>cap</b> stops sending once that much is stocked or on the way there.</div>`;
+  plan.dests.forEach((d, i) => {
+    const k = `${id}|${p}|${i}`;
+    const valid = destValid(id, d.to, p);
+    const stock = d.to === 'sell' ? '' : d.to === 'store' ? ` · ${prop.held[p] || 0} on racks` : ` · ${stockAt(id, d.to, p)} there/en route`;
+    html += `<div class="dest ${valid ? '' : 'invalid'}">
+      <div class="dest-name">${destLabel(d.to)}<span class="muted">${d.w ? ` · ${Math.round((d.w / total) * 100)}%` : ' · off'}${stock}</span>
+        ${valid ? '' : '<span class="neg"> · unavailable</span>'}</div>
+      <div class="dest-ctl">
+        <span class="ctl-lbl">Weight</span>
+        <button class="step" data-act="pw" data-id="${k}|-1">−</button><b>${d.w}</b><button class="step" data-act="pw" data-id="${k}|1">+</button>
+        ${d.to === 'sell' || d.to === 'store' ? '' : `<span class="ctl-lbl">Cap</span>
+        <button class="step" data-act="pcap" data-id="${k}|-1">−</button><b>${d.cap || '∞'}</b><button class="step" data-act="pcap" data-id="${k}|1">+</button>`}
+        ${plan.dests.length > 1 ? `<button class="step x" data-act="pdel" data-id="${k}">✕</button>` : ''}
+      </div></div>`;
+  });
+  const options = ['sell', 'store', ...routeTargets(id, p)].filter((to) => !plan.dests.some((d) => d.to === to));
+  if (options.length) html += `<div class="choice add">${options.map((to) => `<button class="chip small" data-act="padd" data-id="${id}|${p}|${to}">+ ${destLabel(to)}</button>`).join('')}</div>`;
+  html += `<div class="overflow"><span class="ctl-lbl">If every destination above is full:</span>
+    <button class="chip small ${plan.overflow !== 'hold' ? 'on' : ''}" data-act="pover" data-id="${id}|${p}|sell">💰 Sell it</button>
+    <button class="chip small ${plan.overflow === 'hold' ? 'on' : ''}" data-act="pover" data-id="${id}|${p}|hold">✋ Back up the line</button></div>`;
+  if (prop.held[p]) html += `<div class="muted">🗄️ ${prop.held[p]} on the racks. They leave on a truck when a destination above has room.</div>`;
+  return html + '</div>';
 }
 
 function storageBoxHTML(id) {
@@ -311,20 +300,11 @@ function closeSellPop() {
 }
 
 function fleetHTML() {
-  const idle = idleTrucks();
-  const cost = truckCost();
-  const keys = Object.keys(state.fleet);
-  const starving = keys.some((k) => routeStats(k).waiting > 0);
-  let html = `<div class="garage"><div><b>🚚 ${state.garage.trucks}</b> trucks owned · <b class="${idle ? 'gold' : ''}">${idle}</b> in the garage
-    <div class="muted">Each carries ${truckCap()} · next truck ${fmt(cost)}</div></div>
-    <div class="garage-btns">${idle && starving ? '<button class="btn small secondary" data-act="tauto">⚖️ Assign idle</button>' : ''}
-    <button class="btn small" data-act="buytruck" ${state.money < cost ? 'disabled' : ''}>Buy ${fmt(cost)}</button></div></div>`;
-  if (!keys.length) {
-    html += '<p class="intro">No routes yet. In 📦 Distribution, send a product to another site and its route appears here.</p>';
-    return html;
-  }
-  html += '<p class="intro small">Each truck loads at the source, drives over, unloads and comes back. Tap a route to open it.</p>';
-  for (const key of keys) html += routeCardHTML(key, idle);
+  const keys = Object.keys(state.fleet).filter((k) => { const st = routeStats(k); return st.f.units.length || st.waiting; });
+  let html = trucksBoxHTML();
+  if (!keys.length) return html + '<p class="intro">No trucks out right now. They head out on their own as soon as one site has something another site needs.</p>';
+  html += '<p class="intro small">Trucks go wherever cargo is waiting: they load at one site, drive over, unload and come back to the garage. Tap a route to see its trucks.</p>';
+  for (const key of keys) html += routeCardHTML(key);
   return html;
 }
 
@@ -360,7 +340,7 @@ function truckStatus(key, u) {
 
 function truckListHTML(key) {
   const f = state.fleet[key];
-  if (!f.units.length) return f.trucks ? '<div class="muted small">Trucks on their way to the dock…</div>' : '<div class="muted small">No trucks on this route.</div>';
+  if (!f.units.length) return '<div class="muted small">No trucks on this route right now.</div>';
   return f.units.map((u, i) => {
     const s = truckStatus(key, u);
     return `<div class="truck-row ${s.tone}"><span class="tr-n">#${i + 1}</span><span class="tr-ic">${s.icon}</span>
@@ -375,12 +355,10 @@ function routeLiveHTML(key) {
   const st = routeStats(key);
   const f = st.f;
   const stuck = f.units.some((u) => u.phase === 'unload' && u.t > 4);
-  const idleLong = f.units.filter((u) => u.phase === 'load' && !u.n && (u.idle || 0) > 90).length;
   let advice, tone = '';
-  if (!f.trucks && st.waiting) { advice = `${st.waiting} packages waiting and no trucks. Assign one!`; tone = 'neg'; }
+  if (!f.units.length && st.waiting) { advice = `${st.waiting} packages waiting for a free truck. Buy another truck.`; tone = 'neg'; }
   else if (stuck) { advice = `Trucks can't unload at ${siteName(st.to)}: add racks or forklift operators there.`; tone = 'neg'; }
-  else if (st.waiting > truckCap() * Math.max(1, f.trucks)) { advice = `Cargo is piling up (${st.waiting} waiting). Add a truck.`; tone = 'neg'; }
-  else if (idleLong && f.trucks > 1) { advice = `${idleLong} truck${idleLong > 1 ? 's have' : ' has'} been idle a while. You could move one to a busier route.`; tone = 'gold'; }
+  else if (st.waiting > truckCap() * Math.max(1, f.trucks) && !idleTrucks()) { advice = `Cargo is piling up (${st.waiting} waiting). Buy another truck.`; tone = 'neg'; }
   else if (!st.waiting && !f.units.some((u) => u.n)) advice = 'Nothing to carry right now.';
   else advice = 'Keeping up.';
   return `<div class="route-stats"><span>⏱️ ${fmtSecs(st.trip)} each way</span><span>📈 up to ~${st.perMin}/min</span><span>📦 ${st.waiting} waiting at ${siteName(st.from)}</span></div>
@@ -392,16 +370,15 @@ function routeLiveHTML(key) {
 function routeChipsHTML(key) {
   const st = routeStats(key);
   const icons = st.f.units.map((u) => truckStatus(key, u).icon).join('');
-  return `<span class="rc-chip">🚚 ${st.f.trucks}</span>${st.waiting ? `<span class="rc-chip ${!st.f.trucks ? 'neg' : ''}">📦 ${st.waiting}</span>` : ''}<span class="rc-icons">${icons}</span>`;
+  return `<span class="rc-chip">🚚 ${st.f.units.length}</span>${st.waiting ? `<span class="rc-chip ${!st.f.units.length ? 'neg' : ''}">📦 ${st.waiting}</span>` : ''}<span class="rc-icons">${icons}</span>`;
 }
 
 // One route's card: live trucks, what's waiting, and the controls.
-function routeCardHTML(key, idle) {
+function routeCardHTML(key) {
   const st = routeStats(key);
   const f = st.f;
-  const keys = Object.keys(state.fleet);
-  const open = ui.routeOpen && key in ui.routeOpen ? ui.routeOpen[key] : keys.length <= 3 || (!f.trucks && st.waiting > 0);
-  const alert = (!f.trucks && st.waiting) || f.units.some((u) => u.phase === 'unload' && u.t > 4);
+  const open = ui.routeOpen && key in ui.routeOpen ? ui.routeOpen[key] : Object.keys(state.fleet).length <= 3;
+  const alert = (!f.units.length && st.waiting) || f.units.some((u) => u.phase === 'unload' && u.t > 4);
   let html = `<div class="plan route-card ${alert ? 'alert' : ''}">
     <button class="route-head" data-act="rtoggle" data-id="${key}">
       <span class="rh-name">${siteEmoji(st.from)} ${siteName(st.from)} → ${siteEmoji(st.to)} <b>${siteName(st.to)}</b></span>
@@ -410,18 +387,8 @@ function routeCardHTML(key, idle) {
   const canSend = f.units.some((u) => u.phase === 'load' && u.n > 0);
   html += `<div data-route-live="${key}">${routeLiveHTML(key)}</div>
     <div class="truck-list" data-truck-list="${key}">${truckListHTML(key)}</div>
-    <div class="dest-ctl route-ctl">
-      <span class="ctl-lbl">Trucks</span>
-      <button class="step" data-act="tassign" data-id="${key}|-1" ${f.trucks ? '' : 'disabled'}>−</button><b>${f.trucks}</b>
-      <button class="step" data-act="tassign" data-id="${key}|1" ${idle > 0 ? '' : 'disabled'}>+</button>
-      <span class="muted small">${idle ? `${idle} in garage` : 'garage empty'}</span>
-      <button class="btn small secondary send-now" data-act="tsend" data-id="${key}" ${canSend ? '' : 'disabled'}>🚀 Send now</button>
-    </div>
-    <div class="choice"><span class="ctl-lbl">Leave</span>${TRUCK_WAITS.map((w) =>
-    `<button class="chip small ${f.wait === w.id ? 'on' : ''}" data-act="twait" data-id="${key}|${w.id}">${w.label}</button>`).join('')}</div>
-    <div class="muted small">${WAIT_TEXT[f.wait] || WAIT_TEXT['10s']}</div>
-    <div class="route-links"><button class="link-btn" data-act="openlog" data-id="${st.from}">📦 Edit what ${siteName(st.from)} sends</button>
-      ${!f.trucks && !st.waiting && !f.units.length ? `<button class="link-btn neg" data-act="rdel" data-id="${key}">✕ Remove route</button>` : ''}</div>
+    <div class="dest-ctl route-ctl"><span class="muted small">A part-loaded truck leaves after 10 s.</span>
+      <button class="btn small secondary send-now" data-act="tsend" data-id="${key}" ${canSend ? '' : 'disabled'}>🚀 Send now</button></div>
   </div>`;
   return html;
 }
@@ -437,9 +404,8 @@ function updateFleetDynamic() {
 function recvDockHTML() {
   const id = state.current;
   const prop = state.props[id];
-  const idle = idleTrucks();
   const waiting = Object.values(prop.inbox).reduce((a, b) => a + b, 0);
-  let html = `<p class="intro">Trucks from your other sites unload here. Products arrive when another site's distribution plan sends them to <b>${siteName(id)}</b> and its route has trucks.</p>`;
+  let html = `<p class="intro">Trucks from your other sites unload here.</p>`;
   html += `<div class="power-box"><div class="power-head"><span>📥 Unloaded, waiting to go on the line</span><b>${waiting}</b></div>
     <div class="power-note">${countList(prop.inbox) || 'Nothing yet'}</div></div>`;
   // What the assemblers here use, so the player knows what to send.
@@ -449,23 +415,12 @@ function recvDockHTML() {
   }
   if (needs.size) html += `<p class="intro small">Assemblers here use: ${[...needs].map((p) => `${PRODUCTS[p].icon} ${PRODUCTS[p].name}`).join(', ')}</p>`;
 
-  html += `<div class="garage"><div><b>🚚 ${state.garage.trucks}</b> trucks · <b class="${idle ? 'gold' : ''}">${idle}</b> idle</div>
-    <button class="btn small" data-act="buytruck" ${state.money < truckCost() ? 'disabled' : ''}>Buy ${fmt(truckCost())}</button></div>`;
-  const inbound = Object.keys(state.fleet).filter((k) => k.split('>')[1] === id);
-  html += '<h3 class="sec">Routes into this site</h3>';
-  if (inbound.length) for (const key of inbound) html += routeCardHTML(key, idle);
-  else html += '<p class="intro small">No trucks come here yet.</p>';
-  // Other sites: jump to their plan to send products here.
-  const others = PROPERTIES.filter((d) => d.id !== id && state.props[d.id].owned);
-  html += '<h3 class="sec">Send products here</h3>';
-  if (!others.length) html += '<p class="intro small">Buy another site on the 🗺️ Map; its products can then be trucked here.</p>';
-  else {
-    html += '<p class="intro small">Open a site&#39;s plan and add this site as a destination for a product. Its route then shows up above, ready for trucks.</p>';
-    for (const d of others) {
-      html += `<div class="sell-row"><span>${siteEmoji(d.id)} ${d.name}</span>
-        <button class="btn small secondary" data-act="openlog" data-id="${d.id}">📦 Its plan ›</button></div>`;
-    }
-  }
+  html += trucksBoxHTML();
+  const inbound = Object.keys(state.fleet).filter((k) => k.split('>')[1] === id && (state.fleet[k].units.length || routeStats(k).waiting));
+  html += '<h3 class="sec">Trucks heading here</h3>';
+  if (inbound.length) for (const key of inbound) html += routeCardHTML(key);
+  else html += '<p class="intro small">No trucks on the way right now.</p>';
+  html += `<p class="intro small">Your other sites send this one whatever its assemblers use, automatically. <button class="link-btn" data-act="opennet">🔗 See the network ›</button></p>`;
   return html;
 }
 
@@ -491,7 +446,7 @@ function launchDetailHTML() {
   if (state.launch.owned) {
     html += launchReady() && !(state.launch.count >= 1 && state.launch.auto)
       ? '<button class="btn launch" data-act="launch">🚀 LAUNCH!</button>'
-      : '<p class="intro">Truck parts here: in 🚚 Logistics → Distribution, add 🚀 Launch Site as a destination, then assign trucks to the route.</p>';
+      : '<p class="intro">Rocket parts are trucked here automatically from the sites that make them, as long as you own a truck (🚚 Logistics → Network).</p>';
     if (state.launch.count >= 1) {
       html += `<div class="choice"><span class="ctl-lbl">Launch</span>
         <button class="chip ${state.launch.auto ? 'on' : ''}" data-act="autolaunch" data-id="on">🔁 Automatically when ready</button>
@@ -636,17 +591,25 @@ function checkLaunch() {
 function handleEnterpriseAct(act, id) {
   if (act === 'mapsel') { ui.mapSel = id; return true; }
   if (act === 'openlog') { ui.logSite = id; ui.logTab = 'dist'; openPanel('logistics'); return 'stop'; }
-  if (act === 'logtab') { ui.logTab = id; return true; }
-  if (act === 'logsite') { ui.logSite = id; return true; }
-  if (act === 'ptoggle') {
-    const open = ui.planOpen || (ui.planOpen = new Set());
-    if (open.has(id)) open.delete(id); else open.add(id);
+  if (act === 'opennet') { ui.logTab = 'net'; openPanel('logistics'); return 'stop'; }
+  if (act === 'netlink') { const n = NET(); if (n.off[id]) delete n.off[id]; else n.off[id] = true; netChanged(); save(); return true; }
+  if (act === 'pextra') { const [site, p, v] = id.split('|'); if (v === 'keep') NET().extra[`${site}|${p}`] = 'keep'; else delete NET().extra[`${site}|${p}`]; netChanged(); save(); return true; }
+  if (act === 'padv') {
+    // Start the hand-made plan from what automatic is doing now.
+    const [site, p] = id.split('|');
+    const a = autoPlan(site, p);
+    state.props[site].plans[p] = { dests: [...a.dests.map((d) => ({ to: d.to, w: 1, cap: d.cap })), { to: 'sell', w: a.dests.length ? 0 : 1, cap: 0 }], overflow: a.overflow === 'keep' ? 'hold' : 'sell', manual: true };
+    if (rt(site).wrr) delete rt(site).wrr[p];
+    save();
     return true;
   }
+  if (act === 'pauto') { const [site, p] = id.split('|'); delete state.props[site].plans[p]; if (rt(site).wrr) delete rt(site).wrr[p]; netChanged(); save(); return true; }
+  if (act === 'logtab') { ui.logTab = id; return true; }
+  if (act === 'logsite') { ui.logSite = id; return true; }
   if (['pw', 'pcap', 'pdel', 'padd', 'pover'].includes(act)) {
     const [site, p, a, b] = id.split('|');
     const prop = state.props[site];
-    const plan = prop.plans[p] || (prop.plans[p] = JSON.parse(JSON.stringify(DEFAULT_PLAN)));
+    const plan = prop.plans[p] || (prop.plans[p] = { ...JSON.parse(JSON.stringify(DEFAULT_PLAN)), manual: true });
     if (act === 'padd') {
       plan.dests.push({ to: a, w: 1, cap: 0 });
       if (a !== 'sell' && a !== 'store') ensureRoute(site, a);
@@ -666,14 +629,6 @@ function handleEnterpriseAct(act, id) {
   }
   if (act === 'buytruck') {
     if (spend(truckCost(), 'trucks', 'New truck')) { state.garage.trucks++; toast('🚚 New truck in the garage. Assign it to a route'); save(); }
-    return true;
-  }
-  if (act === 'tassign') {
-    const [key, delta] = id.split('|');
-    const f = state.fleet[key];
-    if (Number(delta) > 0 && idleTrucks() > 0) f.trucks++;
-    if (Number(delta) < 0 && f.trucks > 0) f.trucks--;
-    save();
     return true;
   }
   if (act === 'maproute') {
@@ -700,26 +655,6 @@ function handleEnterpriseAct(act, id) {
     let n = 0;
     for (const u of state.fleet[id].units) if (u.phase === 'load' && u.n > 0) { u.phase = 'go'; u.t = 0; u.idle = 0; n++; }
     toast(n ? `🚚 ${n} truck${n > 1 ? 's' : ''} sent` : 'No loaded trucks to send');
-    save();
-    return true;
-  }
-  if (act === 'tauto') {
-    // Hand idle trucks to the routes with the most cargo per truck.
-    let n = 0;
-    while (idleTrucks() > 0) {
-      const best = Object.keys(state.fleet).map((k) => ({ k, s: routeStats(k) })).filter((q) => q.s.waiting > 0)
-        .sort((a, b) => b.s.waiting / (b.s.f.trucks + 1) - a.s.waiting / (a.s.f.trucks + 1))[0];
-      if (!best) break;
-      state.fleet[best.k].trucks++;
-      n++;
-    }
-    toast(n ? `⚖️ Assigned ${n} truck${n > 1 ? 's' : ''}` : 'No routes need trucks right now');
-    save();
-    return true;
-  }
-  if (act === 'twait') {
-    const [key, w] = id.split('|');
-    state.fleet[key].wait = w;
     save();
     return true;
   }

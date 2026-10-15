@@ -58,7 +58,7 @@ const DEV_STAGES = [
   { id: 'new', name: 'Brand new game', time: 0, desc: 'Fresh start, tutorial on.', fresh: true },
   { id: 'shed', goal: 'buy the Old Textile Mill', name: 'Shed humming', time: 0.5, sites: ['shed'], money: 15e3, rep: 12, gems: 20, research: 2, trucks: 0, done: 4,
     docks: { shed: ['5,0'] }, upgrades: { shed: { trucks: 2, roof: 1, power: 1 } }, desc: 'Both shed lines worth of cash, first research done. Next: the Mill.' },
-  { id: 'mill', goal: 'add the Mill as a destination', name: 'Mill online', time: 1, sites: ['shed', 'mill'], money: 45e3, rep: 25, gems: 30, research: 6, trucks: 2, done: 10,
+  { id: 'mill', goal: 'set an assembler to <b>📟 Circuit Boards', name: 'Mill online', time: 1, sites: ['shed', 'mill'], money: 45e3, rep: 25, gems: 30, research: 6, trucks: 2, done: 10,
     docks: { shed: ['5,0'], mill: ['0,6'] }, upgrades: { shed: { trucks: 3, roof: 3, power: 2 }, mill: { roof: 1 } }, desc: 'Electronics site bought; circuit boards next.' },
   { id: 'foundry', goal: 'Build <b>🚰 Valves', name: 'Foundry', time: 1.6, sites: ['shed', 'mill', 'foundry'], money: 120e3, rep: 45, gems: 40, research: 11, trucks: 4, done: 18,
     docks: { shed: ['5,0'], mill: ['0,6'], foundry: ['8,0'] }, upgrades: { shed: { trucks: 4, roof: 4, power: 2 }, mill: { roof: 3 }, foundry: { roof: 1 } }, desc: 'Alloys and valves; trucks between three sites.' },

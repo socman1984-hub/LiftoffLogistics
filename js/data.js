@@ -419,6 +419,9 @@ const TRUCK_WAITS = [
   { id: 'full', label: 'When full', wait: null },
 ];
 const CAP_STEPS = [0, 10, 25, 50, 100, 250, 500, 1000]; // 0 = no cap
+// 🔗 Supply network: a site keeps this many of an ingredient per unit its assemblers use per craft
+// (at least a truckload) in hand or on the way.
+const NETWORK = { stockPerInput: 8 };
 // Storage: products waiting for a truck (or held for a full destination)
 // sit on racks. When the racks are full, the SHIP doors stop taking them.
 // Incoming goods (waiting at a receiving dock) use the racks too.

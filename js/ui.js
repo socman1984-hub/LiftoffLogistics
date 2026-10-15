@@ -152,8 +152,7 @@ function anyStaff(who) {
 const totalMade = (p) => PROPERTIES.reduce((n, d) => n + (state.props[d.id].made[p] || 0), 0);
 const hasRecipe = (p) => PROPERTIES.some((d) => state.props[d.id].owned
   && state.props[d.id].tiles.some((row) => row.some((t) => t.obj && t.obj.k === 'assembler' && t.obj.recipe === p)));
-const anyRoute = () => PROPERTIES.some((d) => Object.values(state.props[d.id].plans).some((pl) => pl.dests.some((x) => x.to !== 'sell' && x.w > 0)));
-const anyAssigned = () => Object.values(state.fleet).some((f) => f.trucks > 0);
+const millFed = () => netLinks().links.some((l) => l.to === 'mill' && l.on) || PROPERTIES.some((d) => Object.values(state.props[d.id].plans).some((pl) => pl.manual && pl.dests.some((x) => x.to !== 'sell' && x.to !== 'store' && x.w > 0)));
 
 const OBJECTIVES = [
   { text: () => 'Open the <b>🗺️ Map</b> and buy the Rusty Shed', done: () => state.props.shed.owned },
@@ -179,8 +178,8 @@ const OBJECTIVES = [
     done: () => (state.fixes || 0) > 0 || anyStaff('tech'),
   },
   { text: () => `Save up <b>${fmt(PROP_BY_ID.mill.price)}</b> and buy the Old Textile Mill on the 🗺️ Map`, done: () => state.props.mill.owned },
-  { text: () => 'Open <b>🚚 Logistics → Distribution</b> and add the Mill as a destination for the Shed\'s <b>🧵 Wiring</b>', done: () => anyRoute() },
-  { text: () => 'Your new site came with a free truck. Assign it to the Shed → Mill route in <b>🚚 Logistics → Fleet</b>', done: () => anyAssigned() },
+  { text: () => 'At the Mill, set an assembler to <b>📟 Circuit Boards</b>. It needs 🧵 Wiring, so the Shed will truck it over by itself', done: () => millFed() },
+  { text: () => 'Open <b>🗺️ Map → 🚚 Logistics</b> to see your supply network. Your new site came with a free truck', done: () => !!(state.net && state.net.seen) },
   { text: () => 'Build <b>🗄️ Racks</b> on the floor (drag to place several). Products waiting on trucks need somewhere to sit', done: () => hasObj('rack') },
   { text: () => 'Racks need hands. Hire a <b>🚜 Forklift Operator</b> (Manage → Staff) to move products in and out faster', done: () => anyStaff('forklift') },
   { text: () => 'Staff need facilities. Build a <b>🚻 Restroom</b> with the 🏢 Facility tool', done: () => hasObj('restroom') },
@@ -244,7 +243,7 @@ function refreshTopbar() {
     && Object.values(state.props[k.split('>')[0]].outbox[k.split('>')[1]] || {}).some((n) => n > 0));
   const rocketWaiting = state.launch.owned && launchReady() && !(state.launch.count >= 1 && state.launch.auto);
   // (After the first launch, launchReady() means a Mars window is open and the rocket is built.)
-  setBadge('map', rocketWaiting ? '🚀' : stalled ? '!' : idleTrucks() > 0 ? idleTrucks() : '');
+  setBadge('map', rocketWaiting ? '🚀' : stalled ? '!' : '');
 }
 
 function setBadge(panel, text) {
@@ -769,8 +768,9 @@ function helpHTML() {
       'Purple <b>📥 receiving docks</b> unload trucks from your other sites; tap one to see what is coming.',
     ])}
     ${gate(sites >= 2, '🚚', 'Logistics', 'you own two sites', sec('🚚', 'Logistics', [
-      '<b>Distribution</b> (or tap a SHIP door): for each product, list destinations with weights and optional caps. Surplus is sold or stored.',
-      '<b>Fleet</b>: buy trucks and assign them to routes. Each truck shows live what it is doing: loading, driving, or stuck unloading and why. Tap a route on the map to jump to it.',
+      '<b>🔗 Network</b>: your sites send each other what their assemblers use, and the 🚀 Launch Site gets the parts the next rocket needs. No setup: set an assembler’s recipe and the site that makes its ingredients starts trucking them over. Tap a link to switch it off.',
+      '<b>🏭 Sites</b> (or tap a SHIP door): for each product, sell the extras or keep them on the racks (kept stock goes out when a site needs it). ⚙️ Advanced gives one product your own plan with weights and caps.',
+      '<b>🚚 Trucks</b>: just buy them. Idle trucks go wherever cargo is waiting and come back to the garage. If cargo sits waiting, buy another. Tap a route on the map to watch its trucks.',
       'Each truck you own makes the next one 25% dearer.',
     ]))}
     ${sec('💰', 'Money', [

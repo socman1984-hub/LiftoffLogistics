@@ -1,9 +1,15 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.11.0';
+const GAME_VERSION = '0.12.0';
 
 const RELEASE_NOTES = [
+  { v: '0.12.0', date: 'Oct 14, 2026', title: 'Simpler logistics', notes: [
+    'Your sites now supply each other by themselves: when a site’s assemblers need something another site makes, it’s trucked over, and the Launch Site gets the parts the next rocket needs. No more weights, caps or routes to set up.',
+    'Trucks are one shared fleet: just buy them, and free trucks go wherever cargo is waiting. If cargo sits waiting, the game tells you to buy another.',
+    'Logistics is now three tabs: 🔗 Network (every link, tap one to switch it off), 🏭 Sites (sell or keep each product’s extras) and 🚚 Trucks (watch them work).',
+    'Want the old control? ⚙️ Advanced on any product brings back weights and caps for just that product.',
+  ] },
   { v: '0.11.0', date: 'Oct 14, 2026', title: 'Expeditions', notes: [
     'Send colonists out to 🧭 Explore Mars (new button on the Mars build bar): the Dust Plains, a Probe Crash Site, and with a Rover the Polar Ice Shelf, Lava Tubes and Valles Marineris.',
     'The bigger the party, the bigger the haul, and jobs matter: miners find ore and crystals, engineers keep trouble away, scientists bring back samples for ⭐ and spot rare finds worth 💎.',
