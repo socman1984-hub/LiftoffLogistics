@@ -592,7 +592,7 @@ function handleEnterpriseAct(act, id) {
   if (act === 'mapsel') { ui.mapSel = id; return true; }
   if (act === 'openlog') { ui.logSite = id; ui.logTab = 'dist'; openPanel('logistics'); return 'stop'; }
   if (act === 'opennet') { ui.logTab = 'net'; openPanel('logistics'); return 'stop'; }
-  if (act === 'netlink') { const n = NET(); if (n.off[id]) delete n.off[id]; else n.off[id] = true; netChanged(); save(); return true; }
+  if (act === 'netlink') { toggleLink(id); return true; }
   if (act === 'pextra') { const [site, p, v] = id.split('|'); if (v === 'keep') NET().extra[`${site}|${p}`] = 'keep'; else delete NET().extra[`${site}|${p}`]; netChanged(); save(); return true; }
   if (act === 'padv') {
     // Start the hand-made plan from what automatic is doing now.

@@ -132,6 +132,27 @@ function cargoStranded() {
 }
 const trucksOnRoad = () => Object.values(state.fleet).reduce((a, f) => a + f.units.length, 0);
 
+// Pause or resume one link. Pausing takes effect at once: whatever was still waiting
+// at the dock for that site goes back on the racks, or is sold if this product's extras are sold.
+function toggleLink(key) {
+  const n = NET(), [route, p] = key.split('|'), [from, to] = route.split('>');
+  const what = `${PRODUCTS[p].icon} ${PRODUCTS[p].name} from ${siteName(from)} to ${siteName(to)}`;
+  if (n.off[key]) { delete n.off[key]; netChanged(); toast(`▶ Sending ${what} again`); save(); return; }
+  n.off[key] = true;
+  netChanged();
+  const src = state.props[from], box = src.outbox[to] || {}, q = box[p] || 0;
+  let note = '';
+  if (q) {
+    delete box[p];
+    src.held[p] = (src.held[p] || 0) + q;
+    if (extraOf(from, p) === 'keep') note = ` · ${q} waiting went back on the racks`;
+    else note = ` · ${q} waiting sold for ${fmt(sellStored(from, p, q))}`;
+    syncRacks(from);
+  }
+  toast(`⏸ Paused ${what}${note}. Anything already on a truck still arrives`);
+  save();
+}
+
 // ---------- Panel: 🔗 Network ----------
 // What's at a site (or the pad) or on its way there.
 function netStock(to, p) {
@@ -151,7 +172,7 @@ function trucksBoxHTML() {
 function networkHTML() {
   NET().seen = true;
   const { links, unmet } = netLinks();
-  let html = `<p class="intro small">Your sites send each other what their assemblers use${state.launch.owned ? ', and the 🚀 Launch Site gets the parts the next rocket needs' : ''}. Anything nobody needs is sold (or kept: see 🏭 Sites). Switch a link off to stop it.</p>`;
+  let html = `<p class="intro small">Your sites send each other what their assemblers use${state.launch.owned ? ', and the 🚀 Launch Site gets the parts the next rocket needs' : ''}. Anything nobody needs is sold (or kept: see 🏭 Sites). Tap a <b>from</b> button to pause that link, and again to resume it.</p>`;
   html += trucksBoxHTML();
   const dests = [...PROPERTIES.map((d) => d.id), 'launch'];
   const launchNeed = state.launch.owned ? launchNeeds() : {};
@@ -171,8 +192,9 @@ function networkHTML() {
       const have = netStock(to, p);
       const want = to === 'launch' ? launchNeed[p] || 0 : ls[0].cap;
       const col = have >= want ? 'pos' : have > 0 ? '' : 'neg';
-      html += `<div class="net-row"><span class="net-prod">${PRODUCTS[p].icon} ${PRODUCTS[p].name}<span class="muted small ${col}"> · ${have}/${want} ${to === 'launch' ? 'for the next rocket' : 'there or on the way'}</span></span>
-        <span class="net-from">${ls.map((l) => `<button class="chip small ${l.on ? 'on' : 'faint'}" data-act="netlink" data-id="${linkKey(l.from, l.to, l.p)}" title="${l.on ? 'Tap to stop sending' : 'Tap to send again'}">${l.on ? '' : '⏸ '}from ${siteEmoji(l.from)} ${siteName(l.from)}</button>`).join('')}</span></div>`;
+      const paused = ls.every((l) => !l.on);
+      html += `<div class="net-row ${paused ? 'paused' : ''}"><span class="net-prod">${PRODUCTS[p].icon} ${PRODUCTS[p].name}<span class="muted small ${paused ? '' : col}"> · ${paused ? `⏸ paused${have ? ` (${have} still there)` : ''}` : `${have}/${want} ${to === 'launch' ? 'for the next rocket' : 'there or on the way'}`}</span></span>
+        <span class="net-from">${ls.map((l) => `<button class="chip small net-link ${l.on ? 'on' : 'off'}" data-act="netlink" data-id="${linkKey(l.from, l.to, l.p)}" title="${l.on ? 'Tap to pause' : 'Tap to resume'}">${l.on ? '▶' : '⏸'} ${siteEmoji(l.from)} ${siteName(l.from)}</button>`).join('')}</span></div>`;
     }
     for (const u of missing) html += `<div class="net-row"><span class="net-prod">${PRODUCTS[u.p].icon} ${PRODUCTS[u.p].name}</span><span class="muted small warn-text">none of your sites ship it</span></div>`;
     html += '</div>';

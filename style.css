@@ -707,6 +707,8 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .net-site-head b { font-size: 16px; }
 .net-site-ic { font-size: 26px; line-height: 1; }
 .net-site .net-row:last-child { border-bottom: 0; }
+.net-row.paused .net-prod { opacity: 0.55; }
+.chip.net-link.off { background: transparent; border: 1px dashed #8a8f9c; color: #b9bfcc; }
 .net-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .net-prod { flex: 1 1 160px; min-width: 0; }
 .net-from { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
