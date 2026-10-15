@@ -119,9 +119,10 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   door shows how full they are. Full racks back up the line, and arriving trucks wait to unload.
   Stored stock leaves on a truck when a destination has room, or via "Sell stored stock".
   Tap a rack to choose **what goes on it** (anything, or only certain products) to reserve space for specific goods.
-  When an assembler is about to run out of an ingredient that's in storage (not enough for the craft after this
-  one, and no conveyor delivered it in the last 10 s), a 🚜 Forklift Operator fetches up to 10 at a time from the
-  nearest rack and drops them at the assembler. It costs one handling move per trip, and those trips go first (they
+  When an assembler is about to run out of an ingredient that's at the site (not enough for the craft after this
+  one, and no conveyor delivered it in the last 10 s), a 🚜 Forklift Operator fetches up to 10 at a time and drops
+  them at the assembler: goods trucked in first (so a 📥 receiving door doesn't need a conveyor), then stored stock,
+  from the nearest rack holding it or from the dock staging area. It costs one handling move per trip, and those trips go first (they
   can borrow moves ahead of docks and trucks). Forklifts finish a delivery before taking a break. Each assembler can be
   set to belt-only.
 - **🌉 Bridges** have two lanes: east-west and north-south packages cross at the same time and only wait for room ahead.

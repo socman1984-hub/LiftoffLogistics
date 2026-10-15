@@ -292,7 +292,7 @@ function stepWorkers(id, prop, def, r, dt) {
   const racks = tilesOf(prop, 'rack');
   r.racksBlocked = false;
   // Restocking jobs, each taken by one forklift at a time.
-  const jobs = supplyJobs(id, prop);
+  const jobs = supplyJobs(id, prop, def);
   const claimed = new Set(r.workers.filter((w) => w.job).map((w) => w.job.key));
   if (jobs.length && !r.workers.some((w) => w.role === 'forklift')) {
     const j = jobs[0];
@@ -378,24 +378,39 @@ function stepWorkers(id, prop, def, r, dt) {
 
 // ---- Forklift restocking ----
 // An assembler about to run out of an ingredient (not enough for the craft after
-// this one, and no conveyor bringing it) gets a forklift load from the nearest
-// rack holding it: up to FORKLIFT_CARRY per trip, one (priority) handling move.
-function supplyJobs(id, prop) {
+// this one, and no conveyor bringing it) gets a forklift load: up to FORKLIFT_CARRY
+// per trip, one (priority) handling move. Goods trucked in (waiting at the 📥 dock)
+// come first, then stored stock. Forklifts pick up from the nearest rack holding it,
+// or from the dock staging area when it isn't on a rack.
+const FEED_KINDS = [['incoming', 'inbox'], ['stored', 'held']];
+function supplyJobs(id, prop, def) {
   const jobs = [];
-  if (!Object.values(prop.held).some((n) => n > 0)) return jobs;
+  if (!FEED_KINDS.some(([, pool]) => Object.values(prop[pool]).some((n) => n > 0))) return jobs;
   const racks = tilesOf(prop, 'rack');
+  let staging = null; // where goods that aren't on a rack wait: the receiving door, or the main door
   prop.tiles.forEach((row, ay) => row.forEach((t, ax) => {
     const o = t.obj;
     if (!o || o.k !== 'assembler' || !o.recipe || o.jammed || o.noFeed || assemblerIdle(o)) return;
     const rec = RECIPES[o.recipe];
     for (const [p, n] of Object.entries(rec.in)) {
       const have = (o.buf && o.buf[p]) || 0;
-      if (have >= n * 2 || !(prop.held[p] > 0)) continue;
+      if (have >= n * 2) continue;
+      const kind = FEED_KINDS.find(([, pool]) => prop[pool][p] > 0);
+      if (!kind) continue;
       const belted = o.beltT && o.beltT[p] != null && rt(id).time - o.beltT[p] < 10;
       if (have >= n && belted) continue; // the conveyor is keeping up
-      const rack = racks.filter((q) => ((prop.tiles[q.y][q.x].obj.stock || {})['stored:' + p] || 0) > 0)
+      const key = kind[0] + ':' + p;
+      const rack = racks.filter((q) => ((prop.tiles[q.y][q.x].obj.stock || {})[key] || 0) > 0)
         .sort((a, b) => (Math.abs(a.x - ax) + Math.abs(a.y - ay)) - (Math.abs(b.x - ax) + Math.abs(b.y - ay)))[0];
-      if (rack) jobs.push({ ax, ay, key: ax + ',' + ay + ':' + p, p, rx: rack.x, ry: rack.y });
+      let at = rack;
+      if (!at) {
+        if (!staging) {
+          const recv = def.inDocks.find((d) => d.receive && !prop.tiles[d.y][d.x].locked);
+          staging = recv ? { x: recv.x, y: recv.y } : entranceOf(prop, def);
+        }
+        at = staging;
+      }
+      jobs.push({ ax, ay, key: ax + ',' + ay + ':' + p, p, kind: kind[0], pool: kind[1], rx: at.x, ry: at.y, rack: !!rack });
     }
   }));
   return jobs;
@@ -404,7 +419,8 @@ function supplyJobs(id, prop) {
 // Put a carried load back into storage (job cancelled, assembler gone, etc.).
 function returnCarry(prop, w) {
   if (!w.carry) return;
-  prop.held[w.carry.p] = (prop.held[w.carry.p] || 0) + w.carry.n;
+  const pool = w.carry.pool || 'held';
+  prop[pool][w.carry.p] = (prop[pool][w.carry.p] || 0) + w.carry.n;
   w.carry = null;
 }
 
@@ -414,22 +430,25 @@ function stepSupplyRun(id, prop, def, r, w, dt) {
   const valid = a && a.k === 'assembler' && a.recipe && RECIPES[a.recipe].in[j.p] && !a.noFeed;
   if (!valid) { returnCarry(prop, w); w.job = null; return; }
   if (!w.carry) {
-    // Pick up at the rack.
-    const ro = prop.tiles[j.ry][j.rx].obj;
-    const there = ro && ro.k === 'rack' ? (ro.stock || {})['stored:' + j.p] || 0 : 0;
-    if (!there || !(prop.held[j.p] > 0)) { w.job = null; return; }
-    if (!walkTo(prop, def, r, w, nextTo(j.rx, j.ry), dt, '🚜 Forklift can\'t reach the rack with the stock. Repair the floor around it.', j.rx, j.ry)) { w.mode = 'walk'; return; }
+    // Pick up at the rack (or the dock staging area).
+    const pool = j.pool || 'held', key = (j.kind || 'stored') + ':' + j.p;
+    const ro = j.rack !== false ? prop.tiles[j.ry][j.rx].obj : null;
+    const there = j.rack === false ? prop[pool][j.p] || 0 : ro && ro.k === 'rack' ? (ro.stock || {})[key] || 0 : 0;
+    if (!there || !(prop[pool][j.p] > 0)) { w.job = null; return; }
+    if (!walkTo(prop, def, r, w, nextTo(j.rx, j.ry), dt, `🚜 Forklift can't reach the ${j.rack === false ? 'dock' : 'rack'} with the stock. Repair the floor around it.`, j.rx, j.ry)) { w.mode = 'walk'; return; }
     w.mode = 'work';
     w.wait += dt;
     if (w.wait < 1 || !takeMove(id, true)) return; // loading the forks
     w.wait = 0;
     const cap = Math.max(RECIPES[a.recipe].in[j.p] * ASSEMBLER.bufferRecipes, FORKLIFT_CARRY);
-    const n = Math.max(1, Math.min(FORKLIFT_CARRY, there, prop.held[j.p], cap - ((a.buf && a.buf[j.p]) || 0)));
-    ro.stock['stored:' + j.p] -= n;
-    if (!ro.stock['stored:' + j.p]) delete ro.stock['stored:' + j.p];
-    prop.held[j.p] -= n;
-    if (!prop.held[j.p]) delete prop.held[j.p];
-    w.carry = { p: j.p, n };
+    const n = Math.max(1, Math.min(FORKLIFT_CARRY, there, prop[pool][j.p], cap - ((a.buf && a.buf[j.p]) || 0)));
+    if (ro && ro.k === 'rack' && ro.stock && ro.stock[key]) {
+      ro.stock[key] -= Math.min(n, ro.stock[key]);
+      if (!ro.stock[key]) delete ro.stock[key];
+    }
+    prop[pool][j.p] -= n;
+    if (!prop[pool][j.p]) delete prop[pool][j.p];
+    w.carry = { p: j.p, n, pool };
     w.path = [];
     return;
   }

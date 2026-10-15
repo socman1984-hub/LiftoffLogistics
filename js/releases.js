@@ -1,9 +1,13 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.12.2';
+const GAME_VERSION = '0.12.3';
 
 const RELEASE_NOTES = [
+  { v: '0.12.3', date: 'Oct 15, 2026', title: 'Forklifts unload trucks', notes: [
+    'Forklift Operators now carry goods trucked in from your other sites straight to the assemblers that need them. You no longer need a conveyor from the 📥 receiving door.',
+    'Forklifts also fetch small amounts from the dock staging area, so they help even when fewer than 10 are in stock.',
+  ] },
   { v: '0.12.2', date: 'Oct 15, 2026', title: 'Staff find a way round', notes: [
     'If buildings split a site’s floor in two, staff on the wrong side now walk out one door and back in another. Before, a tech or janitor could be stuck on one side for good while a broken conveyor or a mess on the other side stopped the whole site.',
     'Building on a dirty floor tile now cleans it. A filthy tile could end up hidden under a conveyor, where janitors couldn’t see it and nobody could walk past. Saved games are fixed automatically.',
