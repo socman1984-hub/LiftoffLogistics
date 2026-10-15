@@ -1,9 +1,14 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.10.1';
+const GAME_VERSION = '0.11.0';
 
 const RELEASE_NOTES = [
+  { v: '0.11.0', date: 'Oct 14, 2026', title: 'Expeditions', notes: [
+    'Send colonists out to 🧭 Explore Mars (new button on the Mars build bar): the Dust Plains, a Probe Crash Site, and with a Rover the Polar Ice Shelf, Lava Tubes and Valles Marineris.',
+    'The bigger the party, the bigger the haul, and jobs matter: miners find ore and crystals, engineers keep trouble away, scientists bring back samples for ⭐ and spot rare finds worth 💎.',
+    'Turn the finds into Spares Kits, water, Power Cells, Rovers, and module kits built right on Mars, with no rocket needed.',
+  ] },
   { v: '0.10.1', date: 'Oct 14, 2026', title: 'Forklifts and bridges', notes: [
     'Forklifts restock assemblers before they run dry, not after they’ve stopped, and only when no conveyor is keeping up.',
     'Restocking an assembler now jumps ahead of trucks and docks for forklift time. Forklifts take the nearest stock and finish a delivery before going on break.',

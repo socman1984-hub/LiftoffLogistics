@@ -15,7 +15,7 @@ let crewMemo = { at: -1, m: null, v: null };
 function marsCrew() {
   const m = M();
   if (crewMemo.at === state.clock && crewMemo.m === m) return crewMemo.v;
-  let left = m.colonists;
+  let left = m.colonists - awayCount(); // explorers are away from their jobs
   const out = {};
   const busy = m.map.b.some((q) => !q.done) || !!m.events.meteor;
   for (const job of MARS_JOB_ORDER) {
@@ -27,7 +27,7 @@ function marsCrew() {
     out[job] = Math.max(0, Math.min(left, want));
     left -= out[job];
   }
-  out.laborer = left;
+  out.laborer = Math.max(0, left);
   crewMemo = { at: state.clock, m, v: out };
   return out;
 }

@@ -164,6 +164,7 @@ function renderMars() {
     marsWindowOpen() ? '🟢 window open' : `🪐 ${fmtSecs(marsWindowIn())}`,
     q ? `🏗️ ${MARS_MODULES[q.k].name} ${Math.round(q.prog * 100)}%` : '',
     `🪨 ${m.ore}/${oreCap()}`,
+    m.exp ? `🧭 ${ZONE_BY_ID[m.exp.zone].icon} back in ${fmtSecs(Math.max(0, m.exp.backAt - state.clock))}` : '',
     kits ? `📦 ${kits} kit${kits > 1 ? 's' : ''} to place` : '',
     (() => { const n = map.b.filter((b) => b.done && needsPower(b.k) && !coversAt(map, b.x, b.y)).length; return n ? `🔌 ${n} without power` : ''; })()].filter(Boolean);
   ctx.fillStyle = 'rgba(29,16,22,0.92)';
@@ -221,7 +222,8 @@ const MARS_GROUPS = [
   { id: 'inspect', icon: '🔍', name: 'Inspect' },
   { id: 'build', icon: '🏗️', name: 'Build', tray: true },
   { id: 'move', icon: '🚚', name: 'Relocate' },
-  { id: 'auto', icon: '✨', name: 'Auto-place' },
+  { id: 'auto', icon: '✨', name: 'Auto' },
+  { id: 'explore', icon: '🧭', name: 'Explore' },
   { id: 'colony', icon: '📊', name: 'Colony' },
 ];
 
@@ -252,6 +254,7 @@ function marsGroupClick(id) {
   else if (id === 'move') { ui.marsTool = ui.marsTool === 'move' ? null : 'move'; ui.marsTray = false; if (ui.marsTool) toast(`🚚 Relocate: tap a building (blue outline) to pack it up, then tap its new spot. Finished buildings cost ${MARS_MAP.relocateSpares} 🔧 Spares and keep ${Math.round(MARS_MAP.relocateKeep * 100)}% of their build`); }
   else if (id === 'auto') { const n = autoPlaceKits(); toast(n ? `✨ ${n} kit${n > 1 ? 's' : ''} placed` : 'No kits waiting to be placed'); ui.marsTool = null; ui.marsKit = null; save(); }
   else if (id === 'colony') { ui.mapSel = 'launch'; ui.marsTab = 'base'; openPanel('map'); }
+  else if (id === 'explore') { ui.mapSel = 'launch'; ui.marsTab = 'explore'; openPanel('map'); }
   refreshToolbar();
 }
 

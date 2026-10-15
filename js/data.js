@@ -615,6 +615,58 @@ const MARS_MODULES = {
   silo: { name: 'Ore Silo', icon: '🛢️', payload: { alloy: 6, panel: 8 }, max: 4, desc: 'Stores 150 Rare Metals until a rocket flies them home' },
 };
 
+// 🧭 Expeditions: colonists head out across Mars and bring back materials for the base.
+// Finds kept on Mars (samples turn into ⭐ when they're back; ore goes to ore storage).
+const MARS_FINDS = {
+  regolith: { icon: '🟤', name: 'Regolith' },
+  salvage: { icon: '⚙️', name: 'Salvage' },
+  ice: { icon: '❄️', name: 'Ice' },
+  crystal: { icon: '🔮', name: 'Crystals' },
+};
+// `finds`: amount per explorer (before skills); `rover`: rover level needed; `risk`: chance of trouble (halves the haul).
+const MARS_ZONES = [
+  { id: 'plains', icon: '🏜️', name: 'Dust Plains', time: 180, rover: 0, risk: 0.05, finds: { regolith: 4, salvage: 0.5, ice: 0.5 }, desc: 'Close and safe. Plenty of regolith' },
+  { id: 'crash', icon: '🛰️', name: 'Probe Crash Site', time: 240, rover: 0, risk: 0.1, finds: { salvage: 3, regolith: 1, samples: 0.4 }, desc: 'Old landers and probes to strip for salvage' },
+  { id: 'ice', icon: '🧊', name: 'Polar Ice Shelf', time: 300, rover: 1, risk: 0.12, finds: { ice: 4, regolith: 1, samples: 0.3 }, desc: 'Ice to melt into water and oxygen' },
+  { id: 'lava', icon: '🌋', name: 'Lava Tubes', time: 360, rover: 1, risk: 0.2, finds: { crystal: 1.5, raremetal: 2, salvage: 0.5, samples: 0.5 }, artifact: 0.05, desc: 'Caves lined with crystals and ore' },
+  { id: 'canyon', icon: '🏔️', name: 'Valles Marineris', time: 540, rover: 2, risk: 0.3, finds: { crystal: 3, raremetal: 5, ice: 1, samples: 1.2 }, artifact: 0.15, desc: 'The great canyon: rich finds, real danger' },
+];
+// What each job adds on an expedition. Material keys: extra share per explorer of that job.
+// `safe`: cuts the chance of trouble (each one multiplies it by 1 − safe). `artifact`: better odds of a rare find.
+const MARS_SKILLS = {
+  engineer: { safe: 0.4, salvage: 0.5, desc: 'fewer mishaps, more salvage' },
+  miner: { raremetal: 1, crystal: 0.75, desc: 'more ore and crystals' },
+  scientist: { samples: 1, artifact: 0.5, desc: 'more samples, spot rare finds' },
+  iceminer: { ice: 1, desc: 'more ice' },
+  mechanic: { salvage: 1, desc: 'more salvage' },
+  farmer: { regolith: 0.5, desc: 'more regolith' },
+  caretaker: { safe: 0.15, regolith: 0.25, desc: 'keep the gear working' },
+  laborer: { desc: 'an extra pair of hands' },
+};
+const MARS_EXPLORE = {
+  groupPower: 0.85, // haul grows with party size, a little less than 1:1
+  supplyPer: 3, // each 🍞 and 💧 taken covers this many explorers
+  samplesStars: 4, // ⭐ per sample brought home (+50% with a working Research Station)
+  artifactGems: 10, artifactStars: 25,
+  maxParty: [4, 7, 10], // on foot, Rover, Heavy Rover
+  roverSpeed: [0, 0.2, 0.35], // trips this much shorter
+  stayBehind: 2, // colonists who always stay at the base
+};
+// 🛠️ Made on Mars from expedition finds. `stock`: a supply it adds to; `rover`: the rover level it gives; `module`: a kit.
+const MARS_FAB = [
+  { id: 'spares', icon: '🔧', name: 'Spares Kit', cost: { salvage: 4, regolith: 2 }, stock: 'spares' },
+  { id: 'water', icon: '💧', name: 'Water/O₂ Canister', cost: { ice: 3 }, stock: 'water' },
+  { id: 'power', icon: '🔋', name: 'Power Cell', cost: { crystal: 3, salvage: 2 }, stock: 'power' },
+  { id: 'rover1', icon: '🚙', name: 'Rover', cost: { salvage: 25, regolith: 15 }, rover: 1, desc: 'Reaches the Ice Shelf and Lava Tubes; parties up to 7, trips 20% shorter' },
+  { id: 'rover2', icon: '🚜', name: 'Heavy Rover', cost: { salvage: 40, crystal: 12, ice: 10 }, rover: 2, desc: 'Reaches Valles Marineris; parties up to 10, trips 35% shorter' },
+  { id: 'kit-silo', module: 'silo', cost: { regolith: 30, salvage: 10 } },
+  { id: 'kit-solar', module: 'solar', cost: { salvage: 20, crystal: 8 } },
+  { id: 'kit-greenhouse', module: 'greenhouse', cost: { regolith: 30, ice: 20, salvage: 10 } },
+  { id: 'kit-workshop', module: 'workshop', cost: { salvage: 30, regolith: 20 } },
+  { id: 'kit-rec', module: 'rec', cost: { regolith: 40, ice: 10, crystal: 6 } },
+  { id: 'kit-habitat', module: 'habitat', cost: { regolith: 60, salvage: 20, ice: 10, crystal: 6 } },
+];
+
 // Total parts per product across all stages.
 LAUNCH.needs = {};
 for (const st of LAUNCH.stages) for (const [p, n] of Object.entries(st.needs)) LAUNCH.needs[p] = (LAUNCH.needs[p] || 0) + n;

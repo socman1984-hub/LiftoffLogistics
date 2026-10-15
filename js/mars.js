@@ -28,6 +28,8 @@ const M = () => {
   if (!m.map.veined) addVeins(m.map);
   if (m.ore == null) { m.ore = m.metalsWaiting || 0; m.metalsWaiting = 0; }
   if (!m.kitHead) m.kitHead = {};
+  if (!m.finds) m.finds = { regolith: 0, salvage: 0, ice: 0, crystal: 0 };
+  if (m.rover == null) m.rover = 0;
   return m;
 };
 
@@ -198,7 +200,7 @@ const onlineCount = (k) => M().map.b.filter((q) => q.k === k && q.done && (!need
 const effMod = (k) => Math.max(0, onlineCount(k) - (M().damaged[k] || 0)); // damaged modules do nothing
 const marsCap = () => (MARS.perHabitat + rfx('marsCap')) * effMod('habitat'); // homes in finished domes
 const marsRoom = () => (MARS.perHabitat + rfx('marsCap')) * (modCount('habitat') + pendingCount('habitat')); // incl. domes still to build
-const shelteringColonists = () => Math.max(0, M().colonists - marsCap());
+const shelteringColonists = () => Math.max(0, M().colonists - awayCount() - marsCap()); // explorers out on a trip aren't in the Lander
 const totalModules = () => Object.values(M().modules).reduce((a, b) => a + b, 0);
 const inTransitColonists = () => M().flights.reduce((a, f) => a + (f.colonists || 0), 0);
 
@@ -413,6 +415,7 @@ function stepMars() {
   m.builtAt = state.clock;
   stepConstruction(dt);
   stepDomes(dt);
+  stepExpeditions();
   for (const f of m.flights.filter((q) => q.arriveAt <= state.clock)) marsArrive(f);
   m.flights = m.flights.filter((q) => q.arriveAt > state.clock);
   while (state.clock >= m.nextCycle) { marsCycle(); m.nextCycle += MARS.windowEvery; }
@@ -517,12 +520,13 @@ function marsCycle() {
   m.rations = short ? m.rations + 1 : 0;
   let mult = m.rations ? 0.5 + rfx('marsRation') : 1;
   if (ev.sick) mult *= 1 - 0.3 * (1 - rfx('marsRation'));
-  const workers = m.colonists - shelteringColonists() * (1 - MARS_MAP.shelterOutput); // waiting for a dome: half pace
+  const home = m.colonists - awayCount(); // explorers out on a trip don't work at the base
+  const workers = home - shelteringColonists() * (1 - MARS_MAP.shelterOutput); // waiting for a dome: half pace
   const morale = marsMorale().value, mm = 0.5 + 0.5 * morale;
   mult *= mm;
   const stars = Math.round(workers * (1 + 0.5 * Math.min(1, staffedEff('station')) * pw.frac) * mult * MARS.starsPerColonist * (1 + rfx('marsOutput')));
   // Laborers scavenge ore; miners dig the rest.
-  const dig = MARS_CREW.metalsPerLaborer * marsCrew().laborer * (workers / m.colonists) + MARS_CREW.metalsPerMiner * MARS_JOBS.miner.per * staffedEff('mine') * pw.frac;
+  const dig = MARS_CREW.metalsPerLaborer * marsCrew().laborer * (home ? workers / home : 0) + MARS_CREW.metalsPerMiner * MARS_JOBS.miner.per * staffedEff('mine') * pw.frac;
   let metals = Math.round(dig * mult * (1 + rfx('marsMetals') + rfx('marsOutput')));
   // Workshops turn some of it into Spares on the spot.
   const made = Math.min(Math.floor(MARS_CREW.sparesPerWorkshop * staffedEff('workshop') * pw.frac), Math.floor(metals / MARS_CREW.metalsPerSpare));
@@ -534,8 +538,8 @@ function marsCycle() {
   m.ore += stored;
   const lost = metals - stored; // nowhere to keep it
   let left = 0;
-  if (m.rations >= MARS.rationsBeforeLeaving && m.colonists > MARS.minColonists) { m.colonists--; left = 1; }
-  else if (morale < MARS_MORALE.leaveBelow && m.colonists > MARS.minColonists) { m.colonists--; left = 1; } // unhappy people go home too
+  if (m.rations >= MARS.rationsBeforeLeaving && home > MARS.minColonists) { m.colonists--; left = 1; }
+  else if (morale < MARS_MORALE.leaveBelow && home > MARS.minColonists) { m.colonists--; left = 1; } // unhappy people go home too
   m.last = { need, short, stars, metals, gems, left, made, morale, lost };
   // Something happens now and then.
   const shielded = m.terra.stage >= 2;
@@ -579,8 +583,9 @@ function checkMilestones() {
 function marsControlHTML() {
   const tab = ui.marsTab || 'launch';
   const html = `<div class="tabs"><button class="tab ${tab === 'launch' ? 'on' : ''}" data-act="marstab" data-id="launch">🚀 Next launch</button>
-    <button class="tab ${tab === 'base' ? 'on' : ''}" data-act="marstab" data-id="base">🔴 Mars base</button></div>`;
-  return html + (tab === 'base' ? marsBaseHTML() : marsLaunchHTML());
+    <button class="tab ${tab === 'base' ? 'on' : ''}" data-act="marstab" data-id="base">🔴 Mars base</button>
+    <button class="tab ${tab === 'explore' ? 'on' : ''}" data-act="marstab" data-id="explore">🧭 Explore</button></div>`;
+  return html + (tab === 'base' ? marsBaseHTML() : tab === 'explore' ? exploreHTML() : marsLaunchHTML());
 }
 
 function marsLaunchHTML() {
@@ -836,6 +841,7 @@ function handleMarsAct(act, id) {
   if (act === 'marstab') { ui.marsTab = id; return true; }
   if (act === 'gomars') { goMars(); return 'stop'; }
   if (handleCrewAct(act, id)) return true;
+  if (handleExploreAct(act, id)) return true;
   const info = handleMarsInfoAct(act, id);
   if (info) return info;
   if (act === 'marsautobuild') { m.autoBuild = id === 'on'; if (m.autoBuild) autoPlaceKits(); save(); return true; }

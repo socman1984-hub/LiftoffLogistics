@@ -40,6 +40,8 @@ const DEV_ACTIONS = {
   rocket: () => fillLaunch(3),
   market: () => { state.market.demand = {}; state.market.event = null; },
   boom: () => { state.market.nextEventAt = state.clock; },
+  expBack: () => { if (marsOn() && M().exp) M().exp.backAt = state.clock; },
+  finds: () => { if (marsOn()) for (const k of Object.keys(MARS_FINDS)) M().finds[k] += 50; },
 };
 
 
@@ -183,7 +185,9 @@ function devHTML() {
       ${b('fixAll', '🔧 Fix everything')}${b('noBreakdowns', ui.devNoWear ? '✅ Breakdowns off' : '⚠️ Breakdowns on', ui.devNoWear ? 'on' : '')}
       ${b('contracts', '📋 Finish contracts')}${b('goal', '🎯 Skip goal')}${b('market', '💹 Reset market')}${b('boom', '📈 Market event now')}</div>
     <h3 class="sec">Rocket</h3><div class="choice">
-      ${b('stage1', '🔥 Fill booster stage')}${b('rocket', '🚀 Fill whole rocket')}</div>`;
+      ${b('stage1', '🔥 Fill booster stage')}${b('rocket', '🚀 Fill whole rocket')}</div>
+    <h3 class="sec">Mars</h3><div class="choice">
+      ${b('expBack', '🧭 Expedition back now')}${b('finds', '🟤 +50 of each find')}</div>`;
 }
 
 function initDev() {

@@ -175,7 +175,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   terraform parts are starving the rocket (e.g. Turbopumps sent up instead of becoming Engines).
 - **🗺️ Mars base map**: modules land as **kits**. Go to Mars like switching sites (🗺️ Map → 🔴 Go to Mars base): the
   base fills the main screen and the bottom bar becomes a Mars build bar (🔍 Inspect · 🏗️ Build · 📦 Move · ✨ Auto-place ·
-  📊 Colony). Pick a kit and tap a tile on the 9×11 map (🛸
+  🧭 Explore · 📊 Colony). Pick a kit and tap a tile on the 9×11 map (🛸
   Lander in the middle, 🪨 rocks you can't build on, two 🧊 ice fields); colonists build one site at a time (4–10 min of
   work, +4% speed per colonist, +50% with 🤖 Repair Drones). Ice Mines must sit on ice. Greenhouses, Ice Mines, the
   Research Station and the Landing Pad are offline unless a ⚡ Solar Farm (2 tiles) or ⚛️ Fusion Reactor (3 tiles)
@@ -199,6 +199,14 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   Cells); Rare Metals sold on arrival or delivered to a site for ⚛️ Fusion Cores (2 🪨 + 💻 + 2 🟦), which build the
   ⚛️ Fusion Reactor module; 🚧 launch pad upgrades; the 📦 Spaceport Cargo Center at the Mega Hub (+10 slots, faster
   pad); and a 💎 Cargo Boost.
+- **🧭 Expeditions** (🧭 Explore on the Mars build bar, or Mission Control → 🧭 Explore): send one party at a time to 🏜️ Dust
+  Plains or a 🛰️ Probe Crash Site, and with a 🚙 Rover to the 🧊 Polar Ice Shelf and 🌋 Lava Tubes (🚜 Heavy Rover: 🏔️ Valles
+  Marineris). The haul grows with party size (effort^0.85), and each job adds its specialty: ⛏️ miners ore and crystals,
+  🔧 engineers salvage and fewer mishaps, 🧪 scientists samples (⭐) and rare finds (💎), 🧊 ice crews ice, 🛠️ mechanics salvage.
+  Explorers leave their jobs while away and take 1 🍞 + 1 💧 per 3 of them; 2 colonists always stay; trouble halves the haul.
+  Finds (🟤 Regolith, ⚙️ Salvage, ❄️ Ice, 🔮 Crystals) are made on Mars into Spares Kits, Water/O₂, Power Cells, Rovers and
+  module kits (Ore Silo, Solar Farm, Greenhouse, Workshop, Rec Dome, Habitat) that skip the rocket. Tunables: `MARS_ZONES`,
+  `MARS_SKILLS`, `MARS_EXPLORE` and `MARS_FAB` in `js/data.js`.
 - **🌍 Winning: Project Terraform** — three Mars stages delivered in rocket cargo: 🏭 Atmosphere Processors (20
   colonists + Fusion Power; halves water needs), 🧲 Magnetic Shield (40 colonists; ends dust storms and meteors) and
   🌊 Ocean Seeding (80 colonists + Terraforming Studies). Finishing plays an ending cinematic and a victory screen with
@@ -243,6 +251,7 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 | `js/launchfx.js` / `js/endingfx.js` | First-launch and victory cinematics |
 | `js/mars.js` | Mars colony: windows, cargo, base map, construction, supplies, events, ore, Terraform |
 | `js/marscrew.js` | Colonist jobs, dusty domes, morale, Crew panel |
+| `js/marsexplore.js` | Expeditions: parties, zones, hauls, and making things from finds |
 | `js/marsview.js` | The Mars screen: canvas drawing, build bar, taps |
 | `js/marsinfo.js` | Tap details for Mars buildings, the Lander and colonists |
 | `js/tutorial.js` | Basics tutorial, feature lessons, Tutorial & tips in Help |

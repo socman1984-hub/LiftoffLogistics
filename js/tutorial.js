@@ -92,6 +92,10 @@ const LESSONS = [
     { text: 'Your colonists now have <b>jobs</b>: farmers, ice crews, miners, caretakers and more. Buildings with nobody on them run at 30%.', manual: true },
     { text: '<b>🙂 Morale</b> scales everything Mars makes. Keep domes clean, build a 🎳 Rec Dome, and don\'t let them ration or crowd the Lander. Check it in 📊 Colony.', manual: true },
   ] },
+  { id: 'explore', icon: '🧭', title: 'Expeditions', when: () => state.mars && state.mars.colonists >= 5, steps: [
+    { text: 'Send colonists out to <b>🧭 Explore</b> Mars (on the Mars build bar). Bigger parties bring back more, and jobs help: miners find ore and crystals, engineers avoid trouble, scientists bring samples.', manual: true },
+    { text: 'Turn the finds into Spares, water, Power Cells, a 🚙 Rover for far-off places, and even module kits that skip the rocket, under <b>🛠️ Make on Mars</b>.', manual: true },
+  ] },
   { id: 'mastery', icon: '🏅', title: 'Mastery', when: () => state.launch.count >= 1 && state.rep >= 60 && typeof masteryOpen === 'function' && masteryOpen(), steps: [
     { text: 'Spare ⭐? Open <b>🔬 Research → 🏅 Mastery</b> for repeatable upgrades, and 🌌 Megaprojects for cash and 💎.', target: '[data-panel="research"]', done: () => openPanelName === 'research' && ui.resView === 'mastery' },
   ] },
