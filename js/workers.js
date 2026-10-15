@@ -175,6 +175,21 @@ function syncWorkers(id, prop, def, r) {
   }
 }
 
+// When buildings split the floor in two, staff on the wrong side walk out one door and
+// come back in by another (outside isn't drawn, so they step out and reappear).
+function aroundOutside(prop, def, w, goal) {
+  const wade = w.role === 'janitor';
+  const doors = entrances(prop, def);
+  const isDoor = (x, y) => doors.some((d) => d.x === x && d.y === y);
+  const way = doors.find((d) => findPath(prop, def, d.x, d.y, goal, wade));
+  if (!way) return null;
+  if (isDoor(w.x, w.y)) {
+    Object.assign(w, { x: way.x, y: way.y, fx: way.x, fy: way.y });
+    return findPath(prop, def, w.x, w.y, goal, wade);
+  }
+  return findPath(prop, def, w.x, w.y, isDoor, wade);
+}
+
 // Walk toward goal(); returns true once standing on a goal tile.
 function walkTo(prop, def, r, w, goal, dt, label, ax, ay) {
   if (!w.path.length || !goal(w.path[w.path.length - 1].x, w.path[w.path.length - 1].y)
@@ -183,7 +198,9 @@ function walkTo(prop, def, r, w, goal, dt, label, ax, ay) {
     w.repath = (w.repath || 0) - dt;
     if (w.repath > 0 && w.stuck) { setAlert(r, 'stuck' + w.id, w.stuck, ax, ay); return false; }
     w.repath = 1;
-    const path = findPath(prop, def, w.x, w.y, goal, w.role === 'janitor');
+    const direct = findPath(prop, def, w.x, w.y, goal, w.role === 'janitor');
+    const path = direct || aroundOutside(prop, def, w, goal);
+    w.detour = !direct && !!path;
     if (!path) {
       w.path = [];
       w.stuck = label;
@@ -210,6 +227,10 @@ function walkTo(prop, def, r, w, goal, dt, label, ax, ay) {
       w.fy += (dy / dist) * step;
       step = 0;
     }
+  }
+  if (w.detour && !w.path.length && !goal(w.x, w.y)) { // reached the door: back in by the other one
+    w.detour = false;
+    w.path = aroundOutside(prop, def, w, goal) || [];
   }
   return !w.path.length && goal(w.x, w.y);
 }
@@ -496,6 +517,7 @@ function stepDirt(id, prop, def, r, dt) {
   let filthyFloor = 0, fx = 0, fy = 0;
   prop.tiles.forEach((row, y) => row.forEach((t, x) => {
     const o = t.obj;
+    if (o && t.dirt) t.dirt = 0; // floor dirt only lives on bare floor (old saves could hide a filthy tile under a conveyor)
     if (o && FACILITIES[o.k]) {
       if (!FACILITIES[o.k].levels) dirtyBuilding(id, o, DIRT.perSecond * (1 - rfx('dirt')) * dt);
       if ((o.dirt || 0) >= DIRT.filthy) {

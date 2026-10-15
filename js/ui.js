@@ -1175,6 +1175,7 @@ function placeObj(x, y, kind, dir) {
   const blocks = kind !== 'belt' && kind !== 'splitter' && kind !== 'sorter'; // workers can't walk through it
   const before = blocks ? reachableTargets(prop, def) : null;
   t.base = 'floor';
+  t.dirt = 0; // building over a mess cleans it up
   t.obj = makeObj(kind, dir, def);
   markLayoutDirty(state.current);
   if (before) warnIfCutOff(prop, def, before);

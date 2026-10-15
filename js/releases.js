@@ -1,9 +1,13 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.12.1';
+const GAME_VERSION = '0.12.2';
 
 const RELEASE_NOTES = [
+  { v: '0.12.2', date: 'Oct 15, 2026', title: 'Staff find a way round', notes: [
+    'If buildings split a site’s floor in two, staff on the wrong side now walk out one door and back in another. Before, a tech or janitor could be stuck on one side for good while a broken conveyor or a mess on the other side stopped the whole site.',
+    'Building on a dirty floor tile now cleans it. A filthy tile could end up hidden under a conveyor, where janitors couldn’t see it and nobody could walk past. Saved games are fixed automatically.',
+  ] },
   { v: '0.12.1', date: 'Oct 14, 2026', title: 'Balance from a playthrough', notes: [
     'Sites no longer stock so many incoming ingredients that their racks fill up. A full rack used to mean finished rocket parts got sold instead of sent to the rocket.',
     'Trucks carry fuller loads: a lightly loaded truck waits a little longer for more cargo, and a truck already heading back to a site counts before another one is sent.',
