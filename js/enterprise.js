@@ -320,7 +320,7 @@ const WAIT_TEXT = {
 function truckStatus(key, u) {
   const st = routeStats(key);
   const cap = truckCap(), wait = routeWait(st.f), to = siteName(st.to), from = siteName(st.from);
-  const cargo = countList(u.load);
+  const cargo = Object.entries(u.load || {}).filter(([, n]) => n > 0).map(([p, n]) => `${PRODUCTS[p].icon} ${PRODUCTS[p].name} ${n}`).join(" · ");
   if (u.phase === 'load') {
     if (!u.n) {
       const idleFor = u.idle || 0;
@@ -362,7 +362,6 @@ function routeLiveHTML(key) {
   else if (!st.waiting && !f.units.some((u) => u.n)) advice = 'Nothing to carry right now.';
   else advice = 'Keeping up.';
   return `<div class="route-stats"><span>⏱️ ${fmtSecs(st.trip)} each way</span><span>📈 up to ~${st.perMin}/min</span><span>📦 ${st.waiting} waiting at ${siteName(st.from)}</span></div>
-    ${st.waiting ? `<div class="muted small">Waiting: ${countList(state.props[st.from].outbox[st.to])}</div>` : ''}
     <div class="route-advice ${tone}">${advice}</div>`;
 }
 
@@ -370,7 +369,19 @@ function routeLiveHTML(key) {
 function routeChipsHTML(key) {
   const st = routeStats(key);
   const icons = st.f.units.map((u) => truckStatus(key, u).icon).join('');
-  return `<span class="rc-chip">🚚 ${st.f.units.length}</span>${st.waiting ? `<span class="rc-chip ${!st.f.units.length ? 'neg' : ''}">📦 ${st.waiting}</span>` : ''}<span class="rc-icons">${icons}</span>`;
+  return `<span class="rc-chip">🚚 ${st.f.units.length}</span><span class="rc-icons">${icons}</span>`;
+}
+
+// What a route is moving: on its trucks now, and waiting at the dock for one.
+const namedList = (obj) => Object.entries(obj || {}).filter(([, n]) => n > 0)
+  .map(([p, n]) => `<span class="cargo-item">${PRODUCTS[p].icon} ${PRODUCTS[p].name} <b>${n}</b></span>`).join('');
+function routeCargoHTML(key) {
+  const st = routeStats(key), aboard = {};
+  for (const u of st.f.units) for (const [p, n] of Object.entries(u.load || {})) aboard[p] = (aboard[p] || 0) + n;
+  const on = namedList(aboard), wait = namedList(state.props[st.from].outbox[st.to]);
+  if (!on && !wait) return '<div class="rc-line muted">Empty: nothing on board or waiting</div>';
+  return (on ? `<div class="rc-line"><span class="rc-lbl">🚚 On board</span>${on}</div>` : '')
+    + (wait ? `<div class="rc-line ${!st.f.units.length ? 'neg' : ''}"><span class="rc-lbl">📦 Waiting</span>${wait}</div>` : '');
 }
 
 // One route's card: live trucks, what's waiting, and the controls.
@@ -382,7 +393,8 @@ function routeCardHTML(key) {
   let html = `<div class="plan route-card ${alert ? 'alert' : ''}">
     <button class="route-head" data-act="rtoggle" data-id="${key}">
       <span class="rh-name">${siteEmoji(st.from)} ${siteName(st.from)} → ${siteEmoji(st.to)} <b>${siteName(st.to)}</b></span>
-      <span class="rh-chips" data-route-chips="${key}">${routeChipsHTML(key)}</span><span class="rh-caret">${open ? '▾' : '▸'}</span></button>`;
+      <span class="rh-chips" data-route-chips="${key}">${routeChipsHTML(key)}</span><span class="rh-caret">${open ? '▾' : '▸'}</span></button>
+    <div class="rc-cargo" data-route-cargo="${key}">${routeCargoHTML(key)}</div>`;
   if (!open) return html + '</div>';
   const canSend = f.units.some((u) => u.phase === 'load' && u.n > 0);
   html += `<div data-route-live="${key}">${routeLiveHTML(key)}</div>
@@ -398,6 +410,7 @@ function updateFleetDynamic() {
   document.querySelectorAll('[data-truck-list]').forEach((el) => { const k = el.dataset.truckList; if (state.fleet[k]) el.innerHTML = truckListHTML(k); });
   document.querySelectorAll('[data-route-live]').forEach((el) => { const k = el.dataset.routeLive; if (state.fleet[k]) el.innerHTML = routeLiveHTML(k); });
   document.querySelectorAll('[data-route-chips]').forEach((el) => { const k = el.dataset.routeChips; if (state.fleet[k]) el.innerHTML = routeChipsHTML(k); });
+  document.querySelectorAll('[data-route-cargo]').forEach((el) => { const k = el.dataset.routeCargo; if (state.fleet[k]) el.innerHTML = routeCargoHTML(k); });
 }
 
 // Tapping a RECV door: what's arriving here, and the truck routes that bring it.

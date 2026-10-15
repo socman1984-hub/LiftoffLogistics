@@ -529,6 +529,11 @@ h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color:
 .rh-chips { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .rc-chip { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 1px 6px; font-size: 12px; }
 .rc-chip.neg { background: rgba(235,87,87,0.25); }
+.rc-cargo { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.rc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12px; }
+.rc-line.neg .rc-lbl { color: #eb5757; }
+.rc-lbl { color: var(--muted); font-size: 11px; min-width: 74px; }
+.cargo-item { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 2px 7px; white-space: nowrap; }
 .rc-icons { font-size: 12px; letter-spacing: 1px; }
 .rh-caret { opacity: 0.6; }
 .route-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 8px; opacity: 0.85; }
