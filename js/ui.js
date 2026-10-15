@@ -1029,11 +1029,14 @@ function onPanelClick(e) {
       save();
     }
   } else if (act === 'hire') {
-    const s = STAFF_BY_ID[id];
+    // "role@site" hires for another site (e.g. from Logistics); plain "role" hires here.
+    const [role, at] = id.split('@');
+    const hp = at ? state.props[at] : prop, hd = at ? PROP_BY_ID[at] : def;
+    const s = STAFF_BY_ID[role];
     if (s.research && !hasResearch(s.research)) { toast(`🔬 Research ${RESEARCH_BY_ID[s.research].name} to hire a ${s.name}`); return; }
-    if (prop.staff[id] < s.max && spend(Math.round(staffWage(s, def, prop) * HIRE_FEE_MINUTES), 'hiring', s.name)) {
-      prop.staff[id]++;
-      toast(`${s.icon} ${s.name} hired`);
+    if (hp.staff[role] < s.max && spend(Math.round(staffWage(s, hd, hp) * HIRE_FEE_MINUTES), 'hiring', s.name)) {
+      hp.staff[role]++;
+      toast(`${s.icon} ${s.name} hired${at && at !== state.current ? ` at the ${hd.name}` : ''}`);
       save();
     }
   } else if (act === 'fire') {

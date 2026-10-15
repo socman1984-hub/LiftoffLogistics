@@ -236,7 +236,7 @@ function storageBoxHTML(id) {
     <div class="bar"><div style="width:${busy}%;background:${busy > 90 ? '#eb5757' : busy > 70 ? '#f2c94c' : '#6fcf97'}"></div></div>
     <div class="power-note">Crew is ${busy}% busy. Every put-away, truck load, unload and pick is one move.${busy > 90 ? ' <b class="neg">Bottleneck: hire forklift operators.</b>' : ''}</div>
     <div class="dest-ctl"><span class="ctl-lbl">Forklift operators ${ops}/${opDef.max}</span>
-      <button class="btn small" data-act="hire" data-id="forklift" ${ops >= opDef.max || state.money < fee || id !== state.current ? 'disabled' : ''}>${id !== state.current ? 'Hire there' : `+ Hire ${fmt(fee)}`}</button></div>
+      <button class="btn small" data-act="hire" data-id="forklift@${id}" ${ops >= opDef.max || state.money < fee ? 'disabled' : ''}>${ops >= opDef.max ? 'Max' : `+ Hire ${fmt(fee)}`}</button></div>
   </div>`;
 }
 
