@@ -89,6 +89,10 @@ function autoPlan(id, p) {
   const k = `${id}|${p}`, sec = Math.floor(state.clock), hit = autoMemo.get(k);
   if (hit && hit.at === sec) return hit.plan;
   const dests = netLinks().links.filter((l) => l.from === id && l.p === p && l.on).map((l) => ({ to: l.to, w: 1, cap: l.cap }));
+  // Made here and used here too: keep a little on the racks so forklifts can feed this site's own
+  // assemblers, whatever order they sit in along the conveyor.
+  const own = siteUses(id)[p];
+  if (own && !siteBuys(id).has(p)) dests.unshift({ to: 'store', w: 1, cap: Math.max(NETWORK.minStock, Math.ceil(own * NETWORK.stockPerInput)), self: true });
   const plan = { dests, overflow: extraOf(id, p) === 'keep' ? 'keep' : 'sell', auto: true };
   autoMemo.set(k, { at: sec, plan });
   return plan;
@@ -227,10 +231,11 @@ function siteProductsHTML(id) {
   for (const p of products) {
     if (isManual(prop, p)) { html += manualPlanHTML(id, p); continue; }
     const plan = autoPlan(id, p), keep = extraOf(id, p) === 'keep';
-    const to = plan.dests.map((d) => `${siteEmoji(d.to)} ${siteName(d.to)}`).join(', ');
+    const to = plan.dests.filter((d) => !d.self).map((d) => `${siteEmoji(d.to)} ${siteName(d.to)}`).join(', ');
+    const self = plan.dests.find((d) => d.self);
     html += `<div class="plan"><div class="plan-head"><span>${PRODUCTS[p].icon} <b>${PRODUCTS[p].name}</b><span class="muted"> · sells ${fmt(marketPrice(p))}</span></span>
       <button class="link-btn" data-act="padv" data-id="${id}|${p}">⚙️ Advanced</button></div>
-      <div class="plan-sum-line">${to ? `🚚 Goes to ${to} when they need it` : 'No site needs it'}${prop.held[p] ? ` · 🗄️ ${prop.held[p]} kept` : ''}</div>
+      <div class="plan-sum-line">${self ? `🗄️ Keeps up to ${self.cap} here for its own assemblers${to ? ' · ' : ''}` : ''}${to ? `🚚 Goes to ${to} when they need it` : self ? '' : 'No site needs it'}${prop.held[p] ? ` · 🗄️ ${prop.held[p]} kept` : ''}</div>
       <div class="choice"><span class="ctl-lbl">Extras</span>
         <button class="chip small ${!keep ? 'on' : ''}" data-act="pextra" data-id="${id}|${p}|sell">💰 Sell</button>
         <button class="chip small ${keep ? 'on' : ''}" data-act="pextra" data-id="${id}|${p}|keep">🗄️ Keep on racks</button></div>

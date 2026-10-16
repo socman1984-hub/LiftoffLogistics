@@ -1,9 +1,12 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.12.3';
+const GAME_VERSION = '0.12.4';
 
 const RELEASE_NOTES = [
+  { v: '0.12.4', date: 'Oct 15, 2026', title: 'Any layout works', notes: [
+    'When a site makes something its own assemblers also use, it keeps a few on its racks and forklifts bring them over. An assembler placed before the one that makes its ingredient (say, Valves above the Alloy Plates) now keeps working instead of starving forever.',
+  ] },
   { v: '0.12.3', date: 'Oct 15, 2026', title: 'Forklifts unload trucks', notes: [
     'Forklift Operators now carry goods trucked in from your other sites straight to the assemblers that need them. You no longer need a conveyor from the 📥 receiving door.',
     'Forklifts also fetch small amounts from the dock staging area, so they help even when fewer than 10 are in stock.',

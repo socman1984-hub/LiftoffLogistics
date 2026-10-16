@@ -37,7 +37,7 @@ const destLabel = (to) => (to === 'sell' ? '💰 Sell' : to === 'store' ? '🗄�
 function planSummary(id, p) {
   const prop = state.props[id];
   if (!isManual(prop, p)) {
-    const to = autoPlan(id, p).dests.map((d) => siteName(d.to)).join(', ');
+    const to = autoPlan(id, p).dests.map((d) => (d.self ? 'kept here' : siteName(d.to))).join(', ');
     return `${to ? `→ ${to} · extras ` : ''}${extraOf(id, p) === 'keep' ? 'kept' : 'sold'}`;
   }
   const plan = planOf(prop, p);

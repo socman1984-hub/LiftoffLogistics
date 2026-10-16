@@ -334,7 +334,7 @@ function destOpen(from, d, p, fromStorage) {
   if (!d.w || !destValid(from, d.to, p)) return false;
   if (d.to === 'sell') return true;
   // "Store here": park it on this site's racks (needs a free slot and a move).
-  if (d.to === 'store') return !fromStorage && storageRoomFor(from, p) > 0 && movesReady(from);
+  if (d.to === 'store') return !fromStorage && (!d.cap || (state.props[from].held[p] || 0) < d.cap) && storageRoomFor(from, p) > 0 && movesReady(from);
   if (!fromStorage && (storageRoomFor(from, p) <= 0 || !movesReady(from))) return false;
   const stock = stockAt(from, d.to, p);
   if (d.to === 'launch' && stock >= (launchNeeds()[p] || 0)) return false; // rocket has enough
@@ -737,8 +737,10 @@ function findTechJob(prop, busy, repairsOnly) {
 // room (selling it is a manual choice: "Sell stored stock").
 function releaseStored(id, prop, r) {
   for (const p of Object.keys(prop.held)) {
-    const sites = planOf(prop, p).dests.filter((d) => d.to !== 'sell' && d.to !== 'store');
-    while (prop.held[p] > 0) {
+    const plan = planOf(prop, p);
+    const sites = plan.dests.filter((d) => d.to !== 'sell' && d.to !== 'store');
+    const keep = (plan.dests.find((d) => d.self) || {}).cap || 0; // reserved for this site's own assemblers
+    while (prop.held[p] > keep) {
       const d = sites.find((x) => destOpen(id, x, p, true));
       if (!d) break;
       prop.held[p]--;

@@ -108,7 +108,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
 
 - **🚚 Logistics → 🔗 Network** (automatic supply, `js/network.js`): when a site's running assemblers use a product
   another site ships, it is trucked over until the site has ~8 per unit its recipes use (at least 6) in hand or on the
-  way, all of a site's targets together using at most half its racks (so finished goods always have room to ship); the 🚀 Launch Site gets exactly what the next rocket needs. Sites that buy a raw material from their own
+  way, all of a site's targets together using at most half its racks (so finished goods always have room to ship); the 🚀 Launch Site gets exactly what the next rocket needs. A product a site makes and also uses itself is kept on its own racks
+  (a few crafts' worth) for forklifts to feed its assemblers, so assembler order along a conveyor never soft-locks. Sites that buy a raw material from their own
   supplier aren't sent it, and when two sites both make and use a product only the earlier one sends (no ping-pong).
   Tap a link to switch it off. **🏭 Sites**: per product, extras are 💰 sold or 🗄️ kept on the racks (kept stock goes out
   when a site needs it, and is sold once the racks are full). **⚙️ Advanced** gives one product a hand-made plan (weights,
