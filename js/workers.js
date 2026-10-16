@@ -305,7 +305,7 @@ function stepWorkers(id, prop, def, r, dt) {
     if (w.mode !== 'break' && w.breakIn <= 0 && !(w.task && w.task.t > 0) && !w.job) { // finish a delivery first
       const kind = facCount(id, 'restroom') && (Math.random() < 0.55 || !facCount(id, 'breakroom')) ? 'restroom'
         : facCount(id, 'breakroom') ? 'breakroom' : null;
-      if (kind) { w.mode = 'break'; w.breakKind = kind; w.breakT = 0; w.path = []; } else w.breakIn = 60 + Math.random() * 60;
+      if (kind) { w.mode = 'break'; w.breakKind = kind; w.breakT = 0; w.path = []; w.breakAt = null; } else w.breakIn = 60 + Math.random() * 60;
     }
     if (w.mode === 'break') {
       // Head for the facility covering them; otherwise the nearest one at all.
@@ -315,7 +315,9 @@ function stepWorkers(id, prop, def, r, dt) {
       if (w[w.breakKind]) spots = [w[w.breakKind]].map((k) => { const [x, y] = k.split(',').map(Number); return { x, y }; });
       if (walkTo(prop, def, r, w, nextToAny(spots), dt, null)) {
         delete r.alerts['fac' + w.breakKind]; // someone made it
-        const fo = w[w.breakKind] && prop.tiles[spots[0].y][spots[0].x].obj;
+        const inside = spots.find((p) => Math.abs(p.x - w.x) + Math.abs(p.y - w.y) === 1);
+        w.breakAt = inside ? inside.x + ',' + inside.y : null; // drawn on the facility, like an assembler's crew
+        const fo =w[w.breakKind] && prop.tiles[spots[0].y][spots[0].x].obj;
         w.breakT += dt * (fo && FACILITIES[fo.k] && FACILITIES[fo.k].levels ? facLevel(fo).speed : 1);
         if (w.breakT >= BREAK_LENGTH) {
           w.mode = 'idle';

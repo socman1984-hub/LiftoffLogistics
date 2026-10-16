@@ -4,7 +4,8 @@
 const GAME_VERSION = '0.12.6';
 
 const RELEASE_NOTES = [
-  { v: '0.12.6', date: 'Oct 16, 2026', title: 'Forklift fix', notes: [
+  { v: '0.12.6', date: 'Oct 16, 2026', title: 'Breaks indoors', notes: [
+    'Staff on a break now go inside the Restroom or Break Room instead of standing outside it. A badge on the room shows how many are in there, like an assembler’s crew.',
     'Fixed: forklifts couldn’t pick up trucked-in goods when a machine sat right in front of the receiving dock. They now load from anywhere within two tiles of the dock, or from another door if the dock is boxed in.',
   ] },
   { v: '0.12.5', date: 'Oct 16, 2026', title: 'Smoother late game', notes: [

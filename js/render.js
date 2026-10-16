@@ -761,8 +761,10 @@ function drawLinePreview(prop, def, s) {
 }
 
 function drawWorkers(r, s, time) {
+  const onBreak = new Map(); // facility tile -> staff taking their break inside
   for (const w of r.workers) {
     if (w.role === 'operator' && w.mode === 'work' && !w.path.length) continue; // shown as the assembler's crew badge
+    if (w.mode === 'break' && !w.path.length && w.breakAt) { onBreak.set(w.breakAt, (onBreak.get(w.breakAt) || 0) + 1); continue; }
     const look = ROLE_LOOK[w.role];
     const cx = view.ox + (w.fx + 0.5) * s, cy = view.oy + (w.fy + 0.5) * s;
     const bob = w.path.length ? Math.sin(time * 14 + w.id) * s * 0.03 : 0;
@@ -805,6 +807,23 @@ function drawWorkers(r, s, time) {
       ctx.arc(tx, ty, s * 0.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, t.t / t.dur));
       ctx.stroke();
     }
+  }
+  // On-break badge, top-right of the facility: how many are inside.
+  for (const [key, n] of onBreak) {
+    const [x, y] = key.split(',').map(Number);
+    const bx = view.ox + (x + 0.8) * s, by = view.oy + (y + 0.2) * s, br = s * 0.17;
+    ctx.fillStyle = '#2d9cdb';
+    ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = Math.max(1, s * 0.03);
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.floor(s * 0.15)}px system-ui`;
+    ctx.fillText('🧍', bx - br * 0.32, by + 1);
+    ctx.fillStyle = '#fff';
+    ctx.font = `800 ${Math.floor(s * 0.16)}px system-ui`;
+    ctx.fillText(String(n), bx + br * 0.45, by + 1);
   }
 }
 
