@@ -782,6 +782,7 @@ function helpHTML() {
       'Research is a tree in six branches. Each node needs its prerequisites, costs ⭐ and cash, and takes time in the lab (one at a time; 💎 can finish it early).',
       '<b>📋 Contracts</b> (also a tab in Research) pay cash, ⭐ and 💎. Each offer shows how likely you are to fill it, based on what you have actually been selling. 🔄 New offers costs a few 💎.',
       '<b>🏅 Mastery</b> (a Research tab after the first launch): repeatable upgrades for spare ⭐ and cash, plus 🌌 <b>Megaprojects</b> (cash and 💎) like the Orbital Cargo Depot for bigger rockets.',
+      '<b>⭐ Sponsors</b> (after the first launch, on by default): spare reputation pays up to 60% of the cash for research and Mastery, $4,000 per ⭐. Turn it off at the top of 🔬 Research.',
     ])}
     ${gate(state.props.depot.owned || state.launch.owned, '🚀', 'The rocket', 'you buy the Regional Depot', sec('🚀', 'The rocket', [
       'Buy the 🚀 Launch Site and truck it the parts for three stages (Booster, Upper Stage, Crew Capsule), then press LAUNCH.',

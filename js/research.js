@@ -14,24 +14,36 @@ function researchState(r) {
 }
 
 const labTime = (s) => (s < 60 ? `${s}s` : `${Math.round(s / 60)} min`);
-const canAffordResearch = (r) => state.rep >= r.cost && state.money >= r.money;
+// ⭐ Sponsors: after the first launch, spare ⭐ (beyond the project's own ⭐ cost) cover up to
+// SPONSOR.maxShare of its cash at SPONSOR.perStar each. On unless the player turns it off.
+const sponsorsOpen = () => state.launch && state.launch.count >= 1;
+const sponsorsOn = () => sponsorsOpen() && !state.sponsorsOff;
+function sponsorSplit(r) {
+  if (!sponsorsOn() || !r.money) return { stars: 0, cash: r.money };
+  const spare = Math.max(0, state.rep - r.cost);
+  const stars = Math.min(spare, Math.floor((r.money * SPONSOR.maxShare) / SPONSOR.perStar));
+  return { stars, cash: r.money - stars * SPONSOR.perStar };
+}
+const canAffordResearch = (r) => state.rep >= r.cost && state.money >= sponsorSplit(r).cash;
 const rushCost = () => (state.lab ? Math.max(1, Math.ceil(state.lab.left / RUSH_SECS_PER_GEM)) : 0);
 
 function startResearch(id) {
   const r = researchById(id);
   if (!r || state.lab || researchState(r) !== 'open' || !canAffordResearch(r)) return;
-  state.rep -= r.cost;
-  spend(r.money, 'research', r.name);
-  state.lab = { id, left: r.time };
-  toast(`🔬 Researching ${r.name} (${labTime(r.time)})`);
+  const sp = sponsorSplit(r);
+  state.rep -= r.cost + sp.stars;
+  spend(sp.cash, 'research', r.name);
+  state.lab = { id, left: r.time, sponsor: sp.stars };
+  toast(`🔬 Researching ${r.name} (${labTime(r.time)})${sp.stars ? ` · ⭐ sponsors paid ${fmt(sp.stars * SPONSOR.perStar)} for ${sp.stars} ⭐` : ''}`);
   save();
 }
 
 function cancelResearch() {
   const r = state.lab && researchById(state.lab.id);
   if (!r || !confirm(`Stop researching ${r.name}? You get the ⭐ and cash back.`)) return;
-  state.rep += r.cost;
-  earn(r.money, 'refunds', `Research cancelled: ${r.name}`);
+  const sp = state.lab.sponsor || 0;
+  state.rep += r.cost + sp;
+  earn(r.money - sp * SPONSOR.perStar, 'refunds', `Research cancelled: ${r.name}`);
   state.lab = null;
   save();
 }
@@ -83,6 +95,10 @@ function researchTreeHTML() {
   const done = RESEARCH.filter((r) => hasResearch(r.id)).length;
   let html = `<div class="res-head"><span>⭐ <b>${state.rep}</b> reputation · <b>${fmt(state.money)}</b></span><span class="muted">${done}/${RESEARCH.length} researched</span></div>`;
   html += labHTML();
+  if (sponsorsOpen()) html += `<div class="choice"><span class="ctl-lbl">⭐ Sponsors</span>
+    <button class="chip small ${sponsorsOn() ? 'on' : ''}" data-act="sponsors" data-id="on">On</button>
+    <button class="chip small ${!sponsorsOn() ? 'on' : ''}" data-act="sponsors" data-id="off">Off</button>
+    <span class="muted small">Spare ⭐ pay up to ${Math.round(SPONSOR.maxShare * 100)}% of a project’s cash, ${fmt(SPONSOR.perStar)} each</span></div>`;
   html += '<div class="res-tabs">' + RESEARCH_BRANCHES.map((b) => {
     const nodes = RESEARCH.filter((r) => r.b === b.id);
     const n = nodes.filter((r) => hasResearch(r.id)).length;
@@ -130,7 +146,7 @@ function nodeDetailHTML() {
   return `<div class="res-detail ${st}"><div class="rd-top"><span class="rd-ic">${r.icon}</span><div>
       <div class="rd-name">${r.name} <span class="muted">· tier ${r.t}</span></div><div class="rd-desc">${r.desc}</div></div></div>
     ${r.req.length ? `<div class="rd-req">Needs: ${reqs}</div>` : ''}
-    ${st === 'done' ? '' : `<div class="rd-cost">${short(state.rep >= r.cost, `⭐ ${r.cost}`)} · ${short(state.money >= r.money, fmt(r.money))} · ⏱️ ${labTime(r.time)}</div>`}
+    ${st === 'done' ? '' : (() => { const sp = sponsorSplit(r); return `<div class="rd-cost">${short(state.rep >= r.cost, `⭐ ${r.cost}`)} · ${sp.stars ? `${short(state.money >= sp.cash, fmt(sp.cash))} <span class="muted">+ ⭐ ${sp.stars} from sponsors (covers ${fmt(sp.stars * SPONSOR.perStar)})</span>` : short(state.money >= r.money, fmt(r.money))} · ⏱️ ${labTime(r.time)}</div>`; })()}
     ${btn}</div>`;
 }
 
@@ -170,17 +186,19 @@ function treeHTML(branch) {
 const masteryOpen = () => state.launch.count >= 1;
 const masteryCost = (id) => {
   const l = masteryLevel(id);
-  return { stars: Math.round(MASTERY_COST.stars * Math.pow(MASTERY_COST.starGrowth, l)), money: Math.round(MASTERY_COST.money * Math.pow(MASTERY_COST.moneyGrowth, l) * costDiscount()) };
+  const c = { stars: Math.round(MASTERY_COST.stars * Math.pow(MASTERY_COST.starGrowth, l)), money: Math.round(MASTERY_COST.money * Math.pow(MASTERY_COST.moneyGrowth, l) * costDiscount()) };
+  const sp = sponsorSplit({ cost: c.stars, money: c.money }); // ⭐ sponsors cover part of the cash here too
+  return { ...c, sponsor: sp.stars, cash: sp.cash };
 };
 
 function masteryHTML() {
-  let html = `<p class="intro small">Repeatable upgrades for spare ⭐ and cash. No lab time: they apply at once, and each level costs a bit more.</p>`;
+  let html = `<p class="intro small">Repeatable upgrades for spare ⭐ and cash. No lab time: they apply at once, and each level costs a bit more.${sponsorsOn() ? ` ⭐ Sponsors pay up to ${Math.round(SPONSOR.maxShare * 100)}% of the cash with spare ⭐ (included in the prices below).` : ''}</p>`;
   for (const t of MASTERY) {
     const l = masteryLevel(t.id), c = masteryCost(t.id);
-    const ok = state.rep >= c.stars && state.money >= c.money;
+    const ok = state.rep >= c.stars && state.money >= c.cash;
     html += card(t.icon, `${t.name} · level ${l}`, `+${Math.round(t.per * 100)}% ${t.desc} per level`,
       l ? `Now +${Math.round(l * t.per * 100)}%` : 'Not started',
-      `<button class="btn" data-act="mastery" data-id="${t.id}" ${ok ? '' : 'disabled'}>${c.stars} ⭐ · ${fmt(c.money)}</button>`);
+      `<button class="btn" data-act="mastery" data-id="${t.id}" ${ok ? '' : 'disabled'}>${c.stars + c.sponsor} ⭐ · ${fmt(c.cash)}</button>`);
   }
   html += `<h3 class="sec">🌌 Megaprojects</h3><p class="intro small">Huge one-off builds that speed up the push to terraform Mars.</p>`;
   for (const p of MEGAPROJECTS) {
@@ -195,8 +213,8 @@ function handleResearchAct(act, id) {
   if (act === 'mastery') {
     const t = MASTERY.find((q) => q.id === id), c = masteryCost(id);
     if (!t || state.rep < c.stars) { toast(`Needs ${c.stars} ⭐`); return true; }
-    if (!spend(c.money, 'research', t.name)) { toast(`Needs ${fmt(c.money)}`); return true; }
-    state.rep -= c.stars;
+    if (!spend(c.cash, 'research', t.name)) { toast(`Needs ${fmt(c.cash)}`); return true; }
+    state.rep -= c.stars + c.sponsor;
     state.mastery = state.mastery || {};
     state.mastery[id] = masteryLevel(id) + 1;
     toast(`${t.icon} ${t.name} level ${state.mastery[id]}: +${Math.round(state.mastery[id] * t.per * 100)}% ${t.desc}`);
@@ -216,6 +234,7 @@ function handleResearchAct(act, id) {
     return true;
   }
   if (act === 'resview') { ui.resView = id; return true; }
+  if (act === 'sponsors') { state.sponsorsOff = id === 'off'; save(); return true; }
   if (act === 'openresearchnode') {
     const r = researchById(id);
     ui.resView = 'tree'; ui.resBranch = r.b; ui.resSel = openPanelName === 'contracts' ? null : r.id;

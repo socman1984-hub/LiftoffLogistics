@@ -237,7 +237,9 @@ function marsPadWants() {
     for (const [p, n] of Object.entries(MARS_MODULES[m.manifest.module].payload)) out[p] = (out[p] || 0) + n;
   }
   for (const [kind, prod] of Object.entries(SUPPLY_PRODUCT)) if (m.manifest[kind]) out[prod] = (out[prod] || 0) + m.manifest[kind] * k;
-  if (m.manifest.terra && terraUnlocked()) {
+  // Terraform parts only once the next rocket itself is stocked: they share ingredients
+  // (Turbopumps go into Engines), and a grounded rocket would starve the colony.
+  if (m.manifest.terra && terraUnlocked() && vehicleReady()) {
     for (const [p, n] of Object.entries(terraRemaining())) if (n > 0) out[p] = (out[p] || 0) + Math.min(n, m.manifest.terra * k);
   }
   return out;
@@ -651,7 +653,7 @@ function marsLaunchHTML() {
   if (terraStage()) {
     const st = terraStage();
     const onPad = Object.keys(st.needs).reduce((a, p) => a + Math.min(pad[p] || 0, terraRemaining()[p] || 0), 0);
-    html += step('terra', `🌍 Terraform parts <span class="muted small">(${st.icon} ${st.name})</span>`, terraUnlocked() ? `${onPad} on pad` : '🔒 locked');
+    html += step('terra', `🌍 Terraform parts <span class="muted small">(${st.icon} ${st.name})</span>`, terraUnlocked() ? `${onPad} on pad${vehicleReady() ? '' : ' · rocket first'}` : '🔒 locked');
     if (!terraUnlocked()) html += `<p class="intro small">🌍 ${st.name} unlocks at ${st.pop} colonists${st.research ? ` and ${RESEARCH_BY_ID[st.research].name} research` : ''}.</p>`;
   }
   html += `<p class="intro small">This launch would carry: <b>${cargoText(c) || 'nothing yet'}</b>.</p>`;

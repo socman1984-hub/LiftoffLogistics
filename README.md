@@ -178,7 +178,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   🍞 Food Crate (3 🌾 Provisions + 🔲), 💧 Water/O₂ Canister (2 🧊 + 🟦), 🔧 Spares Kit (🚰 + 📟 + 🧵). Provisions come
   from a new supplier door on the Regional Depot. Colonists use supplies each window and make ⭐, 💎 and Rare Metals
   (sold once a Landing Pad flies them home); shortages mean rationing at half output and, after a while, colonists
-  going home, never a wipe. Dust storms, colonist requests, population milestones and a 25 💎 emergency supply drop (one per launch window). Mission Control warns when
+  going home, never a wipe. Dust storms, colonist requests, population milestones and a 25 💎 emergency supply drop (one per launch window). The Launch Site asks for Terraform parts only once the next
+  rocket's own parts are in, and Mission Control warns when
   terraform parts are starving the rocket (e.g. Turbopumps sent up instead of becoming Engines).
 - **🗺️ Mars base map**: modules land as **kits**. Go to Mars like switching sites (🗺️ Map → 🔴 Go to Mars base): the
   base fills the main screen and the bottom bar becomes a Mars build bar (🔍 Inspect · 🏗️ Build · 📦 Move · ✨ Auto-place ·
@@ -220,6 +221,8 @@ events and fill rocket stages. Without the flag, players never see it. Code: `js
   your stats; then keep playing or start 🔁 New Game+ (+10% value per win, up to +50%). The 🏆 Road to victory tracker
   on the Map shows progress. New: 🧲 Superconductor (Rare Metals + Wiring).
 - **Contracts** pay cash, ⭐ reputation and 💎 (rocket launches pay ⭐ too). **Research** is a tech tree in five branches (Production, Operations, Logistics, Business, Aerospace), 60 nodes over 5 tiers. Each node needs its prerequisites (some cross branches), costs ⭐ + cash, and takes 30 s–2 h in the lab, one project at a time (💎 can finish it early).
+- **⭐ Sponsors** (after the first launch, on by default; toggle at the top of 🔬 Research): spare ⭐ beyond a project's own ⭐ cost
+  pay up to 60% of its cash at $4,000 each, for research and Mastery (`SPONSOR` in `js/data.js`).
 - **🏅 Mastery** (after the first launch, a Research tab): four repeatable upgrades bought with ⭐ + cash (no lab
   time): Market +3% value, Assembly +4% speed, Logistics +3% speed, Colony +5% Mars output per level; each level
   costs 25% more ⭐ and 40% more cash. **🌌 Megaprojects** (cash + 💎, one-off): 🛰️ Orbital Cargo Depot (+20 cargo

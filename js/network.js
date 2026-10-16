@@ -92,7 +92,7 @@ function autoPlan(id, p) {
   // Made here and used here too: keep a little on the racks so forklifts can feed this site's own
   // assemblers, whatever order they sit in along the conveyor.
   const own = siteUses(id)[p];
-  if (own && !siteBuys(id).has(p)) dests.unshift({ to: 'store', w: 1, cap: Math.max(NETWORK.minStock, Math.ceil(own * NETWORK.stockPerInput)), self: true });
+  if (own && siteMakes(id).has(p) && !siteBuys(id).has(p)) dests.unshift({ to: 'store', w: 1, cap: Math.max(NETWORK.minStock, Math.ceil(own * NETWORK.stockPerInput)), self: true });
   const plan = { dests, overflow: extraOf(id, p) === 'keep' ? 'keep' : 'sell', auto: true };
   autoMemo.set(k, { at: sec, plan });
   return plan;

@@ -559,6 +559,8 @@ const MASTERY = [
   { id: 'mars', icon: '🔴', name: 'Colony Mastery', fx: 'marsOutput', per: 0.05, desc: 'more ⭐ and Rare Metals from Mars' },
 ];
 const MASTERY_COST = { stars: 40, starGrowth: 1.25, money: 500000, moneyGrowth: 1.4 };
+// ⭐ Sponsors (after the first launch): spare reputation pays part of a research project's cash cost.
+const SPONSOR = { perStar: 4000, maxShare: 0.6 }; // $ each ⭐ covers; at most this share of the cash
 // Cash + 💎 sink: one-time megaprojects for the Mars push.
 const MEGAPROJECTS = [
   { id: 'orbital', icon: '🛰️', name: 'Orbital Cargo Depot', money: 20e6, gems: 150, desc: '+20 cargo slots on every Mars rocket' },

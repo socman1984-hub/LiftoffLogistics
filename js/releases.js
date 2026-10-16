@@ -1,9 +1,14 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.12.4';
+const GAME_VERSION = '0.12.5';
 
 const RELEASE_NOTES = [
+  { v: '0.12.5', date: 'Oct 16, 2026', title: 'Smoother late game', notes: [
+    'New ⭐ Sponsors: after your first launch, spare reputation pays up to 60% of the cash for research and Mastery ($4,000 per ⭐). Reputation no longer piles up with nothing to spend it on, and the long wait for the last research before Terraform is shorter. Turn it off at the top of 🔬 Research.',
+    'The Launch Site asks for Terraform parts only once the next rocket’s own parts are in, so Turbopumps going to Terraform can’t ground the rocket and starve the colony.',
+    'Fixed: a site kept goods it received from other sites on its racks, which could fill them and block deliveries. Only things a site makes itself are kept for its own assemblers.',
+  ] },
   { v: '0.12.4', date: 'Oct 15, 2026', title: 'Any layout works', notes: [
     'When a site makes something its own assemblers also use, it keeps a few on its racks and forklifts bring them over. An assembler placed before the one that makes its ingredient (say, Valves above the Alloy Plates) now keeps working instead of starving forever.',
   ] },
