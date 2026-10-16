@@ -383,6 +383,19 @@ function stepWorkers(id, prop, def, r, dt) {
 // come first, then stored stock. Forklifts pick up from the nearest rack holding it,
 // or from the dock staging area when it isn't on a rack.
 const FEED_KINDS = [['incoming', 'inbox'], ['stored', 'held']];
+// Forklifts load dock-staged goods from anywhere within a couple of tiles of the dock.
+const STAGING_REACH = 2;
+const nearStaging = (tx, ty) => (x, y) => Math.max(Math.abs(x - tx), Math.abs(y - ty)) <= STAGING_REACH && !(x === tx && y === ty);
+function reachableNear(prop, def, reach, d) {
+  const near = nearStaging(d.x, d.y);
+  for (let y = d.y - STAGING_REACH; y <= d.y + STAGING_REACH; y++) {
+    for (let x = d.x - STAGING_REACH; x <= d.x + STAGING_REACH; x++) {
+      if (x < 0 || y < 0 || x >= def.cols || y >= def.rows || !near(x, y)) continue;
+      if (reach[y * def.cols + x] && prop.tiles[y][x].base === 'floor') return true;
+    }
+  }
+  return false;
+}
 function supplyJobs(id, prop, def) {
   const jobs = [];
   if (!FEED_KINDS.some(([, pool]) => Object.values(prop[pool]).some((n) => n > 0))) return jobs;
@@ -405,7 +418,9 @@ function supplyJobs(id, prop, def) {
       let at = rack;
       if (!at) {
         if (!staging) {
-          const recv = def.inDocks.find((d) => d.receive && !prop.tiles[d.y][d.x].locked);
+          // A receiving dock with a machine parked in front of it can't be reached: use a door that can.
+          const reach = reachFromDoors(prop, def);
+          const recv = def.inDocks.find((d) => d.receive && !prop.tiles[d.y][d.x].locked && reachableNear(prop, def, reach, d));
           staging = recv ? { x: recv.x, y: recv.y } : entranceOf(prop, def);
         }
         at = staging;
@@ -435,7 +450,12 @@ function stepSupplyRun(id, prop, def, r, w, dt) {
     const ro = j.rack !== false ? prop.tiles[j.ry][j.rx].obj : null;
     const there = j.rack === false ? prop[pool][j.p] || 0 : ro && ro.k === 'rack' ? (ro.stock || {})[key] || 0 : 0;
     if (!there || !(prop[pool][j.p] > 0)) { w.job = null; return; }
-    if (!walkTo(prop, def, r, w, nextTo(j.rx, j.ry), dt, `🚜 Forklift can't reach the ${j.rack === false ? 'dock' : 'rack'} with the stock. Repair the floor around it.`, j.rx, j.ry)) { w.mode = 'walk'; return; }
+    const pickup = j.rack === false ? nearStaging(j.rx, j.ry) : nextTo(j.rx, j.ry);
+    if (!walkTo(prop, def, r, w, pickup, dt,`🚜 Forklift can't reach the ${j.rack === false ? 'dock' : 'rack'} with the stock. Repair the floor around it.`, j.rx, j.ry)) {
+      w.mode = 'walk';
+      if (w.stuck) w.job = null; // give it up; the next job is picked fresh
+      return;
+    }
     w.mode = 'work';
     w.wait += dt;
     if (w.wait < 1 || !takeMove(id, true)) return; // loading the forks

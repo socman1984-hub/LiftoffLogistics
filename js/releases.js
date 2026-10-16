@@ -1,9 +1,12 @@
 'use strict';
 // Version and release notes (shown in Help). Newest first; bump GAME_VERSION with each release.
 
-const GAME_VERSION = '0.12.5';
+const GAME_VERSION = '0.12.6';
 
 const RELEASE_NOTES = [
+  { v: '0.12.6', date: 'Oct 16, 2026', title: 'Forklift fix', notes: [
+    'Fixed: forklifts couldn’t pick up trucked-in goods when a machine sat right in front of the receiving dock. They now load from anywhere within two tiles of the dock, or from another door if the dock is boxed in.',
+  ] },
   { v: '0.12.5', date: 'Oct 16, 2026', title: 'Smoother late game', notes: [
     'New ⭐ Sponsors: after your first launch, spare reputation pays up to 60% of the cash for research and Mastery ($4,000 per ⭐). Reputation no longer piles up with nothing to spend it on, and the long wait for the last research before Terraform is shorter. Turn it off at the top of 🔬 Research.',
     'The Launch Site asks for Terraform parts only once the next rocket’s own parts are in, so Turbopumps going to Terraform can’t ground the rocket and starve the colony.',
